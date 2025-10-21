@@ -1,0 +1,30 @@
+{
+  "buildCommand": "cd web && pnpm install && pnpm build",
+  "installCommand": "cd web && pnpm install",
+  "outputDirectory": "web/dist",
+  "redirects": [
+    {
+      "source": "/waitlist",
+      "destination": "/",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/join-waitlist",
+      "destination": "/api/router?action=join-waitlist"
+    },
+    {
+      "source": "/api/ls-create-checkout",
+      "destination": "/api/router?action=ls-create-checkout"
+    },
+    {
+      "source": "/api/fake-subscribe",
+      "destination": "/api/router?action=fake-subscribe"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

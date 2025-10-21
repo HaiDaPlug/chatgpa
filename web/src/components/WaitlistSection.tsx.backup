@@ -1,0 +1,110 @@
+// WAITLIST SECTION - SAVED FOR FUTURE USE
+// To re-enable: copy this section back to Landing.tsx
+// Backend route still active: /api/router?action=join-waitlist
+
+{/* EARLY RIDER */}
+<section className="border-t border-stone-800 scroll-mt-24" id="fuel">
+  <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur text-center">
+      <p className="inline-flex items-center w-fit rounded-full border border-stone-700 bg-stone-800 px-3 py-1 text-xs text-stone-300 mx-auto">
+        Early Rider Perk
+      </p>
+      <h2 className="mt-4 text-2xl sm:text-3xl font-semibold tracking-tight text-white">
+        Reserve your launch bonus fuel
+      </h2>
+      <p className="mt-2 text-stone-300">
+        Sign up now and get a fuel boost when Carpool AI launches. We'll email you before doors open.
+      </p>
+      <form className="mt-6 mx-auto max-w-md" onSubmit={handleWaitlistSubmit}>
+        <div className="flex items-center gap-3">
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="flex-1 rounded-xl bg-stone-800 border border-stone-700 px-4 py-3 text-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-500/40 text-stone-100"
+            disabled={isSubmitting}
+          />
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-xl bg-stone-100 text-stone-900 px-4 py-3 text-sm font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-stone-100/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "..." : "Reserve fuel"}
+          </button>
+        </div>
+        <div className="mt-3 min-h-[20px]" role="status" aria-live="polite">
+          {submitStatus === "success" && (
+            <p className="text-xs text-green-400">✓ You're on the list! Check your email.</p>
+          )}
+          {submitStatus === "duplicate" && (
+            <p className="text-xs text-stone-400">You're already signed up!</p>
+          )}
+          {submitStatus === "error" && (
+            <p className="text-xs text-red-400">Something went wrong. Please try again.</p>
+          )}
+          {submitStatus === "idle" && (
+            <p className="text-xs text-stone-400">No spam. Unsubscribe anytime.</p>
+          )}
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+// Required state in Landing.tsx:
+// const [email, setEmail] = useState("");
+// const [isSubmitting, setIsSubmitting] = useState(false);
+// const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "duplicate" | "error">("idle");
+// const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+// Required handler in Landing.tsx:
+// const handleWaitlistSubmit = async (e: React.FormEvent) => {
+//   e.preventDefault();
+//   if (!email || isSubmitting) return;
+//
+//   setIsSubmitting(true);
+//   setSubmitStatus("idle");
+//
+//   try {
+//     let token = turnstileToken;
+//     if (typeof window !== 'undefined' && (window as any).turnstile) {
+//       try {
+//         const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+//         if (siteKey) {
+//           token = await (window as any).turnstile.execute(siteKey, { action: 'waitlist' });
+//         }
+//       } catch (err) {
+//         console.warn('Turnstile execution failed:', err);
+//       }
+//     }
+//
+//     const res = await fetch("/api/router?action=join-waitlist", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({
+//         email,
+//         source: "landing",
+//         turnstileToken: token
+//       }),
+//     });
+//
+//     const data = await res.json();
+//
+//     if (res.ok) {
+//       setSubmitStatus("success");
+//       setEmail("");
+//       analytics.event('waitlist_join', { email, source: 'landing' });
+//     } else if (data.error?.toLowerCase().includes("duplicate")) {
+//       setSubmitStatus("duplicate");
+//     } else {
+//       setSubmitStatus("error");
+//     }
+//   } catch (err) {
+//     console.error("Waitlist submission error:", err);
+//     setSubmitStatus("error");
+//   } finally {
+//     setIsSubmitting(false);
+//   }
+// };

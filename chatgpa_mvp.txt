@@ -1,0 +1,366 @@
+# 🎓 ChatGPA MVP Strategy
+
+**"Turn your messy notes into a cram session that actually works"**
+
+---
+
+## Core Positioning
+
+**Target User:** College students panicking 3 days before an exam
+
+**Use Case:** Emergency exam preparation, not long-term study habits
+
+**Hook:** "Exam in 3 days? Upload notes → Get adaptive quizzes → Know exactly what you don't know yet"
+
+**Competition:**
+- NotebookLM: Great summaries, NO quizzes or exam prep
+- Quizlet: Manual flashcards, NO AI adaptive grading
+- ChatGPT: General purpose, NO memory of your classes
+
+**Our Wedge:** Adaptive AI grading + Purpose-built for exam cramming
+
+---
+
+## MVP Features (Ship Week 1-2)
+
+### Must-Have for Launch:
+
+1. **Note Upload**
+   - Text paste (primary)
+   - File upload (.txt, .pdf, .docx)
+   - Keep it simple - no fancy formatting
+
+2. **AI Summary Generation**
+   - Claude API
+   - Clean, scannable bullet points
+   - "Here are the key concepts from your notes"
+
+3. **Quiz Generation**
+   - 5-10 questions from notes
+   - Multiple choice + short answer
+   - Auto-generated, no manual input
+
+4. **Adaptive Grading (THE DIFFERENTIATOR)**
+   - Not just "right/wrong"
+   - **"You got the concept (energy production) ✅ but missed the terminology (ATP synthesis). You understand WHAT it does, tighten the HOW."**
+   - This is our moat - nail this feature
+
+5. **Basic Dashboard**
+   - My Classes (organize by course)
+   - Upload new notes
+   - View past quizzes
+   - Simple, clean UI
+
+6. **Payment (Stripe)**
+   - Free: 1 class, 5 quizzes total
+   - **Cram Pass: $12** (7 days unlimited) ← Crisis pricing
+   - Monthly: $9/month
+   - Annual: $79/year
+
+---
+
+## What We're NOT Building Yet
+
+### Save for V2 (Month 2-3):
+
+- ❌ Spaced repetition scheduling
+- ❌ Progress analytics ("You're 73% ready")
+- ❌ Flashcard mode
+- ❌ Study groups / social features
+- ❌ Calendar integration
+- ❌ Gamification (XP, streaks, levels)
+- ❌ Mobile apps
+- ❌ Voice mode
+- ❌ Scrib mascot personality (test later)
+
+### Save for V3 (Month 4-6):
+
+- ❌ Auto-syllabus detection
+- ❌ Collaborative study rooms
+- ❌ Professor integration
+- ❌ Learning graph (personalized weak points)
+- ❌ Export to Anki/Quizlet
+- ❌ OCR for handwritten notes
+
+---
+
+## Why We're Keeping It Lean
+
+**Goal:** Get 10 paying customers in 2-3 weeks
+
+**Strategy:** 
+1. Prove core value (notes → quiz → better grades)
+2. Get revenue + testimonials
+3. Add features based on what users actually ask for
+
+**Not based on what we think is cool.**
+
+---
+
+## Week 1 Action Plan
+
+### Day 1-3: Build Core Flow
+- Note upload interface
+- API integration (Claude for summary + quiz)
+- Basic grading logic
+- Display results
+
+### Day 4-5: Add Payment
+- Stripe checkout
+- Usage limits (free tier vs paid)
+- Simple dashboard to track classes
+
+### Day 6-7: Get First Users
+**Find 10 students with exams in next 2 weeks:**
+- r/premed
+- r/EngineeringStudents  
+- r/APStudents
+- College Discord servers
+
+**Offer:** "Free beta access to AI exam prep tool. I'll give you lifetime premium if you test it and give feedback."
+
+---
+
+## Success Metrics (Week 1)
+
+**Goal:** 10 students testing
+
+**Validation:**
+- 5+ say "this helped me study"
+- 3+ ask "when can I pay for this?"
+- 2+ would recommend to a friend
+
+**If we hit this:** Scale up, add features users request
+
+**If we miss:** Interview users, fix core value prop before adding features
+
+---
+
+## Phase 2 Features (Add After $1K MRR)
+
+**Only build what users ask for:**
+
+### Likely Requests:
+1. **Progress tracking** - "How ready am I for this exam?"
+2. **Spaced repetition** - "What should I review today?"
+3. **More question types** - Fill-in-blank, true/false, essay prompts
+4. **Study sessions** - Guided cram sessions with timer
+5. **Mobile app** - Study on the go
+
+### How to Prioritize:
+- Count how many users request each feature
+- Build top 3 most-requested
+- Ignore "nice to haves"
+
+---
+
+## Phase 3 Features (After $5K MRR)
+
+**Moat-building features:**
+
+1. **Study Groups** (Network effects)
+   - Students create study rooms
+   - Share notes/quizzes
+   - Compete on leaderboards
+
+2. **Professor Integration** (Distribution moat)
+   - Let professors create official class pages
+   - Auto-assign quizzes to students
+   - Class-wide analytics
+
+3. **Learning Graph** (Data moat)
+   - Track what each student struggles with
+   - AI gets smarter with usage
+   - Personalized weak point drilling
+
+**These create switching costs. Build after proving core product works.**
+
+---
+
+## The Adaptive Grading Edge
+
+**This is our superpower. Nail it.**
+
+### Bad Grading (Competitors):
+**Student:** "Mitochondria creates energy"
+**AI:** "Incorrect. Try again."
+
+### Good Grading (ChatGPA):
+**Student:** "Mitochondria creates energy"
+**ChatGPA:** 
+> "✅ Concept correct: You understand the mitochondria's role in energy production
+> 
+> ⚠️ Terminology precision: The technical term is 'generates ATP through cellular respiration'
+> 
+> 💡 What to remember: You've got the WHAT (energy), tighten the HOW (ATP + cellular respiration)"
+
+**This level of feedback is:**
+- Encouraging (validates what they know)
+- Educational (teaches what they missed)
+- Actionable (tells them exactly what to fix)
+
+**Competitors can't easily replicate this nuance.**
+
+---
+
+## Pricing Strategy
+
+### Free Tier:
+- 1 class
+- 5 total quizzes
+- Basic grading
+- No progress analytics
+
+**Goal:** Let them taste it, prove it works
+
+
+### Monthly ($9):
+- Unlimited classes
+- Unlimited quizzes
+- Advanced grading
+- Progress tracking (when we add it)
+
+### Annual ($79):
+- All monthly features
+- Best value (saves $29/year)
+- Locks in committed users
+
+---
+
+## Marketing Copy (Landing Page)
+
+### Hero Section:
+**"Exam in 3 days. 200 pages of notes. Don't panic."**
+
+Upload your messy notes → Get smart quizzes → Know exactly what you don't know yet
+
+[Upload Notes Now] [See How It Works]
+
+### Social Proof (After First Users):
+> "Saved me 5 hours of making flashcards before my bio exam" - Sarah, Pre-Med Student
+
+> "The AI grading actually taught me what I was getting wrong, not just that I was wrong" - Mike, Engineering
+
+### Features:
+✅ Turn notes into quizzes instantly
+✅ AI grading that explains your mistakes  
+✅ Know exactly what to focus on
+✅ Stop wasting time on manual flashcards
+
+### Pricing:
+**Cram Pass: $12** - 7 days unlimited (Perfect for exam week)
+**Monthly: $9** - Unlimited everything
+**Annual: $79** - Save $29/year
+
+---
+
+## Tech Stack (Reusing Carpool Infrastructure)
+
+**Frontend:** Next.js + Tailwind (already built)
+**Backend:** Serverless functions (already built)
+**Database:** Supabase (already set up)
+**Auth:** Supabase auth (already working)
+**Payment:** Stripe (already integrated)
+**AI:** Claude API (we know this well)
+
+**New stuff to build:**
+- Note upload/storage
+- Quiz generation prompts
+- Grading logic
+- Results display
+
+**Estimated time: 1-2 weeks to MVP**
+
+---
+
+## Launch Strategy
+
+### Week 1-2: Build MVP
+- Core features only
+- Ugly but functional
+- No polish, no extras
+
+### Week 3: Beta Test
+- 10 students with upcoming exams
+- Free lifetime access for feedback
+- Watch them use it (screen share)
+
+### Week 4: Launch Paid
+- Add Stripe
+- Post in student subreddits
+- Offer: "$5 lifetime beta OR $9/month"
+- Goal: 10 paying users
+
+### Month 2: Scale
+- Post weekly in student communities
+- "How I aced my exam with AI" content
+- TikTok/Instagram testimonials
+- Goal: 100 paying users = $900 MRR
+
+### Month 3: Iterate
+- Add most-requested features
+- Improve retention
+- Goal: 200 users = $1,800 MRR
+
+---
+
+## Red Flags to Watch For
+
+**If these happen, we need to pivot:**
+
+1. **Users don't come back** (<30% return after first use)
+   → Core value isn't strong enough
+
+2. **Free users don't convert** (<5% free → paid)
+   → Pricing is wrong OR free tier is too good
+
+3. **Users say "I'll just use NotebookLM"**
+   → We're not differentiated enough
+
+4. **No organic word-of-mouth**
+   → Product isn't remarkable enough to share
+
+**If we hit these, we iterate or pivot. Don't force it.**
+
+---
+
+## Success Looks Like
+
+**Week 3:** 10 beta users, 5+ say "this is helpful"
+**Week 4:** 5 paying customers = $45-60 MRR
+**Month 2:** 50 paying customers = $450 MRR
+**Month 3:** 150 paying customers = $1,350 MRR
+**Month 6:** 500 paying customers = $4,500 MRR
+
+**At $5K MRR:** We've proven it works. Scale up or start Spontane.
+
+---
+
+## The One Thing That Matters
+
+**Get 10 students to use ChatGPA this week.**
+
+Everything else is secondary.
+
+Not the name. Not the features. Not the polish.
+
+**Just: Does it help students pass exams?**
+
+If yes → we have a business.
+If no → we iterate until it does.
+
+---
+
+## Remember
+
+**We're not building a perfect product.**
+
+**We're building the leanest version that solves one urgent problem:**
+
+**"I have an exam in 3 days and I'm not ready."**
+
+Everything else comes later.
+
+Ship fast. Learn fast. Iterate fast.
+
+Let's go. 🚀

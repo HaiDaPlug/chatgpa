@@ -1,0 +1,99 @@
+-- 1) (Optional) Enum for tiers to keep data clean
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'mvp_tier') THEN
+    CREATE TYPE public.mvp_tier AS ENUM ('Cruiser', 'Power', 'Pro');
+  END IF;
+END$$;
+
+-- 2) mvp_billing: user ↔ stripe customer + tier + status
+CREATE TABLE IF NOT EXISTS public.mvp_billing (
+  user_id        uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  customer_id    text UNIQUE,                                -- Stripe customer id
+  tier           public.mvp_tier,                            -- 'Cruiser' | 'Power' | 'Pro'
+  status         text NOT NULL DEFAULT 'active',             -- 'active' | 'cancelled' | 'past_due' ...
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
+-- 3) billing_events: idempotency guard for webhooks
+CREATE TABLE IF NOT EXISTS public.billing_events (
+  event_id text PRIMARY KEY,
+  type     text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 4) (Assumed) mvp_fuel table to hold balances (adjust if you already have one)
+-- If you already have mvp_fuel, skip this block.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables 
+                 WHERE table_schema='public' AND table_name='mvp_fuel') THEN
+    CREATE TABLE public.mvp_fuel (
+      user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+      personal_tokens numeric NOT NULL DEFAULT 0,   -- spend order #1
+      reserve_tokens  numeric NOT NULL DEFAULT 0,   -- spend order #2 (cap per Token Formula v2.1)
+      pool_bonus_tokens numeric NOT NULL DEFAULT 0, -- spend order #3 (monthly community bonus)
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+  END IF;
+END$$;
+
+-- 5) Token Formula v2.1 — tier → monthly allocation
+-- Cruiser ≈ 178_000, Power ≈ 356_000, Pro ≈ 711_000 (based on GPT-5 pricing in your spec)
+CREATE OR REPLACE FUNCTION public.tier_monthly_allocation(p_tier text)
+RETURNS numeric
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE lower($1)
+    WHEN 'cruiser' THEN 178000
+    WHEN 'power'   THEN 356000
+    WHEN 'pro'     THEN 711000
+    ELSE 0
+  END;
+$$;
+
+-- 6) seed_after_purchase(user, tier): idempotent monthly seed
+-- NOTE: This is a pragmatic version that only tops up personal tokens on purchase.
+-- It does NOT touch reserve/pool; you can extend per your ledger rules later.
+CREATE OR REPLACE FUNCTION public.seed_after_purchase(p_user_id uuid, p_tier text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_alloc numeric;
+BEGIN
+  v_alloc := public.tier_monthly_allocation(p_tier);
+
+  -- Ensure a row exists
+  INSERT INTO public.mvp_fuel (user_id) VALUES (p_user_id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  -- Top up personal tokens (idempotency guarded at the webhook level)
+  UPDATE public.mvp_fuel
+  SET personal_tokens = personal_tokens + v_alloc,
+      updated_at = now()
+  WHERE user_id = p_user_id;
+
+  -- (Optional) also record an allocation log if you keep one, e.g. mvp_usage_logs
+  -- INSERT INTO public.mvp_usage_logs(user_id, kind, delta, note)
+  -- VALUES (p_user_id, 'allocation', v_alloc, concat('seed_after_purchase: ', p_tier));
+END;
+$fn$;
+
+-- 7) RLS (keep it strict; webhook uses service role)
+ALTER TABLE public.mvp_billing ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.billing_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mvp_fuel ENABLE ROW LEVEL SECURITY;
+
+-- Admin/webhook policies (service role bypasses RLS; end-user selects own rows)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='mvp_billing' AND policyname='mvp_billing_self_read') THEN
+    CREATE POLICY mvp_billing_self_read ON public.mvp_billing
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='mvp_fuel' AND policyname='mvp_fuel_self_read') THEN
+    CREATE POLICY mvp_fuel_self_read ON public.mvp_fuel
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END$$;

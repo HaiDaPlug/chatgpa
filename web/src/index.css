@@ -1,0 +1,63 @@
+﻿/* src/index.css */
+@import "@fontsource-variable/inter/index.css";
+
+/* Tailwind layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base (light, transparent so pages control background) */
+:root { color-scheme: light; }
+html { scroll-behavior: smooth; }
+html, body, #root { height: 100%; }
+body {
+  background: transparent;            /* was bg-black */
+  color: rgb(23 23 23);               /* text-neutral-900 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: InterVariable, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reusable tokens in components layer */
+@layer components {
+  .btn { @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-medium transition; }
+  .btn-primary { @apply btn bg-black text-white hover:opacity-90; }           /* still fine on light */
+  .btn-ghost { @apply btn border border-black/10 text-black/80 hover:bg-black/5; } /* adjust from white-on-dark */
+
+  .card { @apply rounded-2xl border border-black/10 bg-white/70 backdrop-blur; }
+
+  /* Skeleton loader */
+  .skel { @apply animate-pulse bg-white/10 rounded; }
+
+  .bg-glow-warm {
+    background:
+      radial-gradient(40vw 28vw at 50% 0%, rgba(255,115,115,0.20) 0%, rgba(255,115,115,0) 70%),
+      radial-gradient(34vw 26vw at 12% 92%, rgba(255,184,108,0.14) 0%, rgba(255,184,108,0) 70%),
+      radial-gradient(42vw 32vw at 88% 92%, rgba(255,115,115,0.08) 0%, rgba(255,115,115,0) 75%);
+    background-repeat: no-repeat;
+    filter: blur(60px);
+    opacity: 0.9;
+  }
+}
+
+/* Custom animations */
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}

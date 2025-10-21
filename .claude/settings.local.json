@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(pnpm add:*)",
+      "Bash(git add:*)",
+      "Bash(dir \"c:\\Users\\Hpb06\\chatgpa\\web\\api\" /B)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

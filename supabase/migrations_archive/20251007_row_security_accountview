@@ -1,0 +1,73 @@
+-- =========================================================
+-- Carpool AI — Secure RLS + billing fields + v_account view
+-- Idempotent (safe to run multiple times)
+-- =========================================================
+begin;
+
+-- ---------- mvp_fuel ----------
+alter table public.mvp_fuel enable row level security;
+
+drop policy if exists "owner select" on public.mvp_fuel;
+create policy "owner select" 
+on public.mvp_fuel 
+for select 
+using (auth.uid() = user_id);
+
+-- ---------- mvp_subscription ----------
+alter table public.mvp_subscription enable row level security;
+
+-- Add billing metadata columns (for LS webhook)
+alter table public.mvp_subscription
+  add column if not exists status text not null default 'active',
+  add column if not exists period_end timestamptz;
+
+-- Ensure valid status values
+alter table public.mvp_subscription
+  drop constraint if exists mvp_subscription_status_chk,
+  add constraint mvp_subscription_status_chk
+    check (status in ('active','trialing','past_due','canceled','paused'));
+
+create index if not exists mvp_subscription_user_id_idx
+  on public.mvp_subscription (user_id);
+
+drop policy if exists "sub_select_owner" on public.mvp_subscription;
+create policy "sub_select_owner"
+on public.mvp_subscription
+for select
+using (auth.uid() = user_id);
+
+-- ---------- mvp_billing ----------
+alter table public.mvp_billing enable row level security;
+-- No client-accessible policies (server only)
+
+-- ---------- mvp_usage_logs ----------
+alter table public.mvp_usage_logs enable row level security;
+
+drop policy if exists "logs_select_owner" on public.mvp_usage_logs;
+create policy "logs_select_owner"
+on public.mvp_usage_logs
+for select
+using (auth.uid() = user_id);
+
+-- ---------- v_account view ----------
+drop view if exists public.v_account;
+
+create or replace view public.v_account
+as
+select
+  s.user_id,
+  s.tier,
+  s.status,
+  s.period_end,
+  coalesce(f.personal, 0)   as personal_tokens,
+  coalesce(f.reserve, 0)    as reserve_tokens,
+  coalesce(f.pool_bonus, 0) as pool_bonus_tokens
+from public.mvp_subscription s
+left join public.mvp_fuel f on f.user_id = s.user_id
+where s.user_id = auth.uid();
+
+-- Optional: tighten privileges
+-- revoke all on public.v_account from public;
+-- grant select on public.v_account to authenticated;
+
+commit;

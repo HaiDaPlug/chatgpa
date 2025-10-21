@@ -1,0 +1,5 @@
+# Carpool AI - robots.txt
+User-agent: *
+Allow: /
+
+Sitemap: https://carpoolai.app/sitemap.xml
