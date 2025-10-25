@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase'
 
 export type ProgressSummary = {
   totalAttempts: number
@@ -29,4 +29,33 @@ export async function getProgressSummary(): Promise<ProgressSummary> {
   const delta = last != null && prev != null ? last - prev : null
 
   return { totalAttempts: total, averageScore: avg, lastScore: last, changeFromPrev: delta }
+}
+
+/** Save a quiz attempt with grading results */
+export async function saveAttempt(params: {
+  quizId: string
+  responses: Record<string, string>
+  grading: {
+    score: number
+    perQuestion: Array<{ questionId: string; correct: boolean; explanation: string; feedback: string }>
+    summary: string
+  }
+}) {
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) throw new Error('Not signed in')
+
+  const { data, error } = await supabase
+    .from('quiz_attempts')
+    .insert({
+      quiz_id: params.quizId,
+      user_id: auth.user.id,
+      responses: params.responses,
+      grading: params.grading,
+      score: params.grading.score / 100, // DB stores 0..1
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }

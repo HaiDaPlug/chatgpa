@@ -1,0 +1,24 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq",
+      "prompt": "What is the typical access time to read the element at index i in an array?",
+      "options": ["O(1)", "O(log n)", "O(n)", "O(n^2)"],
+      "answer": "O(1)"
+    },
+    {
+      "id": "q2",
+      "type": "short",
+      "prompt": "Why are middle insertions in arrays often costly?",
+      "answer": "They require shifting many elements due to the contiguous memory layout."
+    },
+    {
+      "id": "q3",
+      "type": "mcq",
+      "prompt": "Which structure offers O(1) insertion at the head but O(n) positional access?",
+      "options": ["Array", "Linked list", "Queue", "Stack"],
+      "answer": "Linked list"
+    }
+  ]
+}

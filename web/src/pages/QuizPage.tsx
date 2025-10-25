@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase'
 import { quizSchema } from '@/lib/quiz-schema'
 import { saveAttempt } from '@/lib/attempts'
 import { grade as remoteGrade } from '@/lib/grader' // your wrapper (server relay later)

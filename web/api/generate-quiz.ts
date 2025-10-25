@@ -1,0 +1,266 @@
+/**
+ * DO NOT CHANGE CONTRACTS OR SCHEMA.
+ * - Auth: Bearer <supabase access token> (anon client w/ RLS)
+ * - Errors: { code, message } only. Codes: LIMIT_EXCEEDED | SCHEMA_INVALID | NOT_FOUND | OPENAI_ERROR | UNAUTHORIZED | SERVER_ERROR
+ * - No service role keys, no schema edits, no new deps.
+ * - Limits: Free = max 1 class, 5 quizzes (created).
+ */
+
+// Purpose: Generate quiz from notes using OpenAI (RLS-enabled)
+// Connects to: /generate page, quizzes table, usage_limits table
+
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import { randomUUID } from "crypto";
+import { MODEL } from "./_lib/ai";
+
+// Input schema
+const Body = z.object({
+  class_id: z.string().uuid(),
+  notes_text: z.string().min(20).max(50000),
+});
+
+// Quiz question schemas (from quiz-schema.ts)
+const mcqQuestionSchema = z.object({
+  id: z.string(),
+  type: z.literal('mcq'),
+  prompt: z.string().max(180),
+  options: z.array(z.string()).min(3).max(5),
+  answer: z.string(),
+}).refine((data) => data.options.includes(data.answer), {
+  message: 'MCQ answer must match one of the options',
+});
+
+const shortQuestionSchema = z.object({
+  id: z.string(),
+  type: z.literal('short'),
+  prompt: z.string().max(180),
+  answer: z.string(),
+});
+
+const questionSchema = z.discriminatedUnion('type', [mcqQuestionSchema, shortQuestionSchema]);
+
+const quizResponseSchema = z.object({
+  questions: z.array(questionSchema).min(5).max(10),
+});
+
+// Structured logging
+function log(level: 'info' | 'error' | 'warn', context: any, message: string) {
+  console.log(JSON.stringify({ timestamp: new Date().toISOString(), level, ...context, message }));
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const request_id = randomUUID();
+
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "Only POST allowed" });
+  }
+
+  try {
+    // Auth passthrough (RLS relies on this token)
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith("Bearer ")) {
+      log('error', { request_id, route: '/api/generate-quiz' }, 'Missing auth header');
+      return res.status(401).json({ code: "UNAUTHORIZED", message: "Missing or invalid authorization header" });
+    }
+
+    const access_token = auth.split(" ")[1];
+
+    // Supabase client bound to user token (enables RLS)
+    const supabase = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_ANON_KEY!,
+      {
+        global: { headers: { Authorization: `Bearer ${access_token}` } },
+        auth: { persistSession: false }
+      }
+    );
+
+    // Get user from token
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      log('error', { request_id, route: '/api/generate-quiz' }, 'Invalid token');
+      return res.status(401).json({ code: "UNAUTHORIZED", message: "Invalid or expired token" });
+    }
+
+    const user_id = user.id;
+
+    // Validate body
+    const parse = Body.safeParse(req.body ?? {});
+    if (!parse.success) {
+      log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Schema validation failed');
+      return res.status(400).json({
+        code: "SCHEMA_INVALID",
+        message: parse.error.issues.map(i => i.message).join(', ')
+      });
+    }
+
+    const { class_id, notes_text } = parse.data;
+
+    // Verify class ownership (RLS should handle this, but double-check)
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id')
+      .eq('id', class_id)
+      .single();
+
+    if (classError || !classData) {
+      log('error', { request_id, route: '/api/generate-quiz', user_id, class_id }, 'Class not found or access denied');
+      return res.status(404).json({ code: "NOT_FOUND", message: "Class not found or access denied" });
+    }
+
+    // Check subscription tier
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('tier, status')
+      .eq('user_id', user_id)
+      .single();
+
+    const isPaid = sub && sub.tier !== 'free' && sub.status === 'active';
+
+    // Enforce Free tier limits: compute from live counts (5 quizzes created total)
+    let quizzesCount = 0;
+    if (!isPaid) {
+      const { count, error: countError } = await supabase
+        .from('quizzes')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user_id);
+
+      if (countError) {
+        log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Failed to count quizzes');
+        return res.status(500).json({ code: "SERVER_ERROR", message: "Failed to check usage limits" });
+      }
+
+      quizzesCount = count || 0;
+
+      if (quizzesCount >= 5) {
+        log('warn', { request_id, route: '/api/generate-quiz', user_id, quizzes_count: quizzesCount }, 'Free tier limit exceeded');
+        return res.status(429).json({
+          code: "LIMIT_EXCEEDED",
+          message: "Free tier limit: 5 quizzes maximum. Upgrade for unlimited quizzes."
+        });
+      }
+    }
+
+    // Call OpenAI to generate quiz
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) {
+      log('error', { request_id, route: '/api/generate-quiz' }, 'Missing OpenAI key');
+      return res.status(500).json({ code: "SERVER_ERROR", message: "Server configuration error" });
+    }
+
+    const prompt = `You are ChatGPA's quiz generator.
+
+Goal
+- Create a concise quiz strictly from the provided NOTES.
+- Return **JSON only** with this shape (no prose, no markdown):
+
+{
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq" | "short",
+      "prompt": "string",
+      "options": ["string","string","string","string"],  // mcq only
+      "answer": "string"                                 // for mcq: must equal one option; for short: concise gold answer
+    }
+  ]
+}
+
+Constraints
+- Length: 5–10 questions total. If NOTES are short/light, prefer 5; otherwise 8 (cap at 10).
+- Types: Use a **hybrid** mix that best fits the material (definitions/comparisons → more short; facts/terms → more mcq).
+- MCQ: 4 plausible options; single correct answer **must** exactly match one option.
+- Prompts ≤180 chars; unambiguous; no trivia.
+- **Language:** write in the same language as the NOTES.
+- **No outside knowledge.** Every prompt and answer must be directly supported by NOTES.
+
+Coverage & quality rules
+- Cover the **main sections / ideas** of NOTES (not just one corner).
+- Avoid duplicates and near-duplicates.
+- Prefer concept-level understanding over exact wording.
+- Keep answers short and precise (1–2 sentences or key phrase).
+
+NOTES:
+${notes_text}
+
+Now generate the quiz JSON.`;
+
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!openaiResponse.ok) {
+      await openaiResponse.text();
+      log('error', { request_id, route: '/api/generate-quiz', user_id, status: openaiResponse.status }, 'OpenAI API error');
+      return res.status(500).json({ code: "OPENAI_ERROR", message: "Quiz generation failed" });
+    }
+
+    const openaiData: any = await openaiResponse.json();
+    const raw = openaiData?.choices?.[0]?.message?.content ?? "{}";
+
+    let quizJson;
+    try {
+      quizJson = JSON.parse(raw);
+    } catch {
+      log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Non-JSON response from model');
+      return res.status(400).json({ code: "SCHEMA_INVALID", message: "Non-JSON response from model" });
+    }
+
+    // Validate quiz structure with Zod
+    const quizValidation = quizResponseSchema.safeParse(quizJson);
+    if (!quizValidation.success) {
+      log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Quiz validation failed');
+      return res.status(500).json({
+        code: "SCHEMA_INVALID",
+        message: "Generated quiz failed validation"
+      });
+    }
+
+    // Insert quiz into database (RLS ensures user_id is set correctly)
+    const { data: quizData, error: insertError } = await supabase
+      .from('quizzes')
+      .insert({
+        class_id,
+        questions: quizValidation.data.questions,
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !quizData) {
+      log('error', { request_id, route: '/api/generate-quiz', user_id, class_id, error: insertError?.message }, 'Failed to insert quiz');
+      return res.status(500).json({ code: "SERVER_ERROR", message: "Failed to save quiz" });
+    }
+
+    // Update usage_limits cache (optional, after successful insert)
+    if (!isPaid) {
+      await supabase
+        .from('usage_limits')
+        .upsert({
+          user_id,
+          quizzes_taken: (quizzesCount || 0) + 1,
+        }, { onConflict: 'user_id' });
+    }
+
+    log('info', { request_id, route: '/api/generate-quiz', user_id, class_id, quiz_id: quizData.id }, 'Quiz generated successfully');
+
+    return res.status(200).json({ quiz_id: quizData.id });
+
+  } catch (error: any) {
+    log('error', { request_id, route: '/api/generate-quiz', error: error.message }, 'Unhandled error');
+    return res.status(500).json({ code: "SERVER_ERROR", message: "Internal server error" });
+  }
+}

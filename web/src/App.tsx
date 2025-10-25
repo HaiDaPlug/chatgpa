@@ -4,21 +4,22 @@ import { Toaster } from 'sonner';
 
 import Landing from './pages/Landing';
 import QuizPage from './pages/QuizPage';
-import WaitlistGate from './components/WaitlistGate';
+import DashboardPage from './pages/dashboard';
+import GeneratePage from './pages/generate';
+import { RequireAuth } from '../lib/authGuard';
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col"> {/* no bg/text here */}
-      {/* Let each page control its own width/background */}
+    <div className="min-h-screen flex flex-col bg-stone-950 text-stone-100">
       <main className="flex-grow">
         <Routes>
-          {/* */}
-
-          {/* Root landing page (public, includes waitlist form) */}
+          {/* Public routes */}
           <Route path="/" element={<Landing />} />
 
-          {/* Quiz page */}
-          <Route path="/quiz/:id" element={<QuizPage />} />
+          {/* Protected routes (require authentication) */}
+          <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+          <Route path="/generate" element={<RequireAuth><GeneratePage /></RequireAuth>} />
+          <Route path="/quiz/:id" element={<RequireAuth><QuizPage /></RequireAuth>} />
 
           {/* Fallback → root landing */}
           <Route path="*" element={<Landing />} />
