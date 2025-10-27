@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/components/Toast";
 
@@ -36,7 +36,13 @@ export default function GeneratePage() {
   async function onGenerate() {
     try {
       setBusy(true);
-      const token = (await supabase.auth.getSession()).data.session?.access_token!;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        push({ type: "error", message: "Please log in to generate quizzes" });
+        setBusy(false);
+        return;
+      }
+      const token = session.access_token;
       const res = await fetch("/api/generate-quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -44,7 +50,11 @@ export default function GeneratePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        push({ type: "error", message: json?.message || json?.code || "Failed to generate." });
+        if (json?.code === "LIMIT_EXCEEDED") {
+          push({ type: "error", message: "Free tier limit reached. Upgrade for unlimited quizzes!" });
+        } else {
+          push({ type: "error", message: json?.message || json?.code || "Failed to generate." });
+        }
         return;
       }
       push({ type: "success", message: "Quiz created!" });
@@ -84,7 +94,7 @@ export default function GeneratePage() {
       <div className="mt-3 flex items-center justify-between">
         <RelevanceMeter value={relevance} />
         <button
-          disabled={!classId || notes.trim().length < 20 || busy}
+          disabled={!classId || notes.trim().length < 20 || notes.length > 50000 || busy}
           onClick={onGenerate}
           className="rounded-xl bg-coral-500 px-4 py-2 font-medium text-white disabled:opacity-60 hover:bg-coral-400 transition"
         >

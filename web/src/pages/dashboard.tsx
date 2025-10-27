@@ -1,10 +1,20 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/Toast";
 
 type Clazz = { id: string; name: string; description?: string | null };
-type Attempt = { id: string; score: number; letter: string; created_at: string; quizzes: { id: string } };
+type Attempt = { id: string; score: number; created_at: string; quizzes: { id: string } };
+
+function getLetterGradeFromFraction(score: number): string {
+  const pct = Math.round(score * 100);
+  if (pct >= 97) return "A+";
+  if (pct >= 90) return "A";
+  if (pct >= 80) return "B";
+  if (pct >= 70) return "C";
+  if (pct >= 60) return "D";
+  return "F";
+}
 
 export default function DashboardPage() {
   const [classes, setClasses] = useState<Clazz[]>([]);
@@ -17,12 +27,12 @@ export default function DashboardPage() {
       setLoading(true);
       const [{ data: cls, error: ce }, { data: att, error: ae }] = await Promise.all([
         supabase.from("classes").select("id,name,description").order("created_at", { ascending: true }),
-        supabase.from("quiz_attempts").select("id,score,letter,created_at,quizzes!inner(id)").order("created_at", { ascending: false }).limit(5),
+        supabase.from("quiz_attempts").select("id,score,created_at,quizzes!inner(id)").order("created_at", { ascending: false }).limit(5),
       ]);
       if (ce) push({ type: "error", message: "Failed to load classes." });
       if (ae) push({ type: "error", message: "Failed to load recent attempts." });
       setClasses(cls ?? []);
-      setAttempts(att ?? []);
+      setAttempts((att ?? []) as unknown as Attempt[]);
       setLoading(false);
     })();
   }, [push]);
@@ -69,7 +79,9 @@ export default function DashboardPage() {
             <Link key={a.id} to={`/quiz/${a.quizzes.id}`} className="block rounded-xl border border-stone-800 p-3 hover:border-stone-700">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-stone-300">{new Date(a.created_at).toLocaleString()}</span>
-                <span className="rounded-lg bg-stone-800 px-2 py-1 text-sm">{a.letter} · {Math.round(a.score)}%</span>
+                <span className="rounded-lg bg-stone-800 px-2 py-1 text-sm">
+                  {getLetterGradeFromFraction(a.score)} · {Math.round(a.score * 100)}%
+                </span>
               </div>
             </Link>
           ))}
