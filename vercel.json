@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd web && pnpm install && pnpm build",
-  "installCommand": "cd web && pnpm install",
+  "buildCommand": "cd web && pnpm build",
+  "installCommand": "pnpm install --prefix web",
   "outputDirectory": "web/dist",
   "redirects": [
     {
