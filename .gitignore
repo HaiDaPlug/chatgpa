@@ -42,3 +42,12 @@ Thumbs.db
 # Add to .gitignore
 !.claude/
 .claude/settings.local.json  # Keep project context, ignore local settings
+
+# Session context and documentation (local only)
+handoffs/
+docs/
+features/
+nextsession/
+prompts/
+build-plan/
+revise.md

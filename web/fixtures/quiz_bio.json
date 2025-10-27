@@ -1,0 +1,24 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq",
+      "prompt": "Which organelle is primarily responsible for ATP production in eukaryotic cells?",
+      "options": ["Ribosome", "Mitochondrion", "Lysosome", "Golgi apparatus"],
+      "answer": "Mitochondrion"
+    },
+    {
+      "id": "q2",
+      "type": "short",
+      "prompt": "What structural feature enables selective permeability of the cell membrane?",
+      "answer": "A phospholipid bilayer with a hydrophobic core and embedded proteins."
+    },
+    {
+      "id": "q3",
+      "type": "mcq",
+      "prompt": "Ribosomes are directly involved in which process?",
+      "options": ["DNA replication", "Protein synthesis", "ATP synthesis", "Lipid digestion"],
+      "answer": "Protein synthesis"
+    }
+  ]
+}

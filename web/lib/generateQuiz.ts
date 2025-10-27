@@ -1,27 +1,22 @@
-import { QuestionArray, type Question } from "./quiz-schema";
+// /api/_lib/generateQuiz.ts
+import { openai, MODEL } from "./ai";
+import { quizSchema } from "@/web/src/lib/quiz-schema";
 
-type Input = {
-  className: string;
-  bullets: string[];  // trimmed note summary
-  keyTerms: string[]; // trimmed
-  difficulty: 1|2|3|4|5;
-};
-
-export async function generateQuiz(input: Input): Promise<Question[]> {
-  const res = await fetch("/api/generate-quiz", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(input),
-    credentials: "include",
+export async function generateQuiz({ notesText }: { notesText: string }) {
+  const sys = "You generate quizzes as strict JSON matching the provided schema. No extra text.";
+  const user = `Notes:\n${notesText}\n\nReturn JSON only.`;
+  const resp = await openai.chat.completions.create({
+    model: MODEL,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: sys },
+      { role: "user", content: user },
+    ],
   });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  const parsed = QuestionArray.parse(data.questions);
-  // optional: ensure mcq answers are one of options
-  parsed.forEach(q => {
-    if (q.kind === "mcq" && !q.options.includes(q.answer)) {
-      throw new Error("MCQ answer must match one of the options");
-    }
-  });
-  return parsed;
+  const raw = resp.choices[0]?.message?.content ?? "{}";
+  const parsed = JSON.parse(raw);
+  const safe = quizSchema.safeParse(parsed);
+  if (!safe.success) throw new Error("Schema mismatch");
+  return safe.data;
 }

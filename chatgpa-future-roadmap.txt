@@ -308,6 +308,7 @@ They use "Scrib" - the AI companion that helps them grow.
 - **Export Options:** Export to Anki, Quizlet, PDF
 - **Dark Mode:** For late-night cramming
 - **Offline Mode:** Study without internet
+- **Image analysis** Analyse images as study material
 
 ### Tier 2: Advanced (Year 2+)
 - **Scrib Personality Quiz:** Optional archetype detection (Procrastinator, Overachiever, etc.)
