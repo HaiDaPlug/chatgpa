@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/Toast";
 
 type Quiz = { id: string; questions: any[] };
@@ -49,7 +49,13 @@ export default function QuizPage() {
     if (!quiz) return;
     setSubmitting(true);
     try {
-      const token = (await supabase.auth.getSession()).data.session?.access_token!;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        push({ type: "error", message: "Please log in to submit" });
+        setSubmitting(false);
+        return;
+      }
+      const token = session.access_token;
       const payload = {
         quiz_id: quiz.id,
         answers: Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })),
