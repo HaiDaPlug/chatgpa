@@ -1,6 +1,5 @@
-﻿import { Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
-import { Toaster } from 'sonner';
 
 import Landing from './pages/Landing';
 import QuizPage from './pages/QuizPage';
@@ -27,7 +26,6 @@ export default function App() {
       </main>
 
       <Analytics />
-      <Toaster richColors position="top-center" />
     </div>
   );
 }
