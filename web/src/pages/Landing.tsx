@@ -147,34 +147,52 @@ export default function Landing() {
       <section className="max-w-6xl mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Simple Pricing</h2>
         <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="border rounded-xl p-6 bg-white">
-            <h3 className="text-xl font-semibold mb-2">Free</h3>
-            <p className="text-3xl font-bold mb-4">$0</p>
-            <ul className="text-gray-600 space-y-2 text-sm mb-6">
-              <li>✓ 1 class</li>
-              <li>✓ 5 quizzes total</li>
-              <li>✓ Basic grading</li>
+          <div className="border-2 border-gray-200 rounded-2xl p-8 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <h3 className="text-xl font-semibold mb-3 text-gray-900">Free</h3>
+            <p className="text-5xl font-extrabold mb-6 text-gray-900">$0</p>
+            <ul className="text-gray-600 space-y-3 text-sm">
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span> 1 class
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span> 5 quizzes total
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span> Basic grading
+              </li>
             </ul>
           </div>
-          <div className="border-2 border-indigo-600 rounded-xl p-6 bg-white relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium">
-              Popular
+          <div className="border-2 border-indigo-500 rounded-2xl p-8 bg-gradient-to-br from-indigo-50 to-white shadow-lg hover:shadow-xl transition-shadow relative">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-500 text-white px-4 py-1.5 rounded-full text-xs font-semibold shadow-md">
+              POPULAR
             </div>
-            <h3 className="text-xl font-semibold mb-2">Monthly Pro</h3>
-            <p className="text-3xl font-bold mb-4">$9<span className="text-lg text-gray-600">/mo</span></p>
-            <ul className="text-gray-600 space-y-2 text-sm mb-6">
-              <li>✓ Unlimited classes</li>
-              <li>✓ Unlimited quizzes</li>
-              <li>✓ Advanced grading</li>
+            <h3 className="text-xl font-semibold mb-3 text-gray-900">Monthly Pro</h3>
+            <p className="text-5xl font-extrabold mb-6 text-indigo-600">$9<span className="text-xl font-normal text-gray-500">/mo</span></p>
+            <ul className="text-gray-700 space-y-3 text-sm font-medium">
+              <li className="flex items-center gap-2">
+                <span className="text-indigo-500">✓</span> Unlimited classes
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-indigo-500">✓</span> Unlimited quizzes
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-indigo-500">✓</span> Advanced grading
+              </li>
             </ul>
           </div>
-          <div className="border rounded-xl p-6 bg-white">
-            <h3 className="text-xl font-semibold mb-2">Annual Pro</h3>
-            <p className="text-3xl font-bold mb-4">$79<span className="text-lg text-gray-600">/yr</span></p>
-            <ul className="text-gray-600 space-y-2 text-sm mb-6">
-              <li>✓ Everything in Monthly</li>
-              <li>✓ Save $29/year</li>
-              <li>✓ Priority support</li>
+          <div className="border-2 border-gray-200 rounded-2xl p-8 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <h3 className="text-xl font-semibold mb-3 text-gray-900">Annual Pro</h3>
+            <p className="text-5xl font-extrabold mb-6 text-gray-900">$79<span className="text-xl font-normal text-gray-500">/yr</span></p>
+            <ul className="text-gray-600 space-y-3 text-sm">
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span> Everything in Monthly
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span> Save $29/year
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span> Priority support
+              </li>
             </ul>
           </div>
         </div>
