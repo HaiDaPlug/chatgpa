@@ -32,10 +32,14 @@ function CreateClassDialog({
     setBusy(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("Session:", session?.user?.id); // DEBUG
       if (!session?.user) {
         push({ type: "error", message: friendlyError(null, "auth") });
+        setBusy(false);
         return;
       }
+      const user_id = session.user.id;
+
       // Free plan: max 1 class (UI hint; RLS/enforcement still on server)
       const { count, error: countErr } = await supabase
         .from("classes").select("id", { count: "exact", head: true });
@@ -49,7 +53,13 @@ function CreateClassDialog({
         return;
       }
 
-      const { error } = await supabase.from("classes").insert({ name: name.trim(), description: desc.trim() || null });
+      const { data, error } = await supabase.from("classes").insert({
+        name: name.trim(),
+        description: desc.trim() || null,
+        user_id
+      });
+      console.log("Insert error:", error); // DEBUG
+      console.log("Insert data:", data); // DEBUG
       if (error) {
         console.error(error);
         log("create_class_error", { message: error.message });
