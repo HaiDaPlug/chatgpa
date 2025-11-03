@@ -5,6 +5,7 @@ import Landing from './pages/Landing';
 import QuizPage from './pages/QuizPage';
 import DashboardPage from './pages/dashboard';
 import GeneratePage from './pages/generate';
+import ResultsPage from './pages/Results';
 import { RequireAuth } from '../lib/authGuard';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           {/* Protected routes (require authentication) */}
           <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
           <Route path="/generate" element={<RequireAuth><GeneratePage /></RequireAuth>} />
+          <Route path="/results" element={<RequireAuth><ResultsPage /></RequireAuth>} />
           <Route path="/quiz/:id" element={<RequireAuth><QuizPage /></RequireAuth>} />
 
           {/* Fallback → root landing */}

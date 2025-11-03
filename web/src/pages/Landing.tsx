@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, getUserId, signOut } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
+import { getUserId, signOut } from '@/lib/auth'
 import { BookOpen, Zap, Brain } from 'lucide-react'
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin
