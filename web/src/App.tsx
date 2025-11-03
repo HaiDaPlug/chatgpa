@@ -10,7 +10,7 @@ import { RequireAuth } from '../lib/authGuard';
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col bg-stone-950 text-stone-100">
+    <div className="min-h-screen flex flex-col">
       <main className="flex-grow">
         <Routes>
           {/* Public routes */}

@@ -34,3 +34,9 @@ body{background:var(--bg);color:var(--text);line-height:1.45}
 .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
 .btn.primary{background:var(--surface-2)}
 .btn.ghost{background:var(--surface)}
+
+/* Force light theme (override any stray dark mode from old code) */
+html, body, #root {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
