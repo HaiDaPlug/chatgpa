@@ -1,53 +1,19 @@
-﻿// src/lib/supabase.ts
+﻿// Vite SPA client (no SSR). Single responsibility: export `supabase`.
 import { createClient } from "@supabase/supabase-js";
 
-// Check for required env vars
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    VITE_SUPABASE_URL: supabaseUrl ? '✅ Set' : '❌ Missing',
-    VITE_SUPABASE_ANON_KEY: supabaseAnonKey ? '✅ Set' : '❌ Missing',
-  });
+function getEnv(name: string) {
+  const v = (import.meta as any).env?.[name] as string | undefined;
+  if (!v) throw new Error(`[supabase] Missing ${name}. Add it to .env.local and restart Vite.`);
+  return v;
 }
 
-export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || '',
-  {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-  }
-);
+const URL = getEnv("VITE_SUPABASE_URL").replace(/\/+$/, "");
+const ANON_KEY = getEnv("VITE_SUPABASE_ANON_KEY");
 
-export async function getUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
-}
-
-export async function getSession() {
-  const { data } = await supabase.auth.getSession();
-  return data.session ?? null;
-}
-
-export async function signInWithGoogle() {
-  return supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${window.location.origin}/`,
-    },
-  });
-}
-
-export async function signInWithOTP(email: string) {
-  return supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${window.location.origin}/`,
-    },
-  });
-}
-
-export async function signOut() {
-  return supabase.auth.signOut();
-}
+export const supabase = createClient(URL, ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
