@@ -8,7 +8,9 @@ type TelemetryEvent =
   | "refresh_clicked"
   | "auth_missing"
   | "create_class_success"
-  | "create_class_error";
+  | "create_class_error"
+  | "no_notes_found"
+  | "quiz_generated";
 
 export function log(event: TelemetryEvent, data?: Record<string, unknown>) {
   try {
