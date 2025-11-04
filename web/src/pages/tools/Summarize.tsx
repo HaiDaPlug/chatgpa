@@ -2,7 +2,6 @@
 // Connects to: Study Tools sidebar
 
 import { PageShell } from "@/components/PageShell";
-import { Card } from "@/components/Card";
 
 export default function Summarize() {
   return (
@@ -12,15 +11,13 @@ export default function Summarize() {
         <p className="text-muted m-0">Generate AI-powered summaries of your notes.</p>
       </div>
 
-      <Card>
-        <div className="p-8 text-center">
-          <div className="text-[48px] mb-4">📝</div>
-          <h3 className="text-[18px] font-semibold m-0 mb-2">Coming Soon</h3>
-          <p className="text-muted m-0">
-            Summarize feature is under development. Stay tuned!
-          </p>
-        </div>
-      </Card>
+      <div className="surface bdr radius p-8 text-center">
+        <div className="text-[48px] mb-4">📝</div>
+        <h3 className="text-[18px] font-semibold m-0 mb-2">Coming Soon</h3>
+        <p className="text-muted m-0">
+          Summarize feature is under development. Stay tuned!
+        </p>
+      </div>
     </PageShell>
   );
 }

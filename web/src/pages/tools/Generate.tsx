@@ -3,7 +3,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
-import { Card } from "@/components/Card";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -112,8 +111,7 @@ export default function Generate() {
         <p className="text-muted m-0">Pick a class and we'll use its notes to generate a quiz.</p>
       </div>
 
-      <Card>
-        <div className="p-4">
+      <div className="surface bdr radius p-4">
           {/* Class selector */}
           <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", marginBottom: "var(--space-3)" }}>
             <select
@@ -157,8 +155,7 @@ export default function Generate() {
               </div>
             </div>
           )}
-        </div>
-      </Card>
+      </div>
     </PageShell>
   );
 }
