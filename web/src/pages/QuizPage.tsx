@@ -1,333 +1,315 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
-import { quizSchema } from '@/lib/quiz-schema'
-import { saveAttempt } from '@/lib/attempts'
-import { grade as remoteGrade } from '@/lib/grader' // your wrapper (server relay later)
+// Purpose: Quiz taking page - fetch questions, collect answers, submit for grading
+// Connects to: /api/grade, quiz_attempts table, Results page
 
-type QuizQuestion =
-  | { id: string; type: 'mcq'; prompt: string; options: string[]; answer: string }
-  | { id: string; type: 'short'; prompt: string; answer: string }
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/lib/toast";
+import { PageShell } from "@/components/PageShell";
 
-type Quiz = { id: string; questions: QuizQuestion[] }
+// ---- Types (align with our zod schema: mcq | short) ----
+type MCQ = {
+  id: string;
+  type: "mcq";
+  prompt: string;
+  options: string[];
+  answer?: string; // server may include; we won't show it
+};
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
+type ShortQ = {
+  id: string;
+  type: "short";
+  prompt: string;
+  answer?: string; // server may include; we won't show it
+};
+
+type QuizRow = {
+  id: string;
+  questions: (MCQ | ShortQ)[];
+  class_id: string;
+};
+
+type AnswersMap = Record<string, string>; // questionId -> user answer
+
+// ---- Small UI bits (token-only styling) ----
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="surface bdr radius p-4 mb-4">
+      <div className="text-sm text-muted mb-2">{title}</div>
+      {children}
+    </div>
+  );
 }
 
-function softLimit200(s: string) {
-  return s.length <= 200 ? s : s.slice(0, 200)
+function Btn({
+  children,
+  onClick,
+  disabled,
+  kind = "primary",
+  type,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  kind?: "primary" | "ghost";
+  type?: "button" | "submit";
+}) {
+  const cls = kind === "primary" ? "btn primary" : "btn ghost";
+  return (
+    <button className={cls} onClick={onClick} disabled={disabled} type={type ?? "button"}>
+      {children}
+    </button>
+  );
+}
+
+// ---- Question renderers ----
+function MCQQuestion({
+  q,
+  value,
+  onChange,
+}: {
+  q: MCQ;
+  value?: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="mb-4">
+      <div className="mb-2">{q.prompt}</div>
+      <div className="grid gap-2">
+        {q.options.map((opt) => (
+          <label key={opt} className="surface-2 bdr radius p-2 cursor-pointer">
+            <input
+              className="mr-2"
+              type="radio"
+              name={q.id}
+              value={opt}
+              checked={value === opt}
+              onChange={() => onChange(opt)}
+            />
+            {opt}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ShortQuestion({
+  q,
+  value,
+  onChange,
+}: {
+  q: ShortQ;
+  value?: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="mb-4">
+      <div className="mb-2">{q.prompt}</div>
+      <textarea
+        rows={3}
+        className="w-full surface-2 bdr radius p-2"
+        style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Type your answer…"
+      />
+    </div>
+  );
 }
 
 export default function QuizPage() {
-  const { id } = useParams<{ id: string }>()
-  const nav = useNavigate()
-  const [quiz, setQuiz] = useState<Quiz | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { id: quizId } = useParams<{ id: string }>();
+  const { push } = useToast();
+  const navigate = useNavigate();
 
-  // answers map: { [qid]: student's text }
-  const [answers, setAnswers] = useState<Record<string, string | undefined>>({})
-  const [currentIdx, setCurrentIdx] = useState(0)
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [quiz, setQuiz] = useState<QuizRow | null>(null);
+  const [answers, setAnswers] = useState<AnswersMap>({});
 
-  // results state
-  const [result, setResult] = useState<{
-    score: number
-    perQuestion: Array<{ questionId: string; correct: boolean; explanation: string; feedback: string }>
-    summary: string
-  } | null>(null)
-
-  // fetch quiz by id from Supabase, validate, shuffle order
+  // Fetch quiz
   useEffect(() => {
-    let cancelled = false
-    async function fetchQuiz() {
-      try {
-        setLoading(true)
-        setError(null)
-        const { data, error } = await supabase
-          .from('quizzes')
-          .select('id, questions')
-          .eq('id', id)
-          .single()
-        if (error) throw error
-        const parsed = quizSchema.parse({ questions: data.questions })
-        const shuffled = shuffle(parsed.questions)
-        if (!cancelled) {
-          setQuiz({ id: data.id, questions: shuffled as QuizQuestion[] })
-          setAnswers(Object.fromEntries(shuffled.map(q => [q.id, undefined])))
-          setCurrentIdx(0)
-        }
-      } catch (e: any) {
-        setError(e?.message ?? 'Failed to load quiz')
-      } finally {
-        if (!cancelled) setLoading(false)
+    let alive = true;
+    (async () => {
+      if (!quizId) {
+        push({ kind: "error", text: "Missing quiz id." });
+        navigate("/results");
+        return;
       }
-    }
-    if (id) fetchQuiz()
-    return () => { cancelled = true }
-  }, [id])
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("quizzes")
+        .select("id, class_id, questions")
+        .eq("id", quizId)
+        .single();
 
-  const q = useMemo(() => quiz?.questions[currentIdx], [quiz, currentIdx])
-  const total = quiz?.questions.length ?? 0
-  const answeredCount = useMemo(
-    () => Object.values(answers).filter(v => v != null && v !== '').length,
-    [answers]
-  )
-  const unansweredCount = total ? total - answeredCount : 0
+      if (!alive) return;
 
-  function setAnswer(qid: string, val: string) {
-    setAnswers(prev => ({ ...prev, [qid]: val }))
+      if (error || !data) {
+        push({ kind: "error", text: "Could not load quiz." });
+        setLoading(false);
+        return;
+      }
+
+      // Defensive parse: ensure array of objects
+      const qs = Array.isArray(data.questions) ? (data.questions as (MCQ | ShortQ)[]) : [];
+      setQuiz({ id: data.id, class_id: data.class_id, questions: qs });
+      setLoading(false);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [quizId, navigate, push]);
+
+  const unanswered = useMemo(() => {
+    if (!quiz) return 0;
+    return quiz.questions.filter((q) => !answers[q.id]?.trim()).length;
+  }, [quiz, answers]);
+
+  function setAnswer(id: string, value: string) {
+    setAnswers((prev) => ({ ...prev, [id]: value }));
   }
 
-  function next() {
-    if (!quiz) return
-    setCurrentIdx(i => Math.min(i + 1, quiz.questions.length - 1))
-  }
-  function prev() {
-    if (!quiz) return
-    setCurrentIdx(i => Math.max(i - 1, 0))
-  }
-
-  async function onSubmit() {
-    if (!quiz) return
-    if (unansweredCount > 0) {
-      const ok = window.confirm(`You have ${unansweredCount} unanswered. Submit anyway?`)
-      if (!ok) return
-    }
+  async function handleSubmit() {
+    if (!quiz || !quizId) return;
+    setSubmitting(true);
 
     try {
-      // Try remote grading first (your API relay later). If it fails, do a tiny local fallback.
-      const graded = await remoteGrade(quiz, answers).catch(() => localGrade(quiz, answers))
-      setResult(graded)
+      // 1) Try server grading (preferred): /api/grade inserts quiz_attempt
+      const session = (await supabase.auth.getSession()).data.session;
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        push({ kind: "error", text: "You are signed out. Please sign in again." });
+        setSubmitting(false);
+        return;
+      }
 
-      // Persist attempt for progress badge/history
-      await saveAttempt({
-        quiz_id: quiz.id,
-        answers: Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v ?? ''])),
-        score: graded.score,
-        perQuestion: graded.perQuestion,
-        summary: graded.summary
-      })
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to grade quiz')
+      const res = await fetch("/api/grade", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          quiz_id: quizId,
+          responses: answers,
+        }),
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok) {
+        // Standardized error shape: { code, message }
+        const msg = payload?.message || "Grading failed.";
+        push({ kind: "error", text: msg });
+        setSubmitting(false);
+        return;
+      }
+
+      // Prefer backend-created attempt; fallback to local insert if missing
+      const attemptId: string | undefined = payload?.attempt_id;
+      const score: number | null | undefined = payload?.score;
+
+      if (attemptId) {
+        push({ kind: "success", text: "Graded!" });
+        navigate("/results");
+        return;
+      }
+
+      // 2) Fallback: insert attempt client-side if API returns score but no attempt
+      if (typeof score === "number") {
+        const { error: insertErr } = await supabase.from("quiz_attempts").insert([
+          {
+            quiz_id: quizId,
+            responses: answers,
+            score,
+          },
+        ]);
+        if (insertErr) {
+          push({ kind: "error", text: "Could not save attempt (RLS blocked?)." });
+          setSubmitting(false);
+          return;
+        }
+        push({ kind: "success", text: "Graded!" });
+        navigate("/results");
+        return;
+      }
+
+      // 3) Last resort: success but unknown shape — still navigate to results
+      push({ kind: "success", text: "Submitted for grading." });
+      navigate("/results");
+    } catch {
+      push({ kind: "error", text: "Network error. Please try again." });
+      setSubmitting(false);
     }
   }
 
-  if (loading) return <div className="p-6">Loading quiz…</div>
-  if (error) return (
-    <div className="p-6 space-y-3">
-      <div className="text-rose-400">{error}</div>
-      <button className="rounded-xl bg-white/10 border border-white/10 px-3 py-2" onClick={() => nav(-1)}>
-        Go back
-      </button>
-    </div>
-  )
-  if (!quiz) return null
-
-  if (result) return <ResultsView quiz={quiz} result={result} onBack={() => nav(-1)} />
-
-  return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6">
-      <header className="flex items-center justify-between mb-4">
-        <div className="text-sm opacity-80">
-          Question <b>{currentIdx + 1}</b> / {total} • Answered {answeredCount}/{total}
-        </div>
-        {unansweredCount > 0 && (
-          <div className="text-xs px-2 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">
-            {unansweredCount} unanswered
-          </div>
-        )}
-      </header>
-
-      <nav className="mb-3 flex flex-wrap gap-2">
-        {quiz.questions.map((qq, idx) => {
-          const answered = !!answers[qq.id]
-          const active = idx === currentIdx
-          return (
-            <button
-              key={qq.id}
-              onClick={() => setCurrentIdx(idx)}
-              className={[
-                'w-9 h-9 rounded-lg text-sm border',
-                active ? 'bg-white/20 border-white/30' : 'bg-white/5 border-white/10',
-                answered ? 'ring-1 ring-emerald-400/50' : ''
-              ].join(' ')}
-              title={answered ? 'Answered' : 'Unanswered'}
-            >
-              {idx + 1}
-            </button>
-          )
-        })}
-      </nav>
-
-      <QuestionCard
-        q={q!}
-        value={answers[q!.id] ?? ''}
-        onChange={val => setAnswer(q!.id, val)}
-      />
-
-      <footer className="mt-6 flex items-center justify-between">
-        <button onClick={prev} className="rounded-xl bg-white/10 border border-white/10 px-3 py-2 disabled:opacity-50" disabled={currentIdx === 0}>
-          Back
-        </button>
-        <div className="flex gap-2">
-          <button onClick={next} className="rounded-xl bg-white/10 border border-white/10 px-3 py-2 disabled:opacity-50" disabled={currentIdx === total - 1}>
-            Next
-          </button>
-          <button onClick={onSubmit} className="rounded-xl bg-black/80 text-white px-4 py-2">
-            Submit
-          </button>
-        </div>
-      </footer>
-    </div>
-  )
-}
-
-function QuestionCard({
-  q, value, onChange
-}: {
-  q: QuizQuestion
-  value: string
-  onChange: (val: string) => void
-}) {
-  if (q.type === 'mcq') {
+  if (loading) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="text-lg font-medium mb-3">{q.prompt}</h2>
-        <div className="grid gap-2">
-          {q.options.map(opt => {
-            const selected = value === opt
-            return (
-              <label key={opt} className={[
-                'rounded-xl border px-3 py-2 cursor-pointer',
-                selected ? 'border-emerald-400 bg-emerald-400/10' : 'border-white/10 bg-white/5'
-              ].join(' ')}>
-                <input
-                  type="radio"
-                  name={q.id}
-                  className="sr-only"
-                  checked={selected}
-                  onChange={() => onChange(opt)}
+      <PageShell>
+        <div className="surface bdr radius p-4">Loading quiz…</div>
+      </PageShell>
+    );
+  }
+
+  if (!quiz) {
+    return (
+      <PageShell>
+        <div className="surface bdr radius p-4">Quiz not found.</div>
+      </PageShell>
+    );
+  }
+
+  return (
+    <PageShell>
+      <form
+        className="max-w-3xl mx-auto"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!submitting) handleSubmit();
+        }}
+      >
+        <Section title="Quiz">
+          <div className="text-xl mb-1">Answer the questions</div>
+          <div className="text-muted">
+            {quiz.questions.length} question{quiz.questions.length !== 1 ? "s" : ""} ·{" "}
+            {unanswered} unanswered
+          </div>
+        </Section>
+
+        <Section title="Questions">
+          {quiz.questions.map((q) => {
+            if (q.type === "mcq") {
+              return (
+                <MCQQuestion
+                  key={q.id}
+                  q={q as MCQ}
+                  value={answers[q.id]}
+                  onChange={(v) => setAnswer(q.id, v)}
                 />
-                {opt}
-              </label>
-            )
+              );
+            }
+            return (
+              <ShortQuestion
+                key={q.id}
+                q={q as ShortQ}
+                value={answers[q.id]}
+                onChange={(v) => setAnswer(q.id, v)}
+              />
+            );
           })}
+        </Section>
+
+        <div className="flex items-center gap-4">
+          <Btn type="submit" kind="primary" disabled={submitting}>
+            {submitting ? "Submitting…" : "Submit for grading"}
+          </Btn>
+          <Btn kind="ghost" onClick={() => navigate("/results")} disabled={submitting}>
+            View results
+          </Btn>
         </div>
-      </div>
-    )
-  }
-
-  // short
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <h2 className="text-lg font-medium mb-3">{q.prompt}</h2>
-      <textarea
-        value={value}
-        onChange={e => onChange(softLimit200(e.target.value))}
-        placeholder="Type your answer (keep it concise)"
-        className="w-full min-h-[120px] rounded-xl bg-white/10 border border-white/10 p-3 outline-none"
-      />
-      <div className="mt-2 text-xs opacity-70">{(value?.length ?? 0)}/200</div>
-    </div>
-  )
-}
-
-function ResultsView({
-  quiz, result, onBack
-}: {
-  quiz: Quiz
-  result: { score: number; perQuestion: Array<{ questionId: string; correct: boolean; explanation: string; feedback: string }>; summary: string }
-  onBack: () => void
-}) {
-  const lookup = useMemo(() => Object.fromEntries(quiz.questions.map(q => [q.id, q])), [quiz])
-  return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Results</h1>
-        <div className="rounded-lg px-3 py-1 border border-white/10 bg-white/5">
-          Score: <b>{result.score}%</b>
-        </div>
-      </header>
-
-      <div className="space-y-4">
-        {result.perQuestion.map((r) => {
-          const q = lookup[r.questionId]
-          return (
-            <div key={r.questionId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-sm opacity-80">Q: {q?.prompt}</div>
-                <div className={r.correct ? 'text-emerald-400' : 'text-rose-400'}>
-                  {r.correct ? 'Correct' : 'Incorrect'}
-                </div>
-              </div>
-              {q?.type === 'mcq' && (
-                <div className="text-xs opacity-80 mb-1">Correct answer: <b>{q.answer}</b></div>
-              )}
-              {q?.type === 'short' && (
-                <div className="text-xs opacity-80 mb-1">Gold answer: <b>{q.answer}</b></div>
-              )}
-              <div className="text-sm">{r.explanation}</div>
-              <div className="text-sm opacity-80">Tip: {r.feedback}</div>
-            </div>
-          )
-        })}
-      </div>
-
-      <footer className="mt-6 flex items-center justify-between">
-        <div className="text-sm opacity-80">Summary: {result.summary}</div>
-        <button onClick={onBack} className="rounded-xl bg-white/10 border border-white/10 px-3 py-2">
-          Back
-        </button>
-      </footer>
-    </div>
-  )
-}
-
-/** Very small local fallback grader (used only if remoteGrade throws).
- *  - MCQ: exact match
- *  - Short: lenient includes (case/punct ignored), checks for overlap in key words
- *  This is a stopgap; real grading is via your /api/grade relay.
- */
-function localGrade(
-  quiz: Quiz,
-  answers: Record<string, string | undefined>
-): { score: number; perQuestion: Array<{ questionId: string; correct: boolean; explanation: string; feedback: string }>; summary: string } {
-  const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim()
-  const stop = new Set(['the','a','an','of','and','or','to','in','on','for','with','is','are','was','be'])
-  const words = (s: string) => norm(s).split(' ').filter(w => w && !stop.has(w))
-  const per: Array<{ questionId: string; correct: boolean; explanation: string; feedback: string }> = []
-
-  for (const q of quiz.questions) {
-    const student = answers[q.id]?.trim() ?? ''
-    if (q.type === 'mcq') {
-      const correct = student === q.answer
-      per.push({
-        questionId: q.id,
-        correct,
-        explanation: correct ? 'Selected the correct option.' : 'Selected a different option.',
-        feedback: correct ? 'Nice! Keep pace.' : 'Review the concept and why the other options are distractors.'
-      })
-    } else {
-      const gold = words(q.answer)
-      const stu = new Set(words(student))
-      const overlap = gold.filter(w => stu.has(w)).length
-      const correct = overlap >= Math.max(1, Math.ceil(gold.length * 0.5)) // ~50% key-word overlap
-      per.push({
-        questionId: q.id,
-        correct,
-        explanation: correct ? 'Core idea present despite phrasing.' : 'Key idea(s) missing.',
-        feedback: correct ? 'Good—stay concise and precise.' : 'Revisit the definition and primary mechanism.'
-      })
-    }
-  }
-  const correctCount = per.filter(p => p.correct).length
-  const score = Math.round((correctCount / quiz.questions.length) * 100)
-  const summary = score >= 80 ? 'Strong understanding; keep practicing edge cases.' : 'Focus on definitions and contrasts from your notes.'
-  return { score, perQuestion: per, summary }
+      </form>
+    </PageShell>
+  );
 }
