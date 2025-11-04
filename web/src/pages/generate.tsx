@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useToast } from "@/components/Toast";
+import { useToast } from "@/lib/toast";
 
 type ClassRow = { id: string; name: string };
 
@@ -18,7 +18,7 @@ export default function GeneratePage() {
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase.from("classes").select("id,name").order("created_at");
-      if (error) push({ type: "error", message: "Failed to load classes." });
+      if (error) push({ kind: "error", text: "Failed to load classes." });
       setClasses(data ?? []);
       const pre = params.get("class");
       if (pre) setClassId(pre);
@@ -38,7 +38,7 @@ export default function GeneratePage() {
       setBusy(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        push({ type: "error", message: "Please log in to generate quizzes" });
+        push({ kind: "error", text: "Please log in to generate quizzes" });
         setBusy(false);
         return;
       }
@@ -51,13 +51,13 @@ export default function GeneratePage() {
       const json = await res.json();
       if (!res.ok) {
         if (json?.code === "LIMIT_EXCEEDED") {
-          push({ type: "error", message: "Free tier limit reached. Upgrade for unlimited quizzes!" });
+          push({ kind: "error", text: "Free tier limit reached. Upgrade for unlimited quizzes!" });
         } else {
-          push({ type: "error", message: json?.message || json?.code || "Failed to generate." });
+          push({ kind: "error", text: json?.message || json?.code || "Failed to generate." });
         }
         return;
       }
-      push({ type: "success", message: "Quiz created!" });
+      push({ kind: "success", text: "Quiz created!" });
       nav(`/quiz/${json.quiz_id}`);
     } finally {
       setBusy(false);

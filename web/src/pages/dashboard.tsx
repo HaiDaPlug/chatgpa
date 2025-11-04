@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useQueryNumber, useQueryParam } from "@/lib/useQueryParam";
 import { useDebounce } from "@/lib/useDebounce";
@@ -12,6 +13,7 @@ import { log } from "@/lib/telemetry";
 const PAGE_SIZE = 10;
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { push } = useToast();
   const [q, setQ] = useQueryParam("q", "");
   const [page, setPage] = useQueryNumber("page", 1);
@@ -109,47 +111,8 @@ export default function DashboardPage() {
     }
   }
 
-  // Generate Quiz
-  async function onGenerateQuiz(classId: string) {
-    try {
-      setBusyId(classId);
-      push({ kind: "info", text: "Generating quiz…" });
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        push({ kind: "error", text: "Not authenticated." });
-        log("auth_missing");
-        return;
-      }
-
-      const res = await fetch("/api/generate-quiz", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          class_id: classId,
-          notes_text: "Sample notes for quiz generation." // TODO: fetch actual notes
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Quiz generation failed");
-      }
-
-      const { quiz_id } = await res.json();
-      push({ kind: "success", text: "Quiz generated." });
-      log("dashboard_loaded", { quiz_id });
-      // TODO: navigate to quiz page or results
-    } catch (e: any) {
-      push({ kind: "error", text: e.message || "Couldn't generate quiz." });
-      log("dashboard_error", { error: e.message });
-    } finally {
-      setBusyId(null);
-    }
-  }
+  // Generate Quiz moved to /tools/generate page
+  // Dashboard button now navigates to dedicated tool page
 
   // Derive metrics (mock + counts)
   const metrics = useMemo(
@@ -226,9 +189,9 @@ export default function DashboardPage() {
                     title={c.name}
                     meta={c.description ?? "—"}>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <Chip onClick={()=>alert("Add Notes (stub)")}>Add Notes</Chip>
-                  <Chip onClick={()=>onGenerateQuiz(c.id)} disabled={busyId===c.id}>
-                    {busyId===c.id ? "Generating…" : "Generate Quiz"}
+                  <Chip onClick={()=>navigate(`/classes/${c.id}/notes`)}>Add Notes</Chip>
+                  <Chip onClick={()=>navigate(`/tools/generate`)}>
+                    Generate Quiz
                   </Chip>
                   <Chip onClick={()=>alert("View Progress (stub)")}>View Progress</Chip>
                 </div>

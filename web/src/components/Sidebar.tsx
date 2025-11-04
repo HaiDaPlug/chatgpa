@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { NavLink } from "react-router-dom";
 
 export function Sidebar({ collapsed, onToggle }:{collapsed:boolean; onToggle:()=>void}) {
   return (
@@ -18,6 +19,56 @@ export function Sidebar({ collapsed, onToggle }:{collapsed:boolean; onToggle:()=
         <Tree label="Recent Quizzes" items={[]} collapsed={collapsed}/>
         <Tree label="Settings" items={[]} collapsed={collapsed}/>
       </nav>
+
+      {/* Study Tools Section */}
+      {!collapsed && (
+        <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+          <div className="text-muted px-3 mb-2" style={{ fontSize: "12px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Study Tools
+          </div>
+          <nav className="grid gap-1">
+            <NavLink
+              to="/tools/generate"
+              className={({ isActive }) =>
+                `block px-3 py-2 radius text-[14px] transition-colors ${
+                  isActive
+                    ? "font-medium"
+                    : "text-muted hover:surface-2"
+                }`
+              }
+              style={({ isActive }) => isActive ? { color: "var(--accent)", background: "var(--surface-2)" } : {}}
+            >
+              Generate Quiz
+            </NavLink>
+            <NavLink
+              to="/tools/flashcards"
+              className={({ isActive }) =>
+                `block px-3 py-2 radius text-[14px] transition-colors ${
+                  isActive
+                    ? "font-medium"
+                    : "text-muted hover:surface-2"
+                }`
+              }
+              style={({ isActive }) => isActive ? { color: "var(--accent)", background: "var(--surface-2)" } : {}}
+            >
+              Flashcards
+            </NavLink>
+            <NavLink
+              to="/tools/summarize"
+              className={({ isActive }) =>
+                `block px-3 py-2 radius text-[14px] transition-colors ${
+                  isActive
+                    ? "font-medium"
+                    : "text-muted hover:surface-2"
+                }`
+              }
+              style={({ isActive }) => isActive ? { color: "var(--accent)", background: "var(--surface-2)" } : {}}
+            >
+              Summarize
+            </NavLink>
+          </nav>
+        </div>
+      )}
     </div>
   );
 }
