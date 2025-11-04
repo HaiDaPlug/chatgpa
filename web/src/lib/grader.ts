@@ -82,7 +82,7 @@ async function aiShortFeedbackBatch(
   };
 
   const res = await client.chat.completions.create({
-    model: process.env.OPENAI_GRADE_MODEL || "gpt-4o",
+    model: process.env.OPENAI_GRADE_MODEL || "gpt-5",
     temperature: 0.1,
     messages: [
       {
