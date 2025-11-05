@@ -3,10 +3,11 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/Card";
 import { supabase } from "@/lib/supabase";
-import { log } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry";
 
 type AttemptRow = {
   id: string;
@@ -46,10 +47,10 @@ export default function ResultsPage() {
         if (fetchError) throw fetchError;
 
         setAttempts(data as AttemptRow[]);
-        log("attempts_loaded", { count: data?.length ?? 0 });
+        track("attempts_loaded", { count: data?.length ?? 0 });
       } catch (e: any) {
         setError(e.message || "Failed to load quiz attempts");
-        log("dashboard_error", { error: e.message });
+        track("attempts_loaded", { error: e.message });
       } finally {
         setLoading(false);
       }
@@ -79,8 +80,13 @@ export default function ResultsPage() {
         </div>
 
         {loading && (
-          <div className="surface bdr radius elev-1 p-8 text-center">
-            <p className="text-muted m-0">Loading quiz attempts...</p>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({length:6}).map((_,i)=>(
+              <div key={i} className="surface bdr radius p-6 animate-pulse">
+                <div className="h-4 w-24 surface-2 radius mb-2"></div>
+                <div className="h-7 w-32 surface-2 radius"></div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -100,7 +106,12 @@ export default function ResultsPage() {
         )}
 
         {!loading && !error && attempts && attempts.length > 0 && (
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          <motion.div
+            className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15, ease: [0.2, 0, 0, 1] }}
+          >
             {attempts.map((attempt) => {
               const quiz = attempt.quiz?.[0];
               const className = quiz?.class?.[0]?.name || "Unknown Class";
@@ -129,7 +140,7 @@ export default function ResultsPage() {
                 </Card>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </section>
     </PageShell>

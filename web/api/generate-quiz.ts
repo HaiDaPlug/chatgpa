@@ -14,6 +14,8 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { MODEL } from "./_lib/ai";
+import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit";
+import { getUserPlan, getQuizCount } from "./_lib/plan";
 
 // Input schema
 const Body = z.object({
@@ -57,6 +59,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== "POST") {
     return res.status(405).json({ code: "METHOD_NOT_ALLOWED", message: "Only POST allowed" });
+  }
+
+  // Alpha rate limiting (optional, flag-gated)
+  if (alphaLimitsEnabled()) {
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(",")[0]?.trim() || "unknown";
+    const verdict = alphaRateLimit(`${ip}:generate-quiz`);
+    if (!verdict.allow) {
+      log('warn', { request_id, route: '/api/generate-quiz', ip, retryAfter: verdict.retryAfter }, 'Alpha rate limit exceeded');
+      return res.status(429).json({
+        code: "RATE_LIMITED",
+        message: `Too many requests. Try again in ${verdict.retryAfter}s.`
+      });
+    }
   }
 
   try {
@@ -116,36 +131,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Check subscription tier
-    const { data: sub } = await supabase
-      .from('subscriptions')
-      .select('tier, status')
-      .eq('user_id', user_id)
-      .single();
+    // Enforce Free tier limits (protect OpenAI costs)
+    const LIMITS_ENABLED = (process.env.ENABLE_USAGE_LIMITS || "true").toLowerCase() === "true";
+    const FREE_QUIZ_LIMIT = Number(process.env.FREE_QUIZ_LIMIT || 5);
 
-    const isPaid = sub && sub.tier !== 'free' && sub.status === 'active';
+    if (LIMITS_ENABLED) {
+      const plan = await getUserPlan(supabase, user_id);
+      if (plan.tier === "free") {
+        const { count, ok } = await getQuizCount(supabase, user_id);
+        if (!ok) {
+          log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Failed to count quizzes');
+          return res.status(500).json({ code: "SERVER_ERROR", message: "Failed to check usage limits" });
+        }
 
-    // Enforce Free tier limits: compute from live counts (5 quizzes created total)
-    let quizzesCount = 0;
-    if (!isPaid) {
-      const { count, error: countError } = await supabase
-        .from('quizzes')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user_id);
-
-      if (countError) {
-        log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Failed to count quizzes');
-        return res.status(500).json({ code: "SERVER_ERROR", message: "Failed to check usage limits" });
-      }
-
-      quizzesCount = count || 0;
-
-      if (quizzesCount >= 5) {
-        log('warn', { request_id, route: '/api/generate-quiz', user_id, quizzes_count: quizzesCount }, 'Free tier limit exceeded');
-        return res.status(429).json({
-          code: "LIMIT_EXCEEDED",
-          message: "Free tier limit: 5 quizzes maximum. Upgrade for unlimited quizzes."
-        });
+        if (count >= FREE_QUIZ_LIMIT) {
+          log('warn', { request_id, route: '/api/generate-quiz', user_id, quizzes_count: count }, 'Free tier limit exceeded');
+          return res.status(402).json({
+            code: "USAGE_LIMIT_REACHED",
+            message: `You've reached the Free plan limit of ${FREE_QUIZ_LIMIT} quizzes.`,
+            upgrade_hint: "Upgrade to continue generating unlimited quizzes.",
+            current_count: count,
+            limit: FREE_QUIZ_LIMIT,
+          });
+        }
       }
     }
 

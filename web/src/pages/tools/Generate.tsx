@@ -1,14 +1,18 @@
 // Purpose: Generate Quiz tool page - 3 modes: paste text, import file, or from class notes
 // Connects to: /api/generate-quiz, quiz results
+// Features: Drag-and-drop file upload, localStorage autosave, telemetry tracking
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/toast";
 import { useNavigate } from "react-router-dom";
+import { track } from "@/lib/telemetry";
 
 type ClassRow = { id: string; name: string };
 type Mode = "direct" | "file" | "class";
+
+const LS_KEY_DIRECT = "generate.directText";
 
 export default function Generate() {
   const { push } = useToast();
@@ -26,17 +30,19 @@ export default function Generate() {
   // file mode
   const [file, setFile] = useState<File | null>(null);
   const [fileText, setFileText] = useState("");
+  const [dragOver, setDragOver] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const saveTimer = useRef<number | null>(null);
 
   // load classes for class mode
   useEffect(() => {
     let alive = true;
     (async () => {
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from("classes")
         .select("id,name")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false});
 
       if (!alive) return;
       if (error) {
@@ -50,6 +56,32 @@ export default function Generate() {
       alive = false;
     };
   }, []);
+
+  // localStorage: load once on mount
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(LS_KEY_DIRECT);
+      if (v && typeof v === "string") setDirectText(v);
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  // localStorage: debounced save on change
+  useEffect(() => {
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      try {
+        localStorage.setItem(LS_KEY_DIRECT, directText);
+      } catch {
+        // no-op
+      }
+    }, 400);
+
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [directText]);
 
   // unified current text for direct/file
   const notesSource = useMemo(() => {
@@ -94,8 +126,41 @@ export default function Generate() {
     return { text, ok: true };
   }
 
+  // Drag & drop handlers
+  function onDragOver(e: React.DragEvent) {
+    if (mode !== "file") return;
+    e.preventDefault();
+    setDragOver(true);
+  }
+
+  function onDragLeave(e: React.DragEvent) {
+    if (mode !== "file") return;
+    e.preventDefault();
+    setDragOver(false);
+  }
+
+  async function onDrop(e: React.DragEvent) {
+    if (mode !== "file") return;
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setFileText("");
+    await extractTextFromFile(f);
+  }
+
   async function submitGenerate() {
     setLoading(true);
+
+    // Track telemetry: start
+    track("quiz_generated_start", {
+      mode,
+      classId: classId ?? null,
+      hasNotes: !!notesSource,
+      charCount: mode === "direct" || mode === "file" ? notesSource.length : 0
+    });
+
     try {
       let notes_text = "";
       let quiz_class_id: string | null = null;
@@ -104,6 +169,7 @@ export default function Generate() {
         if (!notesSource) {
           push({ kind: "error", text: "Paste your study material first." });
           setLoading(false);
+          track("quiz_generated_failure", { reason: "empty_direct" });
           return;
         }
         notes_text = notesSource;
@@ -111,6 +177,7 @@ export default function Generate() {
         if (!notesSource) {
           push({ kind: "error", text: "Import a supported file or paste text." });
           setLoading(false);
+          track("quiz_generated_failure", { reason: "empty_file" });
           return;
         }
         notes_text = notesSource;
@@ -119,17 +186,20 @@ export default function Generate() {
         if (!classId) {
           push({ kind: "error", text: "Choose a class." });
           setLoading(false);
+          track("quiz_generated_failure", { reason: "no_class" });
           return;
         }
         const { text, ok } = await buildClassNotesText(classId);
         if (!ok) {
           push({ kind: "error", text: "Could not load class notes." });
           setLoading(false);
+          track("quiz_generated_failure", { reason: "notes_fetch_error" });
           return;
         }
         if (!text) {
           push({ kind: "error", text: "This class has no notes yet." });
           setLoading(false);
+          track("quiz_generated_failure", { reason: "empty_class_notes" });
           return;
         }
         notes_text = text;
@@ -142,6 +212,7 @@ export default function Generate() {
       if (!accessToken) {
         push({ kind: "error", text: "You are signed out. Please sign in again." });
         setLoading(false);
+        track("quiz_generated_failure", { reason: "no_token" });
         return;
       }
 
@@ -161,7 +232,24 @@ export default function Generate() {
       const payload = await res.json();
       if (!res.ok) {
         console.error("GENERATE_API_ERROR", { status: res.status, payload });
-        push({ kind: "error", text: payload?.message || "Failed to generate quiz." });
+
+        // Track failure
+        track("quiz_generated_failure", {
+          status: res.status,
+          code: payload?.code || "unknown",
+          message: payload?.message
+        });
+
+        // Handle USAGE_LIMIT_REACHED specially
+        if (payload?.code === "USAGE_LIMIT_REACHED") {
+          push({
+            kind: "error",
+            text: `${payload.message} ${payload.upgrade_hint || ""}`
+          });
+        } else {
+          push({ kind: "error", text: payload?.message || "Failed to generate quiz." });
+        }
+
         setLoading(false);
         return;
       }
@@ -169,15 +257,36 @@ export default function Generate() {
       const quizId: string | undefined = payload?.quiz_id || payload?.id;
       if (!quizId) {
         console.error("GENERATE_API_NO_ID", payload);
+        track("quiz_generated_failure", { reason: "no_quiz_id" });
         push({ kind: "error", text: "Quiz created but no ID returned." });
         setLoading(false);
         return;
       }
 
+      // Track success
+      track("quiz_generated_success", { mode, quizId });
+
       push({ kind: "success", text: "Quiz generated!" });
+
+      // Clear autosave
+      if (mode === "direct") {
+        try {
+          localStorage.removeItem(LS_KEY_DIRECT);
+        } catch {
+          // no-op
+        }
+      }
+
       navigate(`/quiz/${quizId}`);
     } catch (e: any) {
       console.error("GENERATE_SUBMIT_ERROR", e);
+
+      // Track exception
+      track("quiz_generated_failure", {
+        reason: "exception",
+        message: e?.message
+      });
+
       push({ kind: "error", text: "Unexpected error. Please try again." });
       setLoading(false);
     }
@@ -245,7 +354,12 @@ export default function Generate() {
           )}
 
           {mode === "file" && (
-            <div className="mb-6">
+            <div
+              className={`mb-6 p-3 radius bdr transition-colors ${dragOver ? "surface-3" : "surface-2"}`}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+            >
               <label className="text-sm text-muted block mb-2">Upload a .txt or .md file</label>
               <input
                 type="file"
@@ -258,6 +372,8 @@ export default function Generate() {
                   if (f) await extractTextFromFile(f);
                 }}
               />
+              <div className="text-xs text-muted mb-2">Or drag & drop a file here</div>
+
               {file && (
                 <div className="text-sm text-muted mb-3">
                   Selected: <span className="text-foreground font-medium">{file.name}</span>

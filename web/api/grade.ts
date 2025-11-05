@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { gradeSubmission, type Question } from "../src/lib/grader";
 import { randomUUID } from "crypto";
+import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit";
 
 type BodyShape = {
   quiz_id: string;
@@ -25,6 +26,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== "POST") {
     return err("METHOD_NOT_ALLOWED", "Only POST allowed", 405, res);
+  }
+
+  // Alpha rate limiting (optional, flag-gated)
+  if (alphaLimitsEnabled()) {
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(",")[0]?.trim() || "unknown";
+    const verdict = alphaRateLimit(`${ip}:grade`);
+    if (!verdict.allow) {
+      log('warn', { request_id, ip, retryAfter: verdict.retryAfter }, 'Alpha rate limit exceeded');
+      return err("RATE_LIMITED", `Too many requests. Try again in ${verdict.retryAfter}s.`, 429, res);
+    }
   }
 
   try {
