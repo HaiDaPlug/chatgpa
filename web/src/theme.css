@@ -3,6 +3,7 @@
   --bg:#f8f9fb;
   --surface:#ffffff;
   --surface-2:#f3f4f6;
+  --surface-3:#e5e7eb;
   --text:#1a1a1a;
   --text-muted:#6b7280;
   --border:rgba(0,0,0,0.08);
@@ -24,6 +25,7 @@ body{background:var(--bg);color:var(--text);line-height:1.45}
 /* Primitive helpers (work with Tailwind utilities) */
 .surface{background:var(--surface)}
 .surface-2{background:var(--surface-2)}
+.surface-3{background:var(--surface-3)}
 .text-muted{color:var(--text-muted)}
 .bdr{border:1px solid var(--border)}
 .radius{border-radius:var(--radius)}

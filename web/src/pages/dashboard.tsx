@@ -8,7 +8,7 @@ import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/Card";
 import { Tabs } from "@/components/Tabs";
 import type { ClassRow } from "@/types";
-import { log } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry";
 
 const PAGE_SIZE = 10;
 
@@ -21,6 +21,7 @@ export default function DashboardPage() {
 
   const [rows, setRows] = useState<ClassRow[] | null>(null);
   const [count, setCount] = useState<number>(0);
+  const [quizCount, setQuizCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -46,6 +47,19 @@ export default function DashboardPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Fetch quiz count for usage display
+  useEffect(() => {
+    (async () => {
+      const { count, error } = await supabase
+        .from("quizzes")
+        .select("*", { count: "exact", head: true });
+
+      if (!error && count !== null) {
+        setQuizCount(count);
+      }
+    })();
+  }, []);
+
   // Fetch classes with search + pagination (debounced)
   useEffect(() => {
     (async () => {
@@ -54,7 +68,7 @@ export default function DashboardPage() {
       abortRef.current = ac;
 
       setLoading(true);
-      log("classes_loaded", { q: qDebounced, page });
+      track("dashboard_loaded", { q: qDebounced, page });
       try {
         let query = supabase
           .from("classes")
@@ -76,7 +90,7 @@ export default function DashboardPage() {
       } catch (e: any) {
         if (e?.name !== "AbortError") {
           push({ kind: "error", text: "Couldn't load classes. Try again." });
-          log("dashboard_error", { error: e?.message });
+          track("dashboard_loaded", { error: e?.message });
         }
       } finally {
         if (!abortRef.current?.signal.aborted) setLoading(false);
@@ -163,6 +177,12 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Usage count display */}
+            {quizCount !== null && (
+              <div className="surface-2 bdr radius px-3 py-1 text-xs text-muted">
+                Quizzes: {quizCount} / 5
+              </div>
+            )}
             <button className="btn" onClick={()=>location.reload()}>Refresh</button>
             <button className="btn" disabled={busyId==="create"} onClick={onCreate}>
               {busyId==="create" ? "Creating…" : "Create Class"}
