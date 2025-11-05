@@ -3,7 +3,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { gradeSubmission } from "../src/lib/grader";
+import { gradeSubmission, type Question } from "../src/lib/grader";
 import { randomUUID } from "crypto";
 
 type BodyShape = {
@@ -82,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 2) Grade fully (score + per-question feedback + improvements)
-    const result = await gradeSubmission(questions as any, body.responses);
+    const result = await gradeSubmission(questions as Question[], body.responses);
 
     // 3) Insert attempt (RLS)
     const { data: attempt, error: aErr } = await supabase

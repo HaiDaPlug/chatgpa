@@ -176,7 +176,7 @@ export default function QuizPage() {
     setSubmitting(true);
 
     try {
-      // 1) Try server grading (preferred): /api/grade inserts quiz_attempt
+      // Get auth token
       const session = (await supabase.auth.getSession()).data.session;
       const accessToken = session?.access_token;
       if (!accessToken) {
@@ -185,6 +185,7 @@ export default function QuizPage() {
         return;
       }
 
+      // Submit to grading API (creates attempt via RLS)
       const res = await fetch("/api/grade", {
         method: "POST",
         headers: {
@@ -200,46 +201,18 @@ export default function QuizPage() {
       const payload = await res.json();
 
       if (!res.ok) {
-        // Standardized error shape: { code, message }
         const msg = payload?.message || "Grading failed.";
+        console.error("GRADE_ERROR", { status: res.status, payload });
         push({ kind: "error", text: msg });
         setSubmitting(false);
         return;
       }
 
-      // Prefer backend-created attempt; fallback to local insert if missing
-      const attemptId: string | undefined = payload?.attempt_id;
-      const score: number | null | undefined = payload?.score;
-
-      if (attemptId) {
-        push({ kind: "success", text: "Graded!" });
-        navigate("/results");
-        return;
-      }
-
-      // 2) Fallback: insert attempt client-side if API returns score but no attempt
-      if (typeof score === "number") {
-        const { error: insertErr } = await supabase.from("quiz_attempts").insert([
-          {
-            quiz_id: quizId,
-            responses: answers,
-            score,
-          },
-        ]);
-        if (insertErr) {
-          push({ kind: "error", text: "Could not save attempt (RLS blocked?)." });
-          setSubmitting(false);
-          return;
-        }
-        push({ kind: "success", text: "Graded!" });
-        navigate("/results");
-        return;
-      }
-
-      // 3) Last resort: success but unknown shape — still navigate to results
-      push({ kind: "success", text: "Submitted for grading." });
+      // Success - API created the attempt
+      push({ kind: "success", text: payload?.summary || "Graded!" });
       navigate("/results");
-    } catch {
+    } catch (error) {
+      console.error("SUBMIT_ERROR", { error });
       push({ kind: "error", text: "Network error. Please try again." });
       setSubmitting(false);
     }

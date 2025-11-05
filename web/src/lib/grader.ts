@@ -4,9 +4,10 @@
 //        also asks the model for targeted improvements/feedback per short answer.
 
 import OpenAI from "openai";
+import { modelEnv } from "./env";
 
 // ---- Types (align with our quiz schema) ----
-type MCQ = {
+export type MCQ = {
   id: string;
   type: "mcq";
   prompt: string;
@@ -15,14 +16,14 @@ type MCQ = {
   explanation?: string; // optional author-provided
 };
 
-type ShortQ = {
+export type ShortQ = {
   id: string;
   type: "short";
   prompt: string;
   answer?: string; // optional reference text
 };
 
-type Question = MCQ | ShortQ;
+export type Question = MCQ | ShortQ;
 
 export type BreakdownItem = {
   id: string;
@@ -81,8 +82,9 @@ async function aiShortFeedbackBatch(
       "For each item: evaluate correctness (boolean), write one-sentence feedback explaining why, and give one concrete improvement tip. Be concise and actionable.",
   };
 
+  const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-5");
   const res = await client.chat.completions.create({
-    model: process.env.OPENAI_GRADE_MODEL || "gpt-5",
+    model,
     temperature: 0.1,
     messages: [
       {

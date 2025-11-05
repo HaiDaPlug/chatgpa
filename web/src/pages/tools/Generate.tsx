@@ -65,6 +65,7 @@ export default function Generate() {
       .eq("class_id", selected);
 
     if (notesErr) {
+      console.error("LOAD_NOTES_ERROR", { class_id: selected, error: notesErr });
       setGenLoading(false);
       push({ kind: "error", text: "Could not load notes." });
       return;
@@ -93,6 +94,7 @@ export default function Generate() {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: "Failed to generate quiz." }));
+      console.error("GEN_QUIZ_ERROR", { class_id: selected, status: res.status, error: err });
       setGenLoading(false);
       push({ kind: "error", text: err.message || "Failed to generate quiz." });
       return;
