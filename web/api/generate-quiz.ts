@@ -17,7 +17,7 @@ import { MODEL } from "./_lib/ai";
 
 // Input schema
 const Body = z.object({
-  class_id: z.string().uuid(),
+  class_id: z.string().uuid().nullable().optional(), // optional - standalone quizzes allowed
   notes_text: z.string().min(20).max(50000),
 });
 
@@ -100,16 +100,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { class_id, notes_text } = parse.data;
 
-    // Verify class ownership (RLS should handle this, but double-check)
-    const { data: classData, error: classError } = await supabase
-      .from('classes')
-      .select('id')
-      .eq('id', class_id)
-      .single();
+    // Verify class ownership if class_id provided (RLS should handle this, but double-check)
+    if (class_id) {
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('id')
+        .eq('id', class_id)
+        .single();
 
-    if (classError || !classData) {
-      log('error', { request_id, route: '/api/generate-quiz', user_id, class_id }, 'Class not found or access denied');
-      return res.status(404).json({ code: "NOT_FOUND", message: "Class not found or access denied" });
+      if (classError || !classData) {
+        log('error', { request_id, route: '/api/generate-quiz', user_id, class_id }, 'Class not found or access denied');
+        return res.status(404).json({ code: "NOT_FOUND", message: "Class not found or access denied" });
+      }
     }
 
     // Check subscription tier
