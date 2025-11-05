@@ -51,3 +51,6 @@ nextsession/
 prompts/
 build-plan/
 revise.md
+
+# Local experiments (use git branches or web/src/experiments/)
+web/src/experiments/

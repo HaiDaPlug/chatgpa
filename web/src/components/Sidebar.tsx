@@ -1,8 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+
+type ClassRow = { id: string; name: string };
 
 export function Sidebar({ collapsed, onToggle }:{collapsed:boolean; onToggle:()=>void}) {
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  const navigate = useNavigate();
+
+  // Load user's classes
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setLoadingClasses(true);
+      const { data, error } = await supabase
+        .from("classes")
+        .select("id, name")
+        .order("created_at", { ascending: false });
+
+      if (!alive) return;
+
+      if (error) {
+        console.error("SIDEBAR_CLASSES_ERROR", error);
+        setClasses([]);
+      } else {
+        setClasses(data ?? []);
+      }
+      setLoadingClasses(false);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return (
     <div className="h-full flex flex-col p-4">
       {/* Logo / collapse toggle */}
@@ -15,9 +47,12 @@ export function Sidebar({ collapsed, onToggle }:{collapsed:boolean; onToggle:()=
 
       {/* Nav sections */}
       <nav className="flex-1 grid gap-1">
-        <Tree label="My Classes" items={["ECON 101","CS 305","MATH 250"]} collapsed={collapsed}/>
-        <Tree label="Recent Quizzes" items={[]} collapsed={collapsed}/>
-        <Tree label="Settings" items={[]} collapsed={collapsed}/>
+        <ClassesTree
+          classes={classes}
+          loading={loadingClasses}
+          collapsed={collapsed}
+          onCreateClass={() => navigate("/dashboard")}
+        />
       </nav>
 
       {/* Study Tools Section */}
@@ -73,8 +108,19 @@ export function Sidebar({ collapsed, onToggle }:{collapsed:boolean; onToggle:()=
   );
 }
 
-function Tree({ label, items = [], collapsed }:{label:string; items?:string[]; collapsed?:boolean}) {
+function ClassesTree({
+  classes,
+  loading,
+  collapsed,
+  onCreateClass
+}: {
+  classes: ClassRow[];
+  loading: boolean;
+  collapsed?: boolean;
+  onCreateClass: () => void;
+}) {
   const [open, setOpen] = useState(true);
+
   return (
     <div>
       <button
@@ -82,7 +128,7 @@ function Tree({ label, items = [], collapsed }:{label:string; items?:string[]; c
         onClick={() => setOpen(o => !o)}
       >
         <div className="w-4 h-4 rounded-[4px] surface-2 bdr" aria-hidden />
-        {!collapsed && <span className="flex-1">{label}</span>}
+        {!collapsed && <span className="flex-1">My Classes</span>}
         {!collapsed && <span className="opacity-60">{open ? "▾" : "▸"}</span>}
       </button>
 
@@ -96,11 +142,27 @@ function Tree({ label, items = [], collapsed }:{label:string; items?:string[]; c
               transition={{ duration: 0.18, ease: [0.2,0,0,1] }}
               className="ml-2 pl-2 border-l border-[var(--border)] grid gap-1 overflow-hidden"
             >
-              {items.map(i => (
-                <div key={i} tabIndex={0}
-                    className="px-2 py-1 radius hover:surface-2 focus-ring text-[13px]">
-                  {i}
+              {loading && (
+                <div className="px-2 py-1 text-[13px] text-muted">
+                  Loading…
                 </div>
+              )}
+              {!loading && classes.length === 0 && (
+                <button
+                  onClick={onCreateClass}
+                  className="px-2 py-1 radius hover:surface-2 focus-ring text-[13px] text-left"
+                >
+                  + Create your first class
+                </button>
+              )}
+              {!loading && classes.map(c => (
+                <NavLink
+                  key={c.id}
+                  to={`/classes/${c.id}/notes`}
+                  className="px-2 py-1 radius hover:surface-2 focus-ring text-[13px] block"
+                >
+                  {c.name}
+                </NavLink>
               ))}
             </motion.div>
           )}
