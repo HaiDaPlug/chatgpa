@@ -32,7 +32,7 @@ export function Header() {
       style={{ backdropFilter: "saturate(120%) blur(6px)" }}
     >
       {/* Logo / Home Link */}
-      <Link to="/dashboard" className="flex items-center gap-2 select-none hover:opacity-80 transition-opacity">
+      <Link to="/" className="flex items-center gap-2 select-none hover:opacity-80 transition-opacity">
         <div className="w-6 h-6 radius surface-2 bdr flex items-center justify-center text-[14px] font-semibold">
           G
         </div>

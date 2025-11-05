@@ -237,8 +237,8 @@ export default function Generate() {
                 onChange={(e) => setDirectText(e.target.value)}
               />
               {directText && (
-                <div className="text-sm text-muted mt-2">
-                  {directText.length} characters
+                <div className="text-xs text-muted mt-2">
+                  {directText.length.toLocaleString()} characters
                 </div>
               )}
             </div>
@@ -278,8 +278,8 @@ export default function Generate() {
                     value={fileText}
                     onChange={(e) => setFileText(e.target.value)}
                   />
-                  <div className="text-sm text-muted mt-2">
-                    {fileText.length} characters
+                  <div className="text-xs text-muted mt-2">
+                    {fileText.length.toLocaleString()} characters
                   </div>
                 </>
               )}
@@ -313,11 +313,11 @@ export default function Generate() {
           )}
 
           <div className="flex gap-3">
-            <button className="btn primary" onClick={submitGenerate} disabled={loading}>
+            <button className="btn primary" onClick={submitGenerate} disabled={loading} aria-busy={loading}>
               {loading ? "Generating…" : "Generate Quiz"}
             </button>
-            <button className="btn ghost" onClick={() => navigate("/dashboard")}>
-              Back to Dashboard
+            <button className="btn ghost" onClick={() => navigate("/")}>
+              Back
             </button>
           </div>
         </div>

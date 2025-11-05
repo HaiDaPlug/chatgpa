@@ -18,7 +18,7 @@ import { MODEL } from "./_lib/ai";
 // Input schema
 const Body = z.object({
   class_id: z.string().uuid().nullable().optional(), // optional - standalone quizzes allowed
-  notes_text: z.string().min(20).max(50000),
+  notes_text: z.string().trim().min(20, "Notes text must be at least 20 characters").max(50000, "Notes text too long (max 50,000 characters)"),
 });
 
 // Quiz question schemas (from quiz-schema.ts)
@@ -91,10 +91,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Validate body
     const parse = Body.safeParse(req.body ?? {});
     if (!parse.success) {
-      log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Schema validation failed');
+      const firstError = parse.error.issues[0];
+      const errorMsg = firstError?.message ?? "Invalid request body";
+      log('error', { request_id, route: '/api/generate-quiz', user_id, validation_error: errorMsg }, 'Schema validation failed');
       return res.status(400).json({
         code: "SCHEMA_INVALID",
-        message: parse.error.issues.map(i => i.message).join(', ')
+        message: errorMsg
       });
     }
 
