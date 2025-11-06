@@ -13,7 +13,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { MODEL } from "./_lib/ai";
+import { getOpenAIClient, MODEL } from "./_lib/ai";
 import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit";
 import { getUserPlan, getQuizCount } from "./_lib/plan";
 
@@ -158,12 +158,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Call OpenAI to generate quiz
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) {
-      log('error', { request_id, route: '/api/generate-quiz' }, 'Missing OpenAI key');
-      return res.status(500).json({ code: "SERVER_ERROR", message: "Server configuration error" });
-    }
-
     const prompt = `You are ChatGPA's quiz generator.
 
 Goal
@@ -201,28 +195,16 @@ ${notes_text}
 
 Now generate the quiz JSON.`;
 
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        response_format: { type: 'json_object' },
-      }),
+    const completion = await getOpenAIClient().chat.completions.create({
+      model: MODEL,
+      temperature: 0.7,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "user", content: prompt },
+      ],
     });
 
-    if (!openaiResponse.ok) {
-      await openaiResponse.text();
-      log('error', { request_id, route: '/api/generate-quiz', user_id, status: openaiResponse.status }, 'OpenAI API error');
-      return res.status(500).json({ code: "OPENAI_ERROR", message: "Quiz generation failed" });
-    }
-
-    const openaiData: any = await openaiResponse.json();
-    const raw = openaiData?.choices?.[0]?.message?.content ?? "{}";
+    const raw = completion.choices?.[0]?.message?.content ?? "{}";
 
     let quizJson;
     try {
