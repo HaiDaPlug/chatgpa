@@ -32,7 +32,7 @@ export function validateAIConfig(): { valid: boolean; error?: string } {
   }
 
   const model = getModel();
-  const validModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'gpt-4'];
+  const validModels = ['gpt-5', 'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'gpt-4'];
   if (!validModels.includes(model)) {
     return { valid: false, error: `Invalid model: ${model}. Must be one of: ${validModels.join(', ')}` };
   }
