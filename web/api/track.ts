@@ -60,6 +60,11 @@ export async function POST(req: NextRequest) {
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
     const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
+    // Validate required environment variables (log warning but continue)
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.error('[TRACK_API] Missing Supabase environment variables - user attribution disabled');
+    }
+
     let user_id: string | null = null;
     if (token && SUPABASE_URL && SUPABASE_ANON_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
