@@ -13,9 +13,9 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { getOpenAIClient, MODEL } from "./_lib/ai";
-import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit";
-import { getUserPlan, getQuizCount } from "./_lib/plan";
+import { getOpenAIClient, MODEL } from "./_lib/ai.js";
+import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit.js";
+import { getUserPlan, getQuizCount } from "./_lib/plan.js";
 
 // Input schema
 const Body = z.object({
