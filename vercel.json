@@ -2,6 +2,14 @@
   "buildCommand": "cd web && pnpm build",
   "installCommand": "pnpm install --prefix web",
   "outputDirectory": "web/dist",
+  "functions": {
+    "api/generate-quiz.ts": {
+      "maxDuration": 60
+    },
+    "api/grade.ts": {
+      "maxDuration": 30
+    }
+  },
   "redirects": [
     {
       "source": "/waitlist",

@@ -24,3 +24,18 @@ export function getModel(): string {
 }
 
 export const MODEL = getModel();
+
+// Validation helper for startup checks
+export function validateAIConfig(): { valid: boolean; error?: string } {
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    return { valid: false, error: "OPENAI_API_KEY is missing or empty" };
+  }
+
+  const model = getModel();
+  const validModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'gpt-4'];
+  if (!validModels.includes(model)) {
+    return { valid: false, error: `Invalid model: ${model}. Must be one of: ${validModels.join(', ')}` };
+  }
+
+  return { valid: true };
+}
