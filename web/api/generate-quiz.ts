@@ -257,15 +257,9 @@ Now generate the quiz JSON.`;
       return res.status(500).json({ code: "SERVER_ERROR", message: "Failed to save quiz" });
     }
 
-    // Update usage_limits cache (optional, after successful insert)
-    if (!isPaid) {
-      await supabase
-        .from('usage_limits')
-        .upsert({
-          user_id,
-          quizzes_taken: (quizzesCount || 0) + 1,
-        }, { onConflict: 'user_id' });
-    }
+    // TODO: Re-implement usage_limits cache update with proper variable storage
+    // The usage count is already enforced before OpenAI call (lines 139-157)
+    // This optional cache was causing ReferenceError due to undefined variables
 
     log('info', { request_id, route: '/api/generate-quiz', user_id, class_id, quiz_id: quizData.id }, 'Quiz generated successfully');
 
