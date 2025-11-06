@@ -13,7 +13,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { getOpenAIClient, MODEL } from "./_lib/ai.js";
+import { getOpenAIClient, MODEL, validateAIConfig } from "./_lib/ai.js";
 import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit.js";
 import { getUserPlan, getQuizCount } from "./_lib/plan.js";
 
@@ -75,6 +75,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Validate critical environment variables
+    const requiredEnvVars = {
+      SUPABASE_URL: process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    };
+
+    const missingVars = Object.entries(requiredEnvVars)
+      .filter(([key, value]) => !value?.trim())
+      .map(([key]) => key);
+
+    if (missingVars.length > 0) {
+      log('error', {
+        request_id,
+        route: '/api/generate-quiz',
+        missing_vars: missingVars
+      }, 'Missing required environment variables');
+
+      return res.status(500).json({
+        code: "SERVER_ERROR",
+        message: "Service configuration error"
+      });
+    }
+
+    // Validate AI configuration
+    const aiConfigCheck = validateAIConfig();
+    if (!aiConfigCheck.valid) {
+      log('error', {
+        request_id,
+        route: '/api/generate-quiz',
+        error: aiConfigCheck.error
+      }, 'AI configuration validation failed');
+
+      return res.status(500).json({
+        code: "SERVER_ERROR",
+        message: "AI service configuration error"
+      });
+    }
+
     // Auth passthrough (RLS relies on this token)
     const auth = req.headers.authorization;
     if (!auth?.startsWith("Bearer ")) {
@@ -195,14 +234,91 @@ ${notes_text}
 
 Now generate the quiz JSON.`;
 
-    const completion = await getOpenAIClient().chat.completions.create({
-      model: MODEL,
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "user", content: prompt },
-      ],
-    });
+    // Call OpenAI with specific error handling
+    let completion;
+    try {
+      completion = await getOpenAIClient().chat.completions.create({
+        model: MODEL,
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "user", content: prompt },
+        ],
+        timeout: 60000, // 60 second timeout
+      });
+    } catch (error: any) {
+      // Specific OpenAI error handling
+      if (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
+        log('error', {
+          request_id,
+          route: '/api/generate-quiz',
+          user_id,
+          error: 'Network error',
+          code: error.code
+        }, 'Failed to reach OpenAI');
+        return res.status(503).json({
+          code: "OPENAI_ERROR",
+          message: "Failed to reach AI service. Please try again."
+        });
+      }
+
+      if (error.status === 429) {
+        log('error', {
+          request_id,
+          route: '/api/generate-quiz',
+          user_id,
+          error: 'Rate limited'
+        }, 'OpenAI rate limit hit');
+        return res.status(429).json({
+          code: "OPENAI_ERROR",
+          message: "AI service is rate limited. Please try again later."
+        });
+      }
+
+      if (error.status === 401 || error.status === 403) {
+        log('error', {
+          request_id,
+          route: '/api/generate-quiz',
+          user_id,
+          error: 'Authentication failed',
+          status: error.status
+        }, 'OpenAI authentication failed');
+        return res.status(500).json({
+          code: "OPENAI_ERROR",
+          message: "AI service authentication failed"
+        });
+      }
+
+      if (error.status === 400) {
+        log('error', {
+          request_id,
+          route: '/api/generate-quiz',
+          user_id,
+          error: error.message,
+          status: 400
+        }, 'OpenAI bad request (invalid prompt or params)');
+        return res.status(500).json({
+          code: "OPENAI_ERROR",
+          message: "Invalid request to AI service"
+        });
+      }
+
+      // Generic OpenAI error
+      log('error', {
+        request_id,
+        route: '/api/generate-quiz',
+        user_id,
+        error_message: error.message,
+        error_status: error.status,
+        error_code: error.code,
+        error_type: error.type
+      }, 'OpenAI API error');
+
+      return res.status(500).json({
+        code: "OPENAI_ERROR",
+        message: "Failed to generate quiz. Please try again."
+      });
+    }
 
     const raw = completion.choices?.[0]?.message?.content ?? "{}";
 
@@ -248,7 +364,18 @@ Now generate the quiz JSON.`;
     return res.status(200).json({ quiz_id: quizData.id });
 
   } catch (error: any) {
-    log('error', { request_id, route: '/api/generate-quiz', error: error.message }, 'Unhandled error');
+    // Enhanced error logging for debugging
+    log('error', {
+      request_id,
+      route: '/api/generate-quiz',
+      user_id: req.body?.user_id ?? 'unknown',
+      error_message: error.message,
+      error_stack: error.stack?.split('\n').slice(0, 3).join(' | '),
+      error_code: error.code,
+      error_status: error.status,
+      error_name: error.name
+    }, 'Unhandled error in generate-quiz');
+
     return res.status(500).json({ code: "SERVER_ERROR", message: "Internal server error" });
   }
 }
