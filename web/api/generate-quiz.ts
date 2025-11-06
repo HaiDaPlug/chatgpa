@@ -86,8 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Supabase client bound to user token (enables RLS)
     const supabase = createClient(
-      process.env.VITE_SUPABASE_URL!,
-      process.env.VITE_SUPABASE_ANON_KEY!,
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
       {
         global: { headers: { Authorization: `Bearer ${access_token}` } },
         auth: { persistSession: false }
