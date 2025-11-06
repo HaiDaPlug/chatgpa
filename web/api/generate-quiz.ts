@@ -235,6 +235,7 @@ ${notes_text}
 Now generate the quiz JSON.`;
 
     // Call OpenAI with specific error handling
+    // Note: timeout is set at client level (60s) in ai.ts
     let completion;
     try {
       completion = await getOpenAIClient().chat.completions.create({
@@ -244,7 +245,6 @@ Now generate the quiz JSON.`;
         messages: [
           { role: "user", content: prompt },
         ],
-        timeout: 60000, // 60 second timeout
       });
     } catch (error: any) {
       // Specific OpenAI error handling
@@ -290,13 +290,41 @@ Now generate the quiz JSON.`;
       }
 
       if (error.status === 400) {
+        // Check if it's a model-related error
+        const errorDetails = error.error || error;
+        const isModelError =
+          error.message?.toLowerCase().includes('model') ||
+          errorDetails?.code === 'model_not_found' ||
+          errorDetails?.type === 'invalid_request_error';
+
+        // Log with full OpenAI error details for debugging
         log('error', {
           request_id,
           route: '/api/generate-quiz',
           user_id,
-          error: error.message,
-          status: 400
+          model: MODEL,
+          error_message: error.message,
+          error_code: errorDetails?.code,
+          error_type: errorDetails?.type,
+          error_param: errorDetails?.param,
+          status: 400,
+          is_model_error: isModelError
         }, 'OpenAI bad request (invalid prompt or params)');
+
+        // If it's a model error and we're not already using the fallback,
+        // log a LOUD warning for visibility
+        if (isModelError && MODEL !== 'gpt-4o-mini') {
+          log('warn', {
+            request_id,
+            route: '/api/generate-quiz',
+            user_id,
+            event: 'MODEL_FALLBACK_NEEDED',
+            requested_model: MODEL,
+            suggested_fallback: 'gpt-4o-mini',
+            error: error.message
+          }, '⚠️ MODEL ERROR: Consider setting OPENAI_MODEL=gpt-4o-mini in Vercel environment');
+        }
+
         return res.status(500).json({
           code: "OPENAI_ERROR",
           message: "Invalid request to AI service"
