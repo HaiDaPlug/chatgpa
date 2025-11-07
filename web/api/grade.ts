@@ -3,7 +3,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { gradeSubmission, type Question } from "../src/lib/grader";
+import { gradeSubmission, type Question } from "../src/lib/grader.js";
 import { randomUUID } from "crypto";
 import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit.js";
 
