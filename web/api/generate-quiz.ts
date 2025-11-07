@@ -372,6 +372,7 @@ Now generate the quiz JSON.`;
     const { data: quizData, error: insertError } = await supabase
       .from('quizzes')
       .insert({
+        user_id,
         class_id,
         questions: quizValidation.data.questions,
       })
