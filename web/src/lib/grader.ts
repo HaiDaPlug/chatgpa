@@ -4,7 +4,7 @@
 //        also asks the model for targeted improvements/feedback per short answer.
 
 import OpenAI from "openai";
-import { modelEnv } from "./env";
+import { modelEnv } from "./env.js";
 
 // ---- Types (align with our quiz schema) ----
 export type MCQ = {
