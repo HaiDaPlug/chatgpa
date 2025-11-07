@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase } from "./supabase.js";
 
 /** Returns the current user id (or null if signed out). */
 export async function getUserId(): Promise<string | null> {

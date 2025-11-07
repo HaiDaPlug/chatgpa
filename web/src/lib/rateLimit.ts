@@ -1,5 +1,5 @@
 // src/lib/rateLimit.ts
-import { supabaseAdmin } from "./supabaseAdmin";
+import { supabaseAdmin } from "./supabaseAdmin.js";
 
 interface RateLimitConfig {
   ip: string;
