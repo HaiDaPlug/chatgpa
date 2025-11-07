@@ -13,9 +13,11 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { getOpenAIClient, MODEL, validateAIConfig } from "./_lib/ai.js";
+import { MODEL, validateAIConfig } from "./_lib/ai.js";
 import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit.js";
 import { getUserPlan, getQuizCount } from "./_lib/plan.js";
+import { generateWithRouter } from "./_lib/ai-router.js";
+import { insertGenerationAnalytics, insertGenerationFailure, type Question } from "./_lib/analytics-service.js";
 
 // Input schema
 const Body = z.object({
@@ -234,134 +236,87 @@ ${notes_text}
 
 Now generate the quiz JSON.`;
 
-    // Call OpenAI with specific error handling
-    // Note: timeout is set at client level (60s) in ai.ts
-    let completion;
-    try {
-      completion = await getOpenAIClient().chat.completions.create({
-        model: MODEL,
-        temperature: 0.7,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "user", content: prompt },
-        ],
-      });
-    } catch (error: any) {
-      // Specific OpenAI error handling
-      if (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
-        log('error', {
-          request_id,
-          route: '/api/generate-quiz',
-          user_id,
-          error: 'Network error',
-          code: error.code
-        }, 'Failed to reach OpenAI');
-        return res.status(503).json({
-          code: "OPENAI_ERROR",
-          message: "Failed to reach AI service. Please try again."
-        });
-      }
+    // Call AI router with automatic fallback and analytics
+    // Router handles: model selection, parameter building, fallback logic, metrics collection
+    const routerResult = await generateWithRouter({
+      task: "quiz_generation",
+      prompt,
+      context: {
+        notes_length: notes_text.length,
+        question_count: 8, // Target question count (router will optimize)
+        request_id: request_id, // Pass request_id for log correlation
+      },
+    });
 
-      if (error.status === 429) {
-        log('error', {
-          request_id,
-          route: '/api/generate-quiz',
-          user_id,
-          error: 'Rate limited'
-        }, 'OpenAI rate limit hit');
-        return res.status(429).json({
-          code: "OPENAI_ERROR",
-          message: "AI service is rate limited. Please try again later."
-        });
-      }
+    // Handle router failure (both attempts failed or non-retryable error)
+    if (!routerResult.success) {
+      const error = routerResult.error!;
 
-      if (error.status === 401 || error.status === 403) {
-        log('error', {
-          request_id,
-          route: '/api/generate-quiz',
-          user_id,
-          error: 'Authentication failed',
-          status: error.status
-        }, 'OpenAI authentication failed');
-        return res.status(500).json({
-          code: "OPENAI_ERROR",
-          message: "AI service authentication failed"
-        });
-      }
-
-      if (error.status === 400) {
-        // Check if it's a model-related error
-        const errorDetails = error.error || error;
-        const isModelError =
-          error.message?.toLowerCase().includes('model') ||
-          errorDetails?.code === 'model_not_found' ||
-          errorDetails?.type === 'invalid_request_error';
-
-        // Log with full OpenAI error details for debugging
-        log('error', {
-          request_id,
-          route: '/api/generate-quiz',
-          user_id,
-          model: MODEL,
-          error_message: error.message,
-          error_code: errorDetails?.code,
-          error_type: errorDetails?.type,
-          error_param: errorDetails?.param,
-          status: 400,
-          is_model_error: isModelError
-        }, 'OpenAI bad request (invalid prompt or params)');
-
-        // If it's a model error and we're not already using the fallback,
-        // log a LOUD warning for visibility
-        if (isModelError && MODEL !== 'gpt-4o-mini') {
-          log('warn', {
-            request_id,
-            route: '/api/generate-quiz',
-            user_id,
-            event: 'MODEL_FALLBACK_NEEDED',
-            requested_model: MODEL,
-            suggested_fallback: 'gpt-4o-mini',
-            error: error.message
-          }, '⚠️ MODEL ERROR: Consider setting OPENAI_MODEL=gpt-4o-mini in Vercel environment');
-        }
-
-        return res.status(500).json({
-          code: "OPENAI_ERROR",
-          message: "Invalid request to AI service"
-        });
-      }
-
-      // Generic OpenAI error
-      log('error', {
-        request_id,
-        route: '/api/generate-quiz',
+      // Insert failure analytics (fire-and-forget: don't await, truly non-blocking)
+      insertGenerationFailure(
         user_id,
-        error_message: error.message,
-        error_status: error.status,
-        error_code: error.code,
-        error_type: error.type
-      }, 'OpenAI API error');
+        routerResult.metrics,
+        error.code,
+        error.message,
+        {
+          type: class_id ? "class" : "paste",
+          note_size: notes_text.length,
+        }
+      ).catch((err) => {
+        console.error("ANALYTICS_FAILURE_INSERT_ERROR", {
+          request_id: routerResult.metrics.request_id,
+          error: err?.message,
+        });
+      });
 
-      return res.status(500).json({
+      // Map router error codes to API error codes
+      const statusCode = error.code === "RATE_LIMIT" ? 429 : error.code === "AUTH_ERROR" ? 500 : 500;
+
+      log("error", {
+        request_id: routerResult.metrics.request_id,
+        route: "/api/generate-quiz",
+        user_id,
+        error_code: error.code,
+        error_message: error.message,
+        model_used: routerResult.metrics.model_used,
+        fallback_triggered: routerResult.metrics.fallback_triggered,
+        attempt_count: routerResult.metrics.attempt_count,
+        latency_ms: routerResult.metrics.latency_ms,
+      }, "Router generation failed");
+
+      return res.status(statusCode).json({
         code: "OPENAI_ERROR",
-        message: "Failed to generate quiz. Please try again."
+        message: error.message || "Failed to generate quiz. Please try again.",
       });
     }
 
-    const raw = completion.choices?.[0]?.message?.content ?? "{}";
+    // Success: Extract content and log metrics
+    const raw = routerResult.content!;
+
+    log("info", {
+      request_id: routerResult.metrics.request_id,
+      route: "/api/generate-quiz",
+      user_id,
+      model_used: routerResult.metrics.model_used,
+      model_family: routerResult.metrics.model_family,
+      fallback_triggered: routerResult.metrics.fallback_triggered,
+      attempt_count: routerResult.metrics.attempt_count,
+      latency_ms: routerResult.metrics.latency_ms,
+      tokens_total: routerResult.metrics.tokens_total,
+    }, "Router generation succeeded");
 
     let quizJson;
     try {
       quizJson = JSON.parse(raw);
     } catch {
-      log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Non-JSON response from model');
+      log('error', { request_id: routerResult.metrics.request_id, route: '/api/generate-quiz', user_id }, 'Non-JSON response from model');
       return res.status(400).json({ code: "SCHEMA_INVALID", message: "Non-JSON response from model" });
     }
 
     // Validate quiz structure with Zod
     const quizValidation = quizResponseSchema.safeParse(quizJson);
     if (!quizValidation.success) {
-      log('error', { request_id, route: '/api/generate-quiz', user_id }, 'Quiz validation failed');
+      log('error', { request_id: routerResult.metrics.request_id, route: '/api/generate-quiz', user_id }, 'Quiz validation failed');
       return res.status(500).json({
         code: "SCHEMA_INVALID",
         message: "Generated quiz failed validation"
@@ -384,11 +339,35 @@ Now generate the quiz JSON.`;
       return res.status(500).json({ code: "SERVER_ERROR", message: "Failed to save quiz" });
     }
 
-    // TODO: Re-implement usage_limits cache update with proper variable storage
-    // The usage count is already enforced before OpenAI call (lines 139-157)
-    // This optional cache was causing ReferenceError due to undefined variables
+    // Insert generation analytics (fire-and-forget: don't await, truly non-blocking)
+    insertGenerationAnalytics(
+      quizData.id,
+      user_id,
+      routerResult.metrics,
+      quizValidation.data.questions as Question[],
+      {
+        type: class_id ? "class" : "paste",
+        note_size: notes_text.length,
+      }
+    ).catch((err) => {
+      // Non-critical: log but don't fail quiz generation
+      console.error("ANALYTICS_INSERT_ERROR", {
+        request_id: routerResult.metrics.request_id,
+        quiz_id: quizData.id,
+        error: err?.message,
+      });
+    });
 
-    log('info', { request_id, route: '/api/generate-quiz', user_id, class_id, quiz_id: quizData.id }, 'Quiz generated successfully');
+    log('info', {
+      request_id: routerResult.metrics.request_id,
+      route: '/api/generate-quiz',
+      user_id,
+      class_id,
+      quiz_id: quizData.id,
+      model_used: routerResult.metrics.model_used,
+      latency_ms: routerResult.metrics.latency_ms,
+      fallback_triggered: routerResult.metrics.fallback_triggered,
+    }, 'Quiz generated successfully');
 
     return res.status(200).json({ quiz_id: quizData.id });
 
