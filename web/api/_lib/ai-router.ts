@@ -1,5 +1,5 @@
-// Purpose: Dynamic AI model router with fallback logic and generation analytics
-// Connects to: OpenAI API, analytics tracking, generate-quiz.ts
+// Purpose: Dynamic AI model router with fallback logic for generation + grading
+// Connects to: OpenAI API, analytics tracking, generate-quiz.ts, grade.ts
 
 import OpenAI from "openai";
 import { randomUUID } from "crypto";
@@ -11,12 +11,21 @@ import { getOpenAIClient } from "./ai.js";
 
 export type ModelFamily = "reasoning" | "standard";
 
+export type RouterTask = "quiz_generation" | "grade_mcq" | "grade_short" | "grade_long";
+
 export interface RouterRequest {
-  task: "quiz_generation";
+  task: RouterTask;
   prompt: string;
   context: {
-    notes_length: number;
-    question_count: number;
+    // Generation context (quiz_generation)
+    notes_length?: number;
+    question_count?: number;
+
+    // Grading context (grade_*)
+    question_type?: "mcq" | "short" | "long";
+    has_reference?: boolean;
+
+    // Common
     request_id?: string; // Optional: pass existing request_id for log correlation
   };
 }
@@ -59,6 +68,42 @@ function getGenerationConfig() {
   const jsonStrict = (process.env.ROUTER_JSON_STRICT || "true") === "true";
   const timeoutMs = parseInt(process.env.ROUTER_TIMEOUT_MS || "60000", 10);
   const maxRetries = parseInt(process.env.ROUTER_MAX_RETRIES || "1", 10);
+
+  return {
+    defaultModel,
+    fallbackModel,
+    fallbackEnabled,
+    jsonStrict,
+    timeoutMs,
+    maxRetries,
+  };
+}
+
+function getGradingConfig(task: RouterTask) {
+  const fallbackEnabled = (process.env.ROUTER_ENABLE_FALLBACK || "true") === "true";
+  const jsonStrict = (process.env.ROUTER_JSON_STRICT || "true") === "true";
+  const timeoutMs = parseInt(process.env.ROUTER_TIMEOUT_MS || "60000", 10);
+  const maxRetries = parseInt(process.env.ROUTER_MAX_RETRIES || "1", 10);
+
+  let defaultModel: string;
+  let fallbackModel: string;
+
+  switch (task) {
+    case "grade_mcq":
+      defaultModel = process.env.OPENAI_MODEL_GRADE_DEFAULT_MCQ || "gpt-4o-mini";
+      fallbackModel = process.env.OPENAI_MODEL_GRADE_FALLBACK_MCQ || "gpt-5-mini";
+      break;
+    case "grade_short":
+      defaultModel = process.env.OPENAI_MODEL_GRADE_DEFAULT_SHORT || "gpt-4o-mini";
+      fallbackModel = process.env.OPENAI_MODEL_GRADE_FALLBACK_SHORT || "gpt-5-mini";
+      break;
+    case "grade_long":
+      defaultModel = process.env.OPENAI_MODEL_GRADE_DEFAULT_LONG || "gpt-5-mini";
+      fallbackModel = process.env.OPENAI_MODEL_GRADE_FALLBACK_LONG || "gpt-4o-mini";
+      break;
+    default:
+      throw new Error(`Invalid grading task: ${task}`);
+  }
 
   return {
     defaultModel,
@@ -130,10 +175,15 @@ function buildParameters(
     messages: [{ role: "user", content: request.prompt }],
   };
 
-  // Estimate max tokens based on question count (generous buffer)
-  const estimatedTokensPerQuestion = 150;
-  const maxTokens = request.context.question_count * estimatedTokensPerQuestion + 500;
-  params.max_tokens = Math.min(maxTokens, 4000); // Cap at 4k tokens
+  // Estimate max tokens based on context
+  if (request.task === "quiz_generation") {
+    const estimatedTokensPerQuestion = 150;
+    const maxTokens = (request.context.question_count || 8) * estimatedTokensPerQuestion + 500;
+    params.max_tokens = Math.min(maxTokens, 4000); // Cap at 4k tokens
+  } else {
+    // Grading tasks: more generous for detailed feedback
+    params.max_tokens = 2000;
+  }
 
   if (family === "reasoning") {
     // Reasoning models:
@@ -145,9 +195,14 @@ function buildParameters(
     // params.reasoning_effort = "medium";
   } else {
     // Standard models:
-    // - Include temperature for creativity
+    // - Include temperature based on task
     // - Use JSON object mode
-    params.temperature = 0.7; // Balanced creativity for quiz generation
+    if (request.task === "quiz_generation") {
+      params.temperature = 0.7; // Balanced creativity for quiz generation
+    } else {
+      // Grading tasks: low variance for deterministic evaluation
+      params.temperature = 0.1;
+    }
     params.response_format = { type: "json_object" };
   }
 
@@ -251,10 +306,12 @@ async function executeCall(
 }
 
 /**
- * Main router function: generate content with fallback logic.
+ * Main router function: route AI requests (generation + grading) with fallback logic.
  */
 export async function generateWithRouter(request: RouterRequest): Promise<RouterResult> {
-  const config = getGenerationConfig();
+  // Get appropriate config based on task
+  const config =
+    request.task === "quiz_generation" ? getGenerationConfig() : getGradingConfig(request.task);
   // Use provided request_id or generate new one (single source of truth)
   const requestId = request.context.request_id || randomUUID();
   const client = getOpenAIClient();

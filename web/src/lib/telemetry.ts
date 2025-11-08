@@ -7,7 +7,10 @@ type TelemetryEvent =
   | "attempts_loaded"
   | "quiz_generated_start"
   | "quiz_generated_success"
-  | "quiz_generated_failure";
+  | "quiz_generated_failure"
+  | "quiz_graded_start"
+  | "quiz_graded_success"
+  | "quiz_graded_failure";
 
 /**
  * Track telemetry event - sends to server endpoint

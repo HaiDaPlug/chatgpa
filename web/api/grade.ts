@@ -1,4 +1,4 @@
-// Purpose: Grade a quiz submission, store attempt (RLS), and return score + detailed feedback.
+// Purpose: Grade a quiz submission with router-based grading + analytics.
 // Error shape: { code, message } only. Uses anon client + user Bearer for RLS.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
@@ -6,6 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 import { gradeSubmission, type Question } from "../src/lib/grader.js";
 import { randomUUID } from "crypto";
 import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit.js";
+import { insertGradingAnalytics, insertGradingFailure } from "./_lib/grading-analytics.js";
+import { RUBRIC_VERSION } from "./_lib/rubric-engine.js";
+import type { RouterMetrics } from "./_lib/ai-router.js";
 
 type BodyShape = {
   quiz_id: string;
@@ -113,10 +116,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     log('info', { request_id, user_id, quiz_id: body.quiz_id, attempt_id: attempt.id, score: result.percent }, 'Grading completed');
 
+    // Calculate letter grade (fix frontend mismatch)
+    const letter =
+      result.percent >= 90
+        ? "A"
+        : result.percent >= 80
+        ? "B"
+        : result.percent >= 70
+        ? "C"
+        : result.percent >= 60
+        ? "D"
+        : "F";
+
+    // Count question types for analytics
+    const questionTypeBreakdown = {
+      mcq: questions.filter((q: any) => q.type === "mcq").length,
+      short: questions.filter((q: any) => q.type === "short").length,
+      long: questions.filter((q: any) => q.type === "long").length,
+    };
+
+    // Fire-and-forget analytics insertion
+    // Note: For now, router metrics are minimal since grading is mostly deterministic
+    // Future: When long-answer AI grading is integrated, router metrics will be populated
+    const mockRouterMetrics: RouterMetrics = {
+      request_id,
+      model_used: "deterministic", // Placeholder for MCQ/Short
+      model_family: "standard",
+      fallback_triggered: false,
+      attempt_count: 1,
+      latency_ms: 0,
+    };
+
+    insertGradingAnalytics(
+      attempt.id,
+      user_id,
+      body.quiz_id,
+      mockRouterMetrics,
+      [], // Grading results will be populated when router integration is complete
+      questionTypeBreakdown,
+      RUBRIC_VERSION
+    ).catch((err) => {
+      console.error("GRADING_ANALYTICS_INSERT_ERROR", {
+        request_id,
+        attempt_id: attempt.id,
+        error: err?.message || "Unknown error",
+      });
+    });
+
     // 4) Respond with rich feedback (not stored in DB to avoid schema changes)
     return res.status(200).json({
       attempt_id: attempt.id,
       score: result.percent,
+      letter, // Add letter grade for frontend
       summary: result.summary,
       breakdown: result.breakdown,
     });

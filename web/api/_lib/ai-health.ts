@@ -168,16 +168,76 @@ export async function getRouterHealthStatus(): Promise<RouterHealthStatus> {
 }
 
 /**
+ * Query grading fallbacks (last 5 minutes).
+ * Returns count of recent grading fallbacks for health diagnostics.
+ */
+export async function getGradingFallbackCount(): Promise<number> {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      return 0;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    });
+
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+    // Query analytics table for grading events with fallback_triggered
+    const { data, error } = await supabase
+      .from("analytics")
+      .select("created_at")
+      .in("event", ["grade_success", "grade_fail"])
+      .eq("data->>fallback_triggered", "true")
+      .gte("created_at", fiveMinutesAgo);
+
+    if (error) {
+      console.error("GRADING_FALLBACK_QUERY_FAILED", {
+        error: error.message,
+      });
+      return 0;
+    }
+
+    return data?.length || 0;
+  } catch (err) {
+    console.error("GRADING_FALLBACK_QUERY_EXCEPTION", {
+      error_message: (err as any)?.message || "Unknown error",
+    });
+    return 0;
+  }
+}
+
+/**
  * Quick operational check (no database queries).
  * Used when health endpoint is called without ?details=true.
  */
 export function getRouterConfigSummary() {
   const config = getRouterConfig();
 
+  // Grading model defaults
+  const gradeMcqDefault = process.env.OPENAI_MODEL_GRADE_DEFAULT_MCQ || "gpt-4o-mini";
+  const gradeShortDefault = process.env.OPENAI_MODEL_GRADE_DEFAULT_SHORT || "gpt-4o-mini";
+  const gradeLongDefault = process.env.OPENAI_MODEL_GRADE_DEFAULT_LONG || "gpt-5-mini";
+  const gradeMcqFallback = process.env.OPENAI_MODEL_GRADE_FALLBACK_MCQ || "gpt-5-mini";
+  const gradeShortFallback = process.env.OPENAI_MODEL_GRADE_FALLBACK_SHORT || "gpt-5-mini";
+  const gradeLongFallback = process.env.OPENAI_MODEL_GRADE_FALLBACK_LONG || "gpt-4o-mini";
+
   return {
+    // Generation config
     default_model: config.defaultModel,
     default_model_family: config.defaultModelFamily,
     fallback_chain: [config.defaultModel, config.fallbackModel],
     fallback_enabled: config.fallbackEnabled,
+
+    // Grading config
+    default_model_grade_mcq: gradeMcqDefault,
+    default_model_grade_short: gradeShortDefault,
+    default_model_grade_long: gradeLongDefault,
+    fallback_model_grade_mcq: gradeMcqFallback,
+    fallback_model_grade_short: gradeShortFallback,
+    fallback_model_grade_long: gradeLongFallback,
   };
 }
