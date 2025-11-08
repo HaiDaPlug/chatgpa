@@ -1,5 +1,5 @@
 // Purpose: Router health diagnostics for /api/health endpoint
-// Connects to: generation_analytics table, ai-router
+// Connects to: unified analytics table, ai-router
 
 import { createClient } from "@supabase/supabase-js";
 import { detectModelFamily } from "./ai-router.js";
@@ -45,7 +45,7 @@ function getRouterConfig() {
 // ============================================================================
 
 /**
- * Query generation_analytics for router health metrics.
+ * Query unified analytics for router health metrics (generation events).
  * Returns aggregate stats for the health endpoint.
  */
 export async function getRouterHealthStatus(): Promise<RouterHealthStatus> {
@@ -78,12 +78,13 @@ export async function getRouterHealthStatus(): Promise<RouterHealthStatus> {
       auth: { persistSession: false },
     });
 
-    // Query 1: Count recent fallbacks (last 5 minutes)
+    // Query 1: Count recent fallbacks (last 5 minutes) from unified analytics
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { data: recentFallbacks, error: recentError } = await supabase
-      .from("generation_analytics")
-      .select("created_at, model_used, error_code")
-      .eq("fallback_triggered", true)
+      .from("analytics")
+      .select("created_at, data")
+      .in("event", ["generation_success", "generation_fail"])
+      .eq("data->>fallback_triggered", "true")
       .gte("created_at", fiveMinutesAgo)
       .order("created_at", { ascending: false });
 
@@ -101,16 +102,16 @@ export async function getRouterHealthStatus(): Promise<RouterHealthStatus> {
     let lastFallbackReason: string | undefined;
     if (recentFallbacks && recentFallbacks.length > 0) {
       lastFallbackAt = recentFallbacks[0].created_at;
-      lastFallbackReason = recentFallbacks[0].error_code || "unknown";
+      lastFallbackReason = (recentFallbacks[0].data as any)?.error_code || "unknown";
     }
 
-    // Query 2: Calculate avg latency (last 24 hours)
+    // Query 2: Calculate avg latency (last 24 hours) from generation events
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: latencyData, error: latencyError } = await supabase
-      .from("generation_analytics")
-      .select("latency_ms")
-      .gte("created_at", twentyFourHoursAgo)
-      .not("latency_ms", "is", null);
+      .from("analytics")
+      .select("data")
+      .in("event", ["generation_success", "generation_fail"])
+      .gte("created_at", twentyFourHoursAgo);
 
     if (latencyError) {
       console.error("ROUTER_HEALTH_QUERY_FAILED", {
@@ -121,14 +122,21 @@ export async function getRouterHealthStatus(): Promise<RouterHealthStatus> {
 
     let avgLatency: number | undefined;
     if (latencyData && latencyData.length > 0) {
-      const sum = latencyData.reduce((acc, row) => acc + (row.latency_ms || 0), 0);
-      avgLatency = Math.round(sum / latencyData.length);
+      const latencies = latencyData
+        .map((row) => (row.data as any)?.latency_ms)
+        .filter((l) => l != null && l > 0);
+
+      if (latencies.length > 0) {
+        const sum = latencies.reduce((acc, l) => acc + l, 0);
+        avgLatency = Math.round(sum / latencies.length);
+      }
     }
 
     // Query 3: Calculate success rate (last 24 hours)
     const { data: allAttempts, error: successError } = await supabase
-      .from("generation_analytics")
-      .select("error_occurred")
+      .from("analytics")
+      .select("event")
+      .in("event", ["generation_success", "generation_fail"])
       .gte("created_at", twentyFourHoursAgo);
 
     if (successError) {
@@ -140,7 +148,7 @@ export async function getRouterHealthStatus(): Promise<RouterHealthStatus> {
 
     let successRate: number | undefined;
     if (allAttempts && allAttempts.length > 0) {
-      const successCount = allAttempts.filter((row) => !row.error_occurred).length;
+      const successCount = allAttempts.filter((row) => row.event === "generation_success").length;
       successRate = Math.round((successCount / allAttempts.length) * 100) / 100; // 0-1
     }
 

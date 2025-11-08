@@ -1,5 +1,5 @@
 // Purpose: Generation analytics service with quality metrics calculation
-// Connects to: generation_analytics table, ai-router, quiz validation
+// Connects to: unified analytics table, ai-router, quiz validation
 
 import { createClient } from "@supabase/supabase-js";
 import type { RouterMetrics } from "./ai-router.js";
@@ -261,42 +261,42 @@ export async function insertGenerationAnalytics(
     const mcqCount = questions.filter((q) => q.type === "mcq").length;
     const shortCount = questions.filter((q) => q.type === "short").length;
 
-    // Build analytics record
-    const analyticsRecord = {
-      quiz_id: quizId,
+    // Build unified analytics payload (JSONB data field)
+    const analyticsPayload = {
+      event: "generation_success",
       user_id: userId,
-      request_id: routerMetrics.request_id,
+      data: {
+        quiz_id: quizId,
+        request_id: routerMetrics.request_id,
 
-      // Model & routing
-      model_used: routerMetrics.model_used,
-      model_family: routerMetrics.model_family,
-      fallback_triggered: routerMetrics.fallback_triggered,
-      attempt_count: routerMetrics.attempt_count,
+        // Model & routing
+        model_used: routerMetrics.model_used,
+        model_family: routerMetrics.model_family,
+        fallback_triggered: routerMetrics.fallback_triggered,
+        attempt_count: routerMetrics.attempt_count,
 
-      // Performance
-      latency_ms: routerMetrics.latency_ms,
-      tokens_prompt: routerMetrics.tokens_prompt,
-      tokens_completion: routerMetrics.tokens_completion,
-      tokens_total: routerMetrics.tokens_total,
+        // Performance
+        latency_ms: routerMetrics.latency_ms,
+        tokens_prompt: routerMetrics.tokens_prompt,
+        tokens_completion: routerMetrics.tokens_completion,
+        tokens_total: routerMetrics.tokens_total,
 
-      // Content
-      question_count: questions.length,
-      mcq_count: mcqCount,
-      short_count: shortCount,
+        // Content
+        question_count: questions.length,
+        mcq_count: mcqCount,
+        short_count: shortCount,
 
-      // Quality
-      quality_metrics: qualityMetrics,
+        // Quality
+        quality_metrics: qualityMetrics,
 
-      // Source
-      source_type: sourceContext.type,
-      note_size_chars: sourceContext.note_size,
-
-      // No errors (this is success path)
-      error_occurred: false,
+        // Source
+        source_type: sourceContext.type,
+        note_size_chars: sourceContext.note_size,
+      },
     };
 
-    // Insert (non-blocking fire-and-forget)
-    const { error } = await supabase.from("generation_analytics").insert([analyticsRecord]);
+    // Insert into unified analytics table (non-blocking fire-and-forget)
+    const { error } = await supabase.from("analytics").insert([analyticsPayload]);
 
     if (error) {
       console.error("ANALYTICS_INSERT_FAILED", {
@@ -346,33 +346,35 @@ export async function insertGenerationFailure(
       auth: { persistSession: false },
     });
 
-    const analyticsRecord = {
+    const analyticsPayload = {
+      event: "generation_fail",
       user_id: userId,
-      request_id: routerMetrics.request_id,
+      data: {
+        request_id: routerMetrics.request_id,
 
-      // Model & routing
-      model_used: routerMetrics.model_used,
-      model_family: routerMetrics.model_family,
-      fallback_triggered: routerMetrics.fallback_triggered,
-      attempt_count: routerMetrics.attempt_count,
+        // Model & routing
+        model_used: routerMetrics.model_used,
+        model_family: routerMetrics.model_family,
+        fallback_triggered: routerMetrics.fallback_triggered,
+        attempt_count: routerMetrics.attempt_count,
 
-      // Performance
-      latency_ms: routerMetrics.latency_ms,
-      tokens_prompt: routerMetrics.tokens_prompt,
-      tokens_completion: routerMetrics.tokens_completion,
-      tokens_total: routerMetrics.tokens_total,
+        // Performance
+        latency_ms: routerMetrics.latency_ms,
+        tokens_prompt: routerMetrics.tokens_prompt,
+        tokens_completion: routerMetrics.tokens_completion,
+        tokens_total: routerMetrics.tokens_total,
 
-      // Source
-      source_type: sourceContext.type,
-      note_size_chars: sourceContext.note_size,
+        // Source
+        source_type: sourceContext.type,
+        note_size_chars: sourceContext.note_size,
 
-      // Error details
-      error_occurred: true,
-      error_code: errorCode,
-      error_message: errorMessage,
+        // Error details
+        error_code: errorCode,
+        error_message: errorMessage,
+      },
     };
 
-    await supabase.from("generation_analytics").insert([analyticsRecord]);
+    await supabase.from("analytics").insert([analyticsPayload]);
   } catch (err) {
     // Swallow (non-critical)
   }
