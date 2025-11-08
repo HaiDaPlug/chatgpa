@@ -18,6 +18,7 @@ import { alphaRateLimit, alphaLimitsEnabled } from "./_lib/alpha-limit.js";
 import { getUserPlan, getQuizCount } from "./_lib/plan.js";
 import { generateWithRouter } from "./_lib/ai-router.js";
 import { insertGenerationAnalytics, insertGenerationFailure, type Question } from "./_lib/analytics-service.js";
+import { generateQuizMetadata } from "./_lib/auto-naming.js";
 
 // Input schema
 const Body = z.object({
@@ -158,11 +159,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { class_id, notes_text } = parse.data;
 
-    // Verify class ownership if class_id provided (RLS should handle this, but double-check)
+    // Verify class ownership and fetch class name if class_id provided
+    let className: string | null = null;
     if (class_id) {
       const { data: classData, error: classError } = await supabase
         .from('classes')
-        .select('id')
+        .select('id, name')
         .eq('id', class_id)
         .single();
 
@@ -170,6 +172,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         log('error', { request_id, route: '/api/generate-quiz', user_id, class_id }, 'Class not found or access denied');
         return res.status(404).json({ code: "NOT_FOUND", message: "Class not found or access denied" });
       }
+
+      className = classData.name;
     }
 
     // Enforce Free tier limits (protect OpenAI costs)
@@ -323,6 +327,13 @@ Now generate the quiz JSON.`;
       });
     }
 
+    // Auto-generate title and subject for the quiz (Section 3)
+    const { title, subject } = generateQuizMetadata(
+      notes_text,
+      className,
+      quizValidation.data.questions.length
+    );
+
     // Insert quiz into database (RLS ensures user_id is set correctly)
     const { data: quizData, error: insertError } = await supabase
       .from('quizzes')
@@ -330,6 +341,8 @@ Now generate the quiz JSON.`;
         user_id,
         class_id,
         questions: quizValidation.data.questions,
+        title,
+        subject,
       })
       .select('id')
       .single();
