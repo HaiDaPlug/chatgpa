@@ -1,6 +1,7 @@
 // Purpose: Client telemetry - non-blocking, durable-ready
 // Sends events to /api/track via sendBeacon (or fetch keepalive fallback)
 // All errors are swallowed to prevent breaking UX
+// Section 3: Extended with Results page and attempt lifecycle events
 
 type TelemetryEvent =
   | "dashboard_loaded"
@@ -10,21 +11,43 @@ type TelemetryEvent =
   | "quiz_generated_failure"
   | "quiz_graded_start"
   | "quiz_graded_success"
-  | "quiz_graded_failure";
+  | "quiz_graded_failure"
+  // Section 3: Results Page events
+  | "results_page_viewed"
+  | "attempt_card_viewed"
+  | "attempt_resume_clicked"
+  | "attempt_title_edited"
+  | "attempt_subject_edited"
+  | "attempt_autosave_success"
+  | "attempt_autosave_fail"
+  | "result_opened"
+  | "grade_summary_viewed"
+  | "attempt_submit_clicked"
+  | "attempt_submit_success"
+  | "attempt_submit_fail";
 
 /**
  * Track telemetry event - sends to server endpoint
  * Uses navigator.sendBeacon when available for non-blocking behavior
  * Falls back to fetch with keepalive flag
  * All errors are swallowed - telemetry must never crash the app
+ *
+ * Section 3 Enhancement: Automatically adds client_ts for clock drift analysis
  */
 export function track(event: TelemetryEvent, data?: Record<string, any>) {
   try {
+    // Section 3: Add client timestamp for clock drift analysis
+    const enrichedData = {
+      ...data,
+      client_ts: new Date().toISOString(),
+      route: window.location.pathname, // Auto-capture route for context
+    };
+
     // Local dev console visibility
     // eslint-disable-next-line no-console
-    console.log(`[telemetry] ${event}`, { ...data, ts: new Date().toISOString() });
+    console.log(`[telemetry] ${event}`, enrichedData);
 
-    const payload = JSON.stringify({ event, data });
+    const payload = JSON.stringify({ event, data: enrichedData });
     const url = "/api/track";
 
     // Prefer sendBeacon for non-blocking behavior
