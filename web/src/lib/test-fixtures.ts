@@ -4,7 +4,8 @@ import { quizSchema } from '@/lib/quiz-schema'
 
 type MCQ = { id: string; type: 'mcq'; prompt: string; options: string[]; answer: string }
 type Short = { id: string; type: 'short'; prompt: string; answer: string }
-type Quiz = { questions: (MCQ | Short)[] }
+type Long = { id: string; type: 'long'; prompt: string; answer: string }
+type Quiz = { questions: (MCQ | Short | Long)[] }
 
 const FIXTURE_DIR = path.resolve(process.cwd(), 'fixtures')
 const FILES = ['quiz_cs.json', 'quiz_bio.json']
@@ -38,7 +39,8 @@ function checkMcqRules(q: Quiz) {
 
 function checkPromptLengths(q: Quiz) {
   for (const item of q.questions) {
-    assert(item.prompt.length <= 180, `Prompt too long on ${item.id} (${item.prompt.length} chars)`)
+    const maxLength = item.type === 'long' ? 300 : 180
+    assert(item.prompt.length <= maxLength, `Prompt too long on ${item.id} (${item.prompt.length} chars, max ${maxLength})`)
   }
 }
 

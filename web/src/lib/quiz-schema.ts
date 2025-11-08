@@ -25,10 +25,19 @@ const shortQuestionSchema = z.object({
   answer: z.string(),
 })
 
+// Long answer/typing question schema (for essays, paragraphs)
+const longQuestionSchema = z.object({
+  id: z.string(),
+  type: z.literal('long'),
+  prompt: z.string().max(300), // Longer prompts for essay questions
+  answer: z.string(), // Reference answer for rubric-based grading
+})
+
 // Union of question types
 const questionSchema = z.discriminatedUnion('type', [
   mcqQuestionSchema,
   shortQuestionSchema,
+  longQuestionSchema,
 ])
 
 // Quiz schema (array of questions) with unique ID validation
@@ -48,5 +57,6 @@ export const quizSchema = z.object({
 // TypeScript types
 export type MCQQuestion = z.infer<typeof mcqQuestionSchema>
 export type ShortQuestion = z.infer<typeof shortQuestionSchema>
+export type LongQuestion = z.infer<typeof longQuestionSchema>
 export type Question = z.infer<typeof questionSchema>
 export type Quiz = z.infer<typeof quizSchema>
