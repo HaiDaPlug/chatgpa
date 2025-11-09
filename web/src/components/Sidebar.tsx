@@ -63,8 +63,21 @@ export function Sidebar({ collapsed, onToggle }:{collapsed:boolean; onToggle:()=
           </div>
           <nav className="grid gap-1">
             <NavLink
-              to="/tools/generate"
+              to="/results"
               className={({ isActive }) =>
+                `block px-3 py-2 radius text-[14px] transition-colors ${
+                  isActive
+                    ? "font-medium"
+                    : "text-muted hover:surface-2"
+                }`
+              }
+              style={({ isActive }) => isActive ? { color: "var(--accent)", background: "var(--surface-2)" } : {}}
+            >
+              Results
+            </NavLink>
+            <NavLink
+              to="/tools/generate"
+              className={({ isActive}) =>
                 `block px-3 py-2 radius text-[14px] transition-colors ${
                   isActive
                     ? "font-medium"
