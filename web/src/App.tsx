@@ -5,7 +5,8 @@ import Landing from './pages/Landing';
 import QuizPage from './pages/QuizPage';
 import DashboardPage from './pages/dashboard';
 import GeneratePage from './pages/generate';
-import ResultsPage from './pages/Results';
+import ResultsPage from './pages/ResultsNew'; // Section 3: Updated Results page
+import AttemptDetailPage from './pages/AttemptDetail'; // Section 3: Attempt detail page
 import ClassNotes from './pages/ClassNotes';
 import { RequireAuth } from '../lib/authGuard';
 
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
           <Route path="/generate" element={<RequireAuth><Generate /></RequireAuth>} />
           <Route path="/results" element={<RequireAuth><ResultsPage /></RequireAuth>} />
+          <Route path="/attempts/:id" element={<RequireAuth><AttemptDetailPage /></RequireAuth>} />
           <Route path="/quiz/:id" element={<RequireAuth><QuizPage /></RequireAuth>} />
           <Route path="/classes/:id/notes" element={<RequireAuth><ClassNotes /></RequireAuth>} />
 
