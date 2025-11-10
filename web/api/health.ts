@@ -5,7 +5,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { validateAIConfig, aiDiagnostics } from "./_lib/ai.js";
-import { getRouterHealthStatus, getRouterConfigSummary } from "./_lib/ai-health.js";
+import { getRouterHealthStatus, getRouterConfigSummary, getConfigMetrics24h } from "./_lib/ai-health.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -61,6 +61,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       response.router = {
         operational: false,
         error: "Failed to query router health",
+      };
+    }
+
+    // Section 4: Add config usage metrics (last 24h)
+    try {
+      const configMetrics = await getConfigMetrics24h();
+      response.config_metrics_24h = configMetrics;
+    } catch (err: any) {
+      console.error("HEALTH_CONFIG_METRICS_FAILED", {
+        error_message: err?.message || "Unknown error",
+      });
+      response.config_metrics_24h = {
+        error: "Failed to query config metrics",
       };
     }
   }

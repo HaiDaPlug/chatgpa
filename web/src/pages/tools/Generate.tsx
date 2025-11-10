@@ -8,11 +8,30 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/toast";
 import { useNavigate } from "react-router-dom";
 import { track } from "@/lib/telemetry";
+import type { QuizConfig, QuestionType, CoverageStrategy, DifficultyLevel } from "../../../shared/types";
 
 type ClassRow = { id: string; name: string };
 type Mode = "direct" | "file" | "class";
 
 const LS_KEY_DIRECT = "generate.directText";
+const LS_KEY_CONFIG_DEFAULT = "quiz_config_default";
+const LS_KEY_CONFIG_STANDALONE = "quiz_config_standalone";
+
+// Helper to get config localStorage key
+function getConfigKey(classId: string | null): string {
+  if (classId) {
+    return `quiz_config_class_${classId}`;
+  }
+  return LS_KEY_CONFIG_STANDALONE;
+}
+
+// Default quiz config (matches backend)
+const DEFAULT_CONFIG: QuizConfig = {
+  question_type: "mcq",
+  question_count: 8,
+  coverage: "key_concepts",
+  difficulty: "medium",
+};
 
 export default function Generate() {
   const { push } = useToast();
@@ -34,6 +53,23 @@ export default function Generate() {
 
   const [loading, setLoading] = useState(false);
   const saveTimer = useRef<number | null>(null);
+
+  // Section 4: Quiz config state
+  const [questionType, setQuestionType] = useState<QuestionType>(DEFAULT_CONFIG.question_type);
+  const [questionCount, setQuestionCount] = useState<number>(DEFAULT_CONFIG.question_count);
+  const [coverage, setCoverage] = useState<CoverageStrategy>(DEFAULT_CONFIG.coverage);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>(DEFAULT_CONFIG.difficulty);
+  const [mcqCount, setMcqCount] = useState<number>(5); // For hybrid mode
+  const [typingCount, setTypingCount] = useState<number>(3); // For hybrid mode
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const configSaveTimer = useRef<number | null>(null);
+
+  // Cost estimation (simple heuristic: ~300 tokens per question * 1.2 buffer)
+  const estimatedTokens = useMemo(() => {
+    const baseTokensPerQuestion = 300;
+    const buffer = 1.2;
+    return Math.round(questionCount * baseTokensPerQuestion * buffer);
+  }, [questionCount]);
 
   // load classes for class mode
   useEffect(() => {
@@ -83,6 +119,35 @@ export default function Generate() {
     };
   }, [directText]);
 
+  // Section 4: Load config on mount and when classId changes
+  useEffect(() => {
+    const config = loadConfig(classId);
+    applyConfig(config);
+  }, [classId]);
+
+  // Section 4: Debounced save config on change
+  useEffect(() => {
+    if (configSaveTimer.current) window.clearTimeout(configSaveTimer.current);
+
+    configSaveTimer.current = window.setTimeout(() => {
+      const config = getCurrentConfig();
+      saveConfig(config, classId);
+
+      // Track config change (debounced)
+      track("quiz_config_changed", {
+        question_type: questionType,
+        question_count: questionCount,
+        coverage,
+        difficulty,
+        ...(questionType === "hybrid" ? { mcq_count: mcqCount, typing_count: typingCount } : {})
+      });
+    }, 400);
+
+    return () => {
+      if (configSaveTimer.current) window.clearTimeout(configSaveTimer.current);
+    };
+  }, [questionType, questionCount, coverage, difficulty, mcqCount, typingCount, classId]);
+
   // unified current text for direct/file
   const notesSource = useMemo(() => {
     if (mode === "direct") return directText.trim();
@@ -126,6 +191,101 @@ export default function Generate() {
     return { text, ok: true };
   }
 
+  // Build current config from state
+  function getCurrentConfig(): QuizConfig {
+    const config: QuizConfig = {
+      question_type: questionType,
+      question_count: questionCount,
+      coverage,
+      difficulty,
+    };
+
+    // Add question_counts for hybrid mode
+    if (questionType === "hybrid") {
+      config.question_counts = {
+        mcq: mcqCount,
+        typing: typingCount,
+      };
+    }
+
+    return config;
+  }
+
+  // Load config from localStorage with hierarchy
+  function loadConfig(currentClassId: string | null): QuizConfig {
+    try {
+      // Priority: class-specific → standalone → global default → hardcoded
+      const keys = [
+        getConfigKey(currentClassId),
+        LS_KEY_CONFIG_STANDALONE,
+        LS_KEY_CONFIG_DEFAULT
+      ];
+
+      for (const key of keys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // Validate basic structure
+          if (parsed && typeof parsed === "object" && parsed.question_type) {
+            return { ...DEFAULT_CONFIG, ...parsed };
+          }
+        }
+      }
+    } catch (error) {
+      console.error("CONFIG_LOAD_ERROR", error);
+    }
+
+    return DEFAULT_CONFIG;
+  }
+
+  // Save config to localStorage
+  function saveConfig(config: QuizConfig, currentClassId: string | null) {
+    try {
+      const key = getConfigKey(currentClassId);
+      localStorage.setItem(key, JSON.stringify(config));
+
+      // Also save as global default
+      localStorage.setItem(LS_KEY_CONFIG_DEFAULT, JSON.stringify(config));
+    } catch (error) {
+      console.error("CONFIG_SAVE_ERROR", error);
+    }
+  }
+
+  // Apply config to state
+  function applyConfig(config: QuizConfig) {
+    setQuestionType(config.question_type);
+    setQuestionCount(config.question_count);
+    setCoverage(config.coverage);
+    setDifficulty(config.difficulty);
+
+    if (config.question_type === "hybrid" && config.question_counts) {
+      setMcqCount(config.question_counts.mcq);
+      setTypingCount(config.question_counts.typing);
+    } else {
+      // Reset hybrid counts
+      const defaultMcq = Math.ceil(config.question_count * 0.6);
+      setMcqCount(defaultMcq);
+      setTypingCount(config.question_count - defaultMcq);
+    }
+  }
+
+  // Reset config to defaults
+  function resetConfig() {
+    applyConfig(DEFAULT_CONFIG);
+
+    // Clear from localStorage
+    try {
+      const key = getConfigKey(classId);
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error("CONFIG_RESET_ERROR", error);
+    }
+
+    track("quiz_config_reset", {
+      context: classId || "standalone"
+    });
+  }
+
   // Drag & drop handlers
   function onDragOver(e: React.DragEvent) {
     if (mode !== "file") return;
@@ -151,6 +311,15 @@ export default function Generate() {
   }
 
   async function submitGenerate() {
+    // Section 4: Validate hybrid counts before submitting
+    if (questionType === "hybrid" && mcqCount + typingCount !== questionCount) {
+      push({
+        kind: "error",
+        text: `Hybrid question counts must sum to ${questionCount}. Currently: ${mcqCount} MCQ + ${typingCount} Typing = ${mcqCount + typingCount}`
+      });
+      return;
+    }
+
     setLoading(true);
 
     // Track telemetry: start
@@ -216,6 +385,9 @@ export default function Generate() {
         return;
       }
 
+      // Section 4: Build config to send
+      const configToSend = getCurrentConfig();
+
       // Call quiz generator API
       const res = await fetch("/api/generate-quiz", {
         method: "POST",
@@ -226,6 +398,7 @@ export default function Generate() {
         body: JSON.stringify({
           notes_text,
           class_id: quiz_class_id, // null for paste/file, string for class mode
+          config: configToSend, // Section 4: Include quiz config
         }),
       });
 
@@ -266,7 +439,16 @@ export default function Generate() {
       // Track success
       track("quiz_generated_success", { mode, quizId });
 
-      push({ kind: "success", text: "Quiz generated!" });
+      // Section 4: Check if fewer questions were generated due to insufficient notes
+      const actualCount = payload?.actual_question_count;
+      if (actualCount && actualCount < questionCount) {
+        push({
+          kind: "success",
+          text: `Quiz generated with ${actualCount} questions (requested ${questionCount}) due to limited material.`
+        });
+      } else {
+        push({ kind: "success", text: "Quiz generated!" });
+      }
 
       // Clear autosave
       if (mode === "direct") {
@@ -325,6 +507,218 @@ export default function Generate() {
               aria-pressed={mode === "class"}
             >
               From Class Notes
+            </button>
+          </div>
+
+          {/* Section 4: Quiz Config Controls */}
+          <div
+            className="surface-2 bdr radius p-4 mb-6"
+            style={{ transition: "all 0.2s cubic-bezier(0.2, 0, 0, 1)" }}
+          >
+            {/* Question Type Hotbar */}
+            <div className="mb-4">
+              <label className="text-sm font-medium block mb-2">Question Type</label>
+              <div className="flex gap-2" role="radiogroup" aria-label="Question type">
+                <button
+                  className={`btn ${questionType === "mcq" ? "primary" : "ghost"}`}
+                  onClick={() => setQuestionType("mcq")}
+                  role="radio"
+                  aria-checked={questionType === "mcq"}
+                >
+                  MCQ
+                </button>
+                <button
+                  className={`btn ${questionType === "typing" ? "primary" : "ghost"}`}
+                  onClick={() => setQuestionType("typing")}
+                  role="radio"
+                  aria-checked={questionType === "typing"}
+                >
+                  Typing
+                </button>
+                <button
+                  className={`btn ${questionType === "hybrid" ? "primary" : "ghost"}`}
+                  onClick={() => setQuestionType("hybrid")}
+                  role="radio"
+                  aria-checked={questionType === "hybrid"}
+                >
+                  Hybrid
+                </button>
+              </div>
+            </div>
+
+            {/* Question Count Slider */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm font-medium">Question Count</label>
+                <span
+                  className="text-sm font-semibold"
+                  style={{
+                    transition: "transform 0.15s cubic-bezier(0.2, 0, 0, 1)",
+                    display: "inline-block",
+                  }}
+                  key={questionCount}
+                >
+                  {questionCount}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={questionCount}
+                onChange={(e) => setQuestionCount(Number(e.target.value))}
+                className="w-full"
+                style={{ transition: "all 0.15s ease" }}
+                aria-label="Question count"
+                aria-valuemin={1}
+                aria-valuemax={10}
+                aria-valuenow={questionCount}
+              />
+            </div>
+
+            {/* Coverage Strategy Toggle */}
+            <div className="mb-4">
+              <label className="text-sm font-medium block mb-2">Coverage Strategy</label>
+              <div className="flex gap-2" role="radiogroup" aria-label="Coverage strategy">
+                <button
+                  className={`btn ${coverage === "key_concepts" ? "primary" : "ghost"}`}
+                  onClick={() => setCoverage("key_concepts")}
+                  role="radio"
+                  aria-checked={coverage === "key_concepts"}
+                >
+                  Cover Key Concepts
+                </button>
+                <button
+                  className={`btn ${coverage === "broad_sample" ? "primary" : "ghost"}`}
+                  onClick={() => setCoverage("broad_sample")}
+                  role="radio"
+                  aria-checked={coverage === "broad_sample"}
+                >
+                  Sample Broadly
+                </button>
+              </div>
+            </div>
+
+            {/* Advanced Options */}
+            <details
+              open={showAdvanced}
+              onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
+              style={{ transition: "all 0.2s cubic-bezier(0.2, 0, 0, 1)" }}
+            >
+              <summary
+                className="text-sm font-medium cursor-pointer mb-3"
+                style={{
+                  transition: "color 0.15s ease",
+                  color: showAdvanced ? "var(--text)" : "var(--text-muted)",
+                }}
+              >
+                Advanced Options
+              </summary>
+
+              <div
+                className="pl-3 border-l-2 border-border"
+                style={{
+                  transition: "opacity 0.2s ease, transform 0.2s cubic-bezier(0.2, 0, 0, 1)",
+                  opacity: showAdvanced ? 1 : 0,
+                }}
+              >
+                {/* Hybrid Counts (only show if hybrid) */}
+                {questionType === "hybrid" && (
+                  <div className="mb-4">
+                    <label className="text-sm font-medium block mb-2">Question Distribution</label>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-muted w-20">MCQ:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={questionCount}
+                          value={mcqCount}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            if (val >= 0 && val <= questionCount) {
+                              setMcqCount(val);
+                              setTypingCount(questionCount - val);
+                            }
+                          }}
+                          className="surface bdr radius px-2 py-1 w-20 text-sm"
+                          aria-label="MCQ question count"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-muted w-20">Typing:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={questionCount}
+                          value={typingCount}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            if (val >= 0 && val <= questionCount) {
+                              setTypingCount(val);
+                              setMcqCount(questionCount - val);
+                            }
+                          }}
+                          className="surface bdr radius px-2 py-1 w-20 text-sm"
+                          aria-label="Typing question count"
+                        />
+                      </div>
+                      {mcqCount + typingCount !== questionCount && (
+                        <div
+                          className="text-xs"
+                          style={{
+                            color: "#dc2626",
+                            transition: "opacity 0.2s ease",
+                            animation: "fadeIn 0.2s ease",
+                          }}
+                        >
+                          Total must equal {questionCount}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Difficulty Selector */}
+                <div className="mb-4">
+                  <label className="text-sm font-medium block mb-2">Difficulty</label>
+                  <div className="flex gap-2" role="radiogroup" aria-label="Difficulty level">
+                    <button
+                      className={`btn ${difficulty === "low" ? "primary" : "ghost"}`}
+                      onClick={() => setDifficulty("low")}
+                      role="radio"
+                      aria-checked={difficulty === "low"}
+                    >
+                      Low
+                    </button>
+                    <button
+                      className={`btn ${difficulty === "medium" ? "primary" : "ghost"}`}
+                      onClick={() => setDifficulty("medium")}
+                      role="radio"
+                      aria-checked={difficulty === "medium"}
+                    >
+                      Medium
+                    </button>
+                    <button
+                      className={`btn ${difficulty === "high" ? "primary" : "ghost"}`}
+                      onClick={() => setDifficulty("high")}
+                      role="radio"
+                      aria-checked={difficulty === "high"}
+                    >
+                      High
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            {/* Reset Button */}
+            <button
+              className="btn ghost text-sm mt-2"
+              onClick={resetConfig}
+              aria-label="Reset configuration to defaults"
+            >
+              Reset to Defaults
             </button>
           </div>
 
@@ -435,6 +829,17 @@ export default function Generate() {
             <button className="btn ghost" onClick={() => navigate("/")}>
               Back
             </button>
+          </div>
+
+          {/* Cost Estimate */}
+          <div
+            className="text-xs text-muted mt-3"
+            style={{
+              transition: "opacity 0.2s ease",
+              opacity: 0.7,
+            }}
+          >
+            Est. ~{estimatedTokens.toLocaleString()} tokens
           </div>
         </div>
       </div>

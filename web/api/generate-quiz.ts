@@ -19,11 +19,15 @@ import { getUserPlan, getQuizCount } from "./_lib/plan.js";
 import { generateWithRouter } from "./_lib/ai-router.js";
 import { insertGenerationAnalytics, insertGenerationFailure, type Question } from "./_lib/analytics-service.js";
 import { generateQuizMetadata } from "./_lib/auto-naming.js";
+import { quizConfigSchema, DEFAULT_QUIZ_CONFIG, validateAndNormalizeConfig } from "./_lib/quiz-config-schema.js";
+import type { QuizConfig } from "../shared/types.js";
+import { buildQuizGenerationPrompt } from "./_lib/prompt-builder.js";
 
-// Input schema
+// Input schema (Section 4: added optional config)
 const Body = z.object({
   class_id: z.string().uuid().nullable().optional(), // optional - standalone quizzes allowed
   notes_text: z.string().trim().min(20, "Notes text must be at least 20 characters").max(50000, "Notes text too long (max 50,000 characters)"),
+  config: quizConfigSchema.optional(), // Section 4: optional quiz config
 });
 
 // Quiz question schemas (from quiz-schema.ts)
@@ -159,6 +163,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { class_id, notes_text } = parse.data;
 
+    // Section 4: Normalize quiz config (apply defaults if not provided)
+    let quizConfig: QuizConfig;
+    try {
+      quizConfig = validateAndNormalizeConfig(parse.data.config);
+    } catch (error: any) {
+      log('error', { request_id, route: '/api/generate-quiz', user_id, config_error: error.message }, 'Config validation failed');
+      return res.status(400).json({
+        code: "CONFIG_INVALID",
+        message: error.message || "Invalid quiz configuration"
+      });
+    }
+
     // Verify class ownership and fetch class name if class_id provided
     let className: string | null = null;
     if (class_id) {
@@ -202,43 +218,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Call OpenAI to generate quiz
-    const prompt = `You are ChatGPA's quiz generator.
-
-Goal
-- Create a concise quiz strictly from the provided NOTES.
-- Return **JSON only** with this shape (no prose, no markdown):
-
-{
-  "questions": [
-    {
-      "id": "q1",
-      "type": "mcq" | "short",
-      "prompt": "string",
-      "options": ["string","string","string","string"],  // mcq only
-      "answer": "string"                                 // for mcq: must equal one option; for short: concise gold answer
-    }
-  ]
-}
-
-Constraints
-- Length: 5–10 questions total. If NOTES are short/light, prefer 5; otherwise 8 (cap at 10).
-- Types: Use a **hybrid** mix that best fits the material (definitions/comparisons → more short; facts/terms → more mcq).
-- MCQ: 4 plausible options; single correct answer **must** exactly match one option.
-- Prompts ≤180 chars; unambiguous; no trivia.
-- **Language:** write in the same language as the NOTES.
-- **No outside knowledge.** Every prompt and answer must be directly supported by NOTES.
-
-Coverage & quality rules
-- Cover the **main sections / ideas** of NOTES (not just one corner).
-- Avoid duplicates and near-duplicates.
-- Prefer concept-level understanding over exact wording.
-- Keep answers short and precise (1–2 sentences or key phrase).
-
-NOTES:
-${notes_text}
-
-Now generate the quiz JSON.`;
+    // Section 4: Build dynamic prompt based on config
+    const prompt = buildQuizGenerationPrompt({
+      config: quizConfig,
+      notesText: notes_text,
+    });
 
     // Call AI router with automatic fallback and analytics
     // Router handles: model selection, parameter building, fallback logic, metrics collection
@@ -247,8 +231,9 @@ Now generate the quiz JSON.`;
       prompt,
       context: {
         notes_length: notes_text.length,
-        question_count: 8, // Target question count (router will optimize)
+        question_count: quizConfig.question_count, // Section 4: Use config question count
         request_id: request_id, // Pass request_id for log correlation
+        config: quizConfig, // Section 4: Pass config for analytics and model selection
       },
     });
 
@@ -335,6 +320,7 @@ Now generate the quiz JSON.`;
     );
 
     // Insert quiz into database (RLS ensures user_id is set correctly)
+    // Section 4: Store config in meta field
     const { data: quizData, error: insertError } = await supabase
       .from('quizzes')
       .insert({
@@ -343,6 +329,7 @@ Now generate the quiz JSON.`;
         questions: quizValidation.data.questions,
         title,
         subject,
+        meta: { config: quizConfig }, // Section 4: Store quiz config
       })
       .select('id')
       .single();
@@ -353,6 +340,7 @@ Now generate the quiz JSON.`;
     }
 
     // Insert generation analytics (fire-and-forget: don't await, truly non-blocking)
+    // Section 4: Include config in analytics
     insertGenerationAnalytics(
       quizData.id,
       user_id,
@@ -361,7 +349,8 @@ Now generate the quiz JSON.`;
       {
         type: class_id ? "class" : "paste",
         note_size: notes_text.length,
-      }
+      },
+      quizConfig // Section 4: Pass config to analytics
     ).catch((err) => {
       // Non-critical: log but don't fail quiz generation
       console.error("ANALYTICS_INSERT_ERROR", {
@@ -382,7 +371,14 @@ Now generate the quiz JSON.`;
       fallback_triggered: routerResult.metrics.fallback_triggered,
     }, 'Quiz generated successfully');
 
-    return res.status(200).json({ quiz_id: quizData.id });
+    // Section 4: Echo back the effective config in response
+    const actualQuestionCount = quizValidation.data.questions.length;
+
+    return res.status(200).json({
+      quiz_id: quizData.id,
+      config: quizConfig, // Section 4: Return normalized config
+      actual_question_count: actualQuestionCount, // Actual generated (may be less if insufficient notes)
+    });
 
   } catch (error: any) {
     // Enhanced error logging for debugging

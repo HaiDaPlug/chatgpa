@@ -8,7 +8,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:fixtures": "tsx src/lib/test-fixtures.ts"
+    "test:fixtures": "tsx src/lib/test-fixtures.ts",
+    "check-contrast": "tsx scripts/check-contrast.ts",
+    "test:a11y": "echo 'TODO: Add axe/Pa11y accessibility tests'",
+    "validate": "npm run check-contrast && npm run test:a11y"
   },
   "dependencies": {
     "@babel/plugin-proposal-decorators": "^7.28.0",
