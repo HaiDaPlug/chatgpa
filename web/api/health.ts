@@ -6,6 +6,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { validateAIConfig, aiDiagnostics } from "./_lib/ai.js";
 import { getRouterHealthStatus, getRouterConfigSummary, getConfigMetrics24h } from "./_lib/ai-health.js";
+import { getFolderHealthMetricsDirectSQL } from "./_lib/folder-health.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -74,6 +75,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       response.config_metrics_24h = {
         error: "Failed to query config metrics",
+      };
+    }
+
+    // Section 5: Add folder health metrics
+    try {
+      const folderMetrics = await getFolderHealthMetricsDirectSQL();
+      response.folder_metrics = folderMetrics;
+    } catch (err: any) {
+      console.error("HEALTH_FOLDER_METRICS_FAILED", {
+        error_message: err?.message || "Unknown error",
+      });
+      response.folder_metrics = {
+        error: "Failed to query folder metrics",
       };
     }
   }

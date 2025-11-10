@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/toast";
 import { useNavigate } from "react-router-dom";
 import { track } from "@/lib/telemetry";
-import type { QuizConfig, QuestionType, CoverageStrategy, DifficultyLevel } from "../../../shared/types";
+import type { QuizConfig, QuestionType, CoverageStrategy, DifficultyLevel, Folder } from "../../../shared/types";
 
 type ClassRow = { id: string; name: string };
 type Mode = "direct" | "file" | "class";
@@ -42,6 +42,10 @@ export default function Generate() {
   // classes (for class mode)
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [classId, setClassId] = useState<string | null>(null);
+
+  // folders (for class mode folder filter)
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
   // direct mode
   const [directText, setDirectText] = useState("");
@@ -92,6 +96,47 @@ export default function Generate() {
       alive = false;
     };
   }, []);
+
+  // load folders when class changes (if workspace folders enabled)
+  useEffect(() => {
+    if (!classId) {
+      setFolders([]);
+      setSelectedFolderId(null);
+      return;
+    }
+
+    const workspaceFoldersEnabled = import.meta.env.VITE_FEATURE_WORKSPACE_FOLDERS === "true";
+    if (!workspaceFoldersEnabled) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const token = localStorage.getItem("supabase.auth.token");
+        if (!token) return;
+
+        const response = await fetch(`/api/folders/flat?class_id=${classId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!alive) return;
+
+        if (response.ok) {
+          const data = await response.json();
+          setFolders(data.folders || []);
+        } else {
+          console.error("GENERATE_LOAD_FOLDERS_ERROR", { status: response.status });
+          setFolders([]);
+        }
+      } catch (err) {
+        console.error("GENERATE_LOAD_FOLDERS_ERROR", err);
+        setFolders([]);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [classId]);
 
   // localStorage: load once on mount
   useEffect(() => {
@@ -176,19 +221,60 @@ export default function Generate() {
     push({ kind: "error", text: "Unsupported file format. Use .txt or .md, or paste text directly." });
   }
 
-  async function buildClassNotesText(selectedClassId: string) {
-    const { data, error } = await supabase
-      .from("notes")
-      .select("content")
-      .eq("class_id", selectedClassId)
-      .order("created_at", { ascending: true });
+  async function buildClassNotesText(selectedClassId: string, folderId: string | null = null) {
+    try {
+      let data: Array<{ content: string }> = [];
 
-    if (error) {
-      console.error("GENERATE_LOAD_NOTES_ERROR", { selectedClassId, error });
+      if (!folderId) {
+        // No folder filter - get all notes in class (default behavior)
+        const { data: notesData, error } = await supabase
+          .from("notes")
+          .select("content")
+          .eq("class_id", selectedClassId)
+          .order("created_at", { ascending: true });
+
+        if (error) throw error;
+        data = notesData ?? [];
+      } else if (folderId === "uncategorized") {
+        // Special case: uncategorized notes (no mapping in note_folders)
+        const token = localStorage.getItem("supabase.auth.token");
+        if (!token) throw new Error("Not authenticated");
+
+        const response = await fetch(
+          `/api/classes/notes-uncategorized?class_id=${selectedClassId}&limit=1000`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (!response.ok) throw new Error("Failed to load uncategorized notes");
+        const result = await response.json();
+        data = (result.notes || []).map((n: any) => ({ content: n.content }));
+      } else {
+        // Specific folder - get descendant folders and query recursively
+        const { data: descendantData, error: rpcError } = await supabase
+          .rpc("get_descendant_folders", { parent_folder_id: folderId });
+
+        if (rpcError) throw rpcError;
+
+        const folderIds = (descendantData || []).map((f: any) => f.folder_id);
+
+        // Fetch notes in any of these folders
+        const { data: notesData, error: notesError } = await supabase
+          .from("notes")
+          .select("content, note_folders!inner(folder_id)")
+          .eq("class_id", selectedClassId)
+          .in("note_folders.folder_id", folderIds)
+          .order("created_at", { ascending: true });
+
+        if (notesError) throw notesError;
+        data = (notesData ?? []).map(n => ({ content: n.content }));
+      }
+
+      const text = data.map(n => n.content || "").join("\n\n").trim();
+      return { text, ok: true };
+    } catch (error: any) {
+      console.error("GENERATE_LOAD_NOTES_ERROR", { selectedClassId, folderId, error });
       return { text: "", ok: false };
     }
-    const text = (data ?? []).map(n => n.content || "").join("\n\n").trim();
-    return { text, ok: true };
   }
 
   // Build current config from state
@@ -358,7 +444,7 @@ export default function Generate() {
           track("quiz_generated_failure", { reason: "no_class" });
           return;
         }
-        const { text, ok } = await buildClassNotesText(classId);
+        const { text, ok } = await buildClassNotesText(classId, selectedFolderId);
         if (!ok) {
           push({ kind: "error", text: "Could not load class notes." });
           setLoading(false);
@@ -816,6 +902,39 @@ export default function Generate() {
                   </option>
                 ))}
               </select>
+
+              {/* Folder filter (optional) - only show if class selected and folders available */}
+              {classId && folders.length > 0 && (
+                <div className="mt-4">
+                  <label className="text-sm text-muted block mb-2">Filter by folder (optional)</label>
+                  <select
+                    className="surface-2 bdr radius p-2 text-[14px] w-full"
+                    style={{
+                      background: "var(--surface-2)",
+                      border: "1px solid var(--border)",
+                      color: "var(--text)"
+                    }}
+                    value={selectedFolderId ?? ""}
+                    onChange={(e) => setSelectedFolderId(e.target.value || null)}
+                  >
+                    <option value="">All notes</option>
+                    <option value="uncategorized">Uncategorized</option>
+                    {folders.map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted mt-2 mb-0">
+                    {selectedFolderId
+                      ? selectedFolderId === "uncategorized"
+                        ? "Only notes without a folder"
+                        : "Includes notes in this folder and all subfolders"
+                      : "All notes in the class"}
+                  </p>
+                </div>
+              )}
+
               <p className="text-sm text-muted mt-3 mb-0">
                 We'll combine all notes in the selected class to build your quiz.
               </p>

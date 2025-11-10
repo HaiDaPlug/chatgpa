@@ -24,7 +24,21 @@ type TelemetryEvent =
   | "grade_summary_viewed"
   | "attempt_submit_clicked"
   | "attempt_submit_success"
-  | "attempt_submit_fail";
+  | "attempt_submit_fail"
+  // Section 4: Quiz Configuration events
+  | "quiz_config_changed"
+  | "quiz_config_reset"
+  // Section 5: Workspace Folders events
+  | "folder_created"
+  | "folder_renamed"
+  | "folder_moved"
+  | "folder_deleted"
+  | "note_moved_to_folder"
+  | "note_removed_from_folder"
+  | "class_breadcrumb_clicked"
+  | "uncategorized_view_opened"
+  | "folder_tree_expanded"
+  | "folder_tree_collapsed";
 
 /**
  * Track telemetry event - sends to server endpoint
