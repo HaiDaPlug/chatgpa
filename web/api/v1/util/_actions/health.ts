@@ -6,6 +6,7 @@ import type { GatewayContext } from '../../_types';
 import { validateAIConfig, aiDiagnostics } from '../../../_lib/ai.js';
 import { getRouterHealthStatus, getRouterConfigSummary, getConfigMetrics24h } from '../../../_lib/ai-health.js';
 import { getFolderHealthMetricsDirectSQL } from '../../../_lib/folder-health.js';
+import { getVisualHealthMetrics } from '../../../_lib/visual-health.js';
 
 export async function health(
   data: unknown,
@@ -118,6 +119,36 @@ export async function health(
       );
       response.folder_metrics = {
         error: 'Failed to query folder metrics',
+      };
+    }
+
+    // Section 7: Add visual system health metrics
+    try {
+      const visualMetrics = await getVisualHealthMetrics();
+      response.visual_metrics = visualMetrics;
+
+      // Surface warning if high asset error rate
+      if (visualMetrics.asset_error_rate_24h > 0.1) {
+        if (!response.warnings) response.warnings = [];
+        response.warnings.push({
+          code: 'HIGH_ASSET_ERROR_RATE',
+          message: `Asset load error rate is ${Math.round(visualMetrics.asset_error_rate_24h * 100)}%. Check asset availability.`,
+          severity: 'WARN',
+        });
+      }
+    } catch (err: any) {
+      console.error(
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'error',
+          request_id,
+          action: 'health',
+          error: err?.message || 'Unknown error',
+          message: 'Visual metrics check failed'
+        })
+      );
+      response.visual_metrics = {
+        error: 'Failed to query visual metrics',
       };
     }
   }
