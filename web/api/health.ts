@@ -5,7 +5,8 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { validateAIConfig, aiDiagnostics } from "./_lib/ai.js";
-import { getRouterHealthStatus, getRouterConfigSummary } from "./_lib/ai-health.js";
+import { getRouterHealthStatus, getRouterConfigSummary, getConfigMetrics24h } from "./_lib/ai-health.js";
+import { getFolderHealthMetricsDirectSQL } from "./_lib/folder-health.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -61,6 +62,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       response.router = {
         operational: false,
         error: "Failed to query router health",
+      };
+    }
+
+    // Section 4: Add config usage metrics (last 24h)
+    try {
+      const configMetrics = await getConfigMetrics24h();
+      response.config_metrics_24h = configMetrics;
+    } catch (err: any) {
+      console.error("HEALTH_CONFIG_METRICS_FAILED", {
+        error_message: err?.message || "Unknown error",
+      });
+      response.config_metrics_24h = {
+        error: "Failed to query config metrics",
+      };
+    }
+
+    // Section 5: Add folder health metrics
+    try {
+      const folderMetrics = await getFolderHealthMetricsDirectSQL();
+      response.folder_metrics = folderMetrics;
+
+      // Surface warning if duplicate notes detected
+      if (folderMetrics.duplicate_notes_detected > 0) {
+        if (!response.warnings) response.warnings = [];
+        response.warnings.push({
+          code: "DUPLICATE_NOTE_MAPPINGS",
+          message: `${folderMetrics.duplicate_notes_detected} note(s) mapped to multiple folders. Check data integrity.`,
+          severity: "WARN",
+        });
+      }
+    } catch (err: any) {
+      console.error("HEALTH_FOLDER_METRICS_FAILED", {
+        error_message: err?.message || "Unknown error",
+      });
+      response.folder_metrics = {
+        error: "Failed to query folder metrics",
       };
     }
   }

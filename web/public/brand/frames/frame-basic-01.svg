@@ -1,0 +1,16 @@
+<svg width="100%" height="100%" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <!-- Placeholder frame: rounded rectangle border -->
+  <rect
+    x="2"
+    y="2"
+    width="796"
+    height="596"
+    rx="12"
+    ry="12"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    opacity="0.3"
+  />
+  <!-- TODO: Replace with Canva export -->
+</svg>

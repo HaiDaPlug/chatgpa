@@ -20,6 +20,7 @@ export interface RouterRequest {
     // Generation context (quiz_generation)
     notes_length?: number;
     question_count?: number;
+    config?: any; // Section 4: QuizConfig for model selection
 
     // Grading context (grade_*)
     question_type?: "mcq" | "short" | "long";
@@ -61,9 +62,27 @@ export interface RouterResult {
 // Configuration
 // ============================================================================
 
-function getGenerationConfig() {
-  const defaultModel = process.env.OPENAI_MODEL_GENERATE_DEFAULT || "gpt-4o-mini";
-  const fallbackModel = process.env.OPENAI_MODEL_GENERATE_FALLBACK || "gpt-5-mini";
+function getGenerationConfig(config?: any) {
+  // Section 4: Dynamic model selection based on question type
+  let defaultModel = process.env.OPENAI_MODEL_GENERATE_DEFAULT || "gpt-4o-mini";
+  let fallbackModel = process.env.OPENAI_MODEL_GENERATE_FALLBACK || "gpt-5-mini";
+
+  // If config provided, adjust model selection based on question type
+  if (config) {
+    const isTypingHeavy =
+      config.question_type === "typing" ||
+      (config.question_type === "hybrid" &&
+       config.question_counts &&
+       config.question_counts.typing >= config.question_counts.mcq);
+
+    if (isTypingHeavy) {
+      // Typing-heavy: prefer reasoning model for better rubric-aligned answers
+      defaultModel = process.env.OPENAI_MODEL_GENERATE_TYPING_DEFAULT || "gpt-5-mini";
+      fallbackModel = process.env.OPENAI_MODEL_GENERATE_TYPING_FALLBACK || "gpt-4o-mini";
+    }
+    // MCQ-heavy uses default models (already set above)
+  }
+
   const fallbackEnabled = (process.env.ROUTER_ENABLE_FALLBACK || "true") === "true";
   const jsonStrict = (process.env.ROUTER_JSON_STRICT || "true") === "true";
   const timeoutMs = parseInt(process.env.ROUTER_TIMEOUT_MS || "60000", 10);
@@ -310,8 +329,11 @@ async function executeCall(
  */
 export async function generateWithRouter(request: RouterRequest): Promise<RouterResult> {
   // Get appropriate config based on task
+  // Section 4: Pass quiz config to generation config for dynamic model selection
   const config =
-    request.task === "quiz_generation" ? getGenerationConfig() : getGradingConfig(request.task);
+    request.task === "quiz_generation"
+      ? getGenerationConfig(request.context.config)
+      : getGradingConfig(request.task);
   // Use provided request_id or generate new one (single source of truth)
   const requestId = request.context.request_id || randomUUID();
   const client = getOpenAIClient();

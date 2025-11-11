@@ -219,6 +219,79 @@ export async function getGradingFallbackCount(): Promise<number> {
 }
 
 /**
+ * Section 4: Query config usage metrics (last 24 hours).
+ * Returns breakdown of quiz config usage patterns.
+ */
+export async function getConfigMetrics24h(): Promise<any> {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      return { error: "missing_supabase_config" };
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    });
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    // Query generation events with config data
+    const { data, error } = await supabase
+      .from("analytics")
+      .select("data")
+      .eq("event", "generation_success")
+      .gte("created_at", twentyFourHoursAgo);
+
+    if (error || !data || data.length === 0) {
+      return { error: error?.message || "no_data", total_generations: 0 };
+    }
+
+    // Aggregate config metrics
+    const configs = data
+      .map((row) => (row.data as any)?.config)
+      .filter((config) => config != null);
+
+    if (configs.length === 0) {
+      return { total_generations: data.length, config_usage: 0 };
+    }
+
+    // Count by question type
+    const typeBreakdown: Record<string, number> = {};
+    configs.forEach((config) => {
+      const type = config.question_type || "unknown";
+      typeBreakdown[type] = (typeBreakdown[type] || 0) + 1;
+    });
+
+    // Calculate average question count
+    const questionCounts = configs
+      .map((config) => config.question_count)
+      .filter((count) => typeof count === "number");
+    const avgQuestionCount =
+      questionCounts.length > 0
+        ? Math.round((questionCounts.reduce((a, b) => a + b, 0) / questionCounts.length) * 10) / 10
+        : null;
+
+    // Config adoption rate (% of generations with config)
+    const adoptionRate = Math.round((configs.length / data.length) * 100);
+
+    return {
+      total_generations: data.length,
+      config_usage: configs.length,
+      config_adoption_rate_pct: adoptionRate,
+      question_type_breakdown: typeBreakdown,
+      avg_question_count: avgQuestionCount,
+    };
+  } catch (err: any) {
+    console.error("CONFIG_METRICS_QUERY_EXCEPTION", {
+      error_message: err?.message || "Unknown error",
+    });
+    return { error: "query_failed" };
+  }
+}
+
+/**
  * Quick operational check (no database queries).
  * Used when health endpoint is called without ?details=true.
  */

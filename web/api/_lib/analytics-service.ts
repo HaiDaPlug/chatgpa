@@ -235,7 +235,8 @@ export async function insertGenerationAnalytics(
   userId: string,
   routerMetrics: RouterMetrics,
   questions: Question[],
-  sourceContext: SourceContext
+  sourceContext: SourceContext,
+  config?: any // Section 4: Optional quiz config
 ): Promise<void> {
   try {
     // Create Supabase client (anon key is fine, RLS enforces user_id)
@@ -292,6 +293,9 @@ export async function insertGenerationAnalytics(
         // Source
         source_type: sourceContext.type,
         note_size_chars: sourceContext.note_size,
+
+        // Section 4: Quiz config (if provided)
+        ...(config ? { config } : {}),
       },
     };
 
