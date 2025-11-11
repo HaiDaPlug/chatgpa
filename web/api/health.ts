@@ -82,6 +82,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const folderMetrics = await getFolderHealthMetricsDirectSQL();
       response.folder_metrics = folderMetrics;
+
+      // Surface warning if duplicate notes detected
+      if (folderMetrics.duplicate_notes_detected > 0) {
+        if (!response.warnings) response.warnings = [];
+        response.warnings.push({
+          code: "DUPLICATE_NOTE_MAPPINGS",
+          message: `${folderMetrics.duplicate_notes_detected} note(s) mapped to multiple folders. Check data integrity.`,
+          severity: "WARN",
+        });
+      }
     } catch (err: any) {
       console.error("HEALTH_FOLDER_METRICS_FAILED", {
         error_message: err?.message || "Unknown error",

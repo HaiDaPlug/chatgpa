@@ -140,24 +140,26 @@ CREATE POLICY note_folders_delete_own ON note_folders
 -- =====================================================
 
 -- Function to get all descendant folder IDs (recursive)
+-- Uses SECURITY INVOKER to respect RLS policies (user can only see their own folders)
 CREATE OR REPLACE FUNCTION get_descendant_folders(parent_folder_id uuid)
 RETURNS TABLE(folder_id uuid) AS $$
 BEGIN
   RETURN QUERY
   WITH RECURSIVE descendants AS (
-    -- Base case: the parent folder itself
-    SELECT id FROM folders WHERE id = parent_folder_id
+    -- Base case: the parent folder itself (RLS enforced)
+    SELECT id FROM folders WHERE id = parent_folder_id AND user_id = auth.uid()
 
     UNION ALL
 
-    -- Recursive case: children of descendants
+    -- Recursive case: children of descendants (RLS enforced)
     SELECT f.id
     FROM folders f
     INNER JOIN descendants d ON f.parent_id = d.id
+    WHERE f.user_id = auth.uid()
   )
   SELECT id FROM descendants;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+$$ LANGUAGE plpgsql STABLE SECURITY INVOKER;
 
 COMMENT ON FUNCTION get_descendant_folders IS 'Returns all descendant folder IDs (including self) for recursive queries. Used by quiz generation folder filter.';
 
