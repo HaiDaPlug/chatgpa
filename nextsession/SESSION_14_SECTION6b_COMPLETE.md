@@ -561,14 +561,112 @@ All redirects use `statusCode: 307` (temporary) for initial deployment. Can upgr
 
 ---
 
-**Session 14 Status:** ✅ **SECTION 6 COMPLETE + VERCEL FIX DEPLOYED**
-**Branch Status:** Ready to commit
-**Next Section:** Section 7 completion (visual system) or integration testing
+## 🔧 Section 6 Post-Fix: Underscore Prefix Solution
 
-**Last Updated:** 2025-11-11 (Session 14 - Section 6 Complete + Vercel Function Fix)
+**Issue:** Initial fix still failed - Vercel still detected 13+ functions
+**Root Cause:** Vercel auto-detects ANY `.ts` file in `/api` as a serverless function, including:
+- `actions/index.ts` files (6 files - one per gateway)
+- `schemas.ts` files (6 files - one per gateway)
+- These 12 internal files + 7 real endpoints = 19 functions > 12 limit
+
+### Final Solution: Underscore Prefix
+
+**Vercel Convention:** Files/folders starting with `_` are ignored from API routing
+
+**Changes Made:**
+1. Renamed all gateway subdirectories:
+   - `actions/` → `_actions/` (6 gateways)
+   - `schemas.ts` → `_schemas.ts` (6 files)
+
+2. Updated imports in all gateway `index.ts` files:
+   - `from './actions'` → `from './_actions'`
+   - `from './schemas'` → `from './_schemas'`
+
+3. Simplified `vercel.json`:
+   - Removed manual `functions` configuration
+   - Let Vercel auto-detect (now works correctly)
+
+**Files Renamed (38 total):**
+- 32 action files moved to `_actions/` subdirectories
+- 6 schema files renamed to `_schemas.ts`
+- 6 gateway `index.ts` files updated (imports only)
+
+**Result:**
+```
+web/api/
+├── _lib/                    ← ignored (underscore prefix)
+├── stripe-webhook.ts        ← function #1
+└── v1/
+    ├── _middleware.ts       ← ignored (underscore prefix)
+    ├── _redirects.ts        ← ignored (underscore prefix)
+    ├── _types.ts            ← ignored (underscore prefix)
+    ├── ai/
+    │   ├── _actions/        ← ignored (underscore prefix)
+    │   ├── _schemas.ts      ← ignored (underscore prefix)
+    │   └── index.ts         ← function #2
+    ├── attempts/
+    │   ├── _actions/        ← ignored
+    │   ├── _schemas.ts      ← ignored
+    │   └── index.ts         ← function #3
+    ├── billing/
+    │   ├── _actions/        ← ignored
+    │   ├── _schemas.ts      ← ignored
+    │   └── index.ts         ← function #4
+    ├── marketing/
+    │   ├── _actions/        ← ignored
+    │   ├── _schemas.ts      ← ignored
+    │   └── index.ts         ← function #5
+    ├── util/
+    │   ├── _actions/        ← ignored
+    │   ├── _schemas.ts      ← ignored
+    │   └── index.ts         ← function #6
+    └── workspace/
+        ├── _actions/        ← ignored
+        ├── _schemas.ts      ← ignored
+        └── index.ts         ← function #7
+```
+
+**Vercel Detection:**
+- **Before:** 19 functions (7 endpoints + 12 internal files)
+- **After:** 7 functions (exactly what we want)
+
+### Commits
+
+**Commit 1:** `a469ecb` - Replace code redirects with edge redirects
+- Removed 45 legacy files
+- Added 24 edge redirects to `vercel.json`
+
+**Commit 2:** `172786f` - Prevent action/schema files from being counted
+- Renamed 38 files to use underscore prefix
+- Updated 6 gateway import statements
+- Vercel now correctly detects only 7 functions
+
+### Verification
+
+```bash
+$ find web/api -name "*.ts" -type f | grep -v "/_" | sort
+web/api/stripe-webhook.ts
+web/api/v1/ai/index.ts
+web/api/v1/attempts/index.ts
+web/api/v1/billing/index.ts
+web/api/v1/marketing/index.ts
+web/api/v1/util/index.ts
+web/api/v1/workspace/index.ts
+
+Total: 7 functions ✅
+```
+
+---
+
+**Session 14 Status:** ✅ **SECTION 6 COMPLETE + VERCEL DEPLOYED SUCCESSFULLY**
+**Branch Status:** All changes committed and pushed
+**Deployment Status:** ✅ **LIVE ON VERCEL** (7/12 functions)
+
+**Last Updated:** 2025-11-13 (Session 14 - Section 6 Complete + Vercel Function Limit Fixed)
 **Lines of Code:** +9,100 lines (61 new files, 3 updated), -45 files (legacy cleanup)
+**Files Renamed:** 38 files (underscore prefix fix)
 **Build Status:** ✅ TypeScript clean (0 errors in Section 6 files)
 **Final Function Count:** 7 (70% reduction from 23, exceeding 60% target by 10%)
 **Gateway Count:** 6 production gateways + 1 special case (webhook)
 **Action Count:** 23 actions across all gateways
-**Vercel Deployment:** ✅ Ready (7/12 functions, 42% headroom)
+**Vercel Deployment:** ✅ **DEPLOYED SUCCESSFULLY** (7/12 functions, 42% headroom)
