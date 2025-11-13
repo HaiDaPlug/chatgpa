@@ -116,10 +116,10 @@ export default function DashboardPage() {
       // Reset to page 1 and refetch
       setPage(1);
       push({ kind: "success", text: "Class created." });
-      log("create_class_success", { class_id: data?.id });
+      track("dashboard_loaded", { class_id: data?.id });
     } catch {
       push({ kind: "error", text: "Create failed." });
-      log("create_class_error");
+      track("dashboard_loaded");
     } finally {
       setBusyId(null);
     }

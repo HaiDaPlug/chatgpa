@@ -12,5 +12,6 @@
     "baseUrl": "src",               // optional, pairs with alias below
     "paths": { "@/*": ["*"] }       // optional, if you want "@/..."
   },
-  "include": ["src", "api", "disabled_api/stripe/stripe-webhook.ts"]
+  "include": ["src", "api"],
+  "exclude": ["deprecated/**/*", "disabled_api/**/*", "node_modules"]
 }

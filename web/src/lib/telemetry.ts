@@ -38,7 +38,13 @@ type TelemetryEvent =
   | "class_breadcrumb_clicked"
   | "uncategorized_view_opened"
   | "folder_tree_expanded"
-  | "folder_tree_collapsed";
+  | "folder_tree_collapsed"
+  // Section 7: Visual System events
+  | "quiz_visuals_enabled"
+  | "quiz_visuals_disabled"
+  | "asset_load_success"
+  | "asset_load_error"
+  | "text_only_mode_toggled";
 
 /**
  * Track telemetry event - sends to server endpoint

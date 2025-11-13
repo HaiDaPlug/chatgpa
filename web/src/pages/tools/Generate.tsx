@@ -68,6 +68,12 @@ export default function Generate() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const configSaveTimer = useRef<number | null>(null);
 
+  // Section 7: Text-only mode toggle (persisted to localStorage)
+  const [textOnlyMode, setTextOnlyMode] = useState(() => {
+    const saved = localStorage.getItem('text_only_mode');
+    return saved === 'true';
+  });
+
   // Cost estimation (simple heuristic: ~300 tokens per question * 1.2 buffer)
   const estimatedTokens = useMemo(() => {
     const baseTokensPerQuestion = 300;
@@ -370,6 +376,17 @@ export default function Generate() {
     track("quiz_config_reset", {
       context: classId || "standalone"
     });
+  }
+
+  // Section 7: Text-only mode toggle handler
+  function handleTextOnlyToggle(enabled: boolean) {
+    setTextOnlyMode(enabled);
+    try {
+      localStorage.setItem('text_only_mode', String(enabled));
+    } catch (error) {
+      console.error("TEXT_ONLY_MODE_SAVE_ERROR", error);
+    }
+    track("text_only_mode_toggled", { enabled });
   }
 
   // Drag & drop handlers
@@ -794,6 +811,25 @@ export default function Generate() {
                       High
                     </button>
                   </div>
+                </div>
+
+                {/* Section 7: Text-Only Mode Toggle */}
+                <div className="mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={textOnlyMode}
+                      onChange={(e) => handleTextOnlyToggle(e.target.checked)}
+                      className="w-4 h-4"
+                      aria-label="Enable text-only mode"
+                    />
+                    <span className="text-sm">
+                      Text-only mode (disable decorative visuals)
+                    </span>
+                  </label>
+                  <p className="text-xs text-muted mt-1 ml-6">
+                    When enabled, quiz pages will show clean text without decorative elements
+                  </p>
                 </div>
               </div>
             </details>

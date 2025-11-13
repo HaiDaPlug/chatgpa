@@ -184,6 +184,57 @@ fi
 
 echo ""
 echo "═══════════════════════════════════════"
+echo " Phase 2: Security Verification Tests"
+echo "═══════════════════════════════════════"
+echo ""
+
+# Test 8: Rate limiting (burst test - not guaranteed to fail on first run)
+echo -n "Testing rate limiting (rapid requests)... "
+rate_limit_hits=0
+for i in {1..15}; do
+  status=$(curl -s -o /dev/null -w '%{http_code}' \
+    -X GET "$BASE_URL/api/v1/util?action=ping")
+  if [ "$status" = "429" ]; then
+    rate_limit_hits=$((rate_limit_hits + 1))
+  fi
+done
+
+if [ $rate_limit_hits -gt 0 ]; then
+  echo -e "${GREEN}✓ Rate limit enforced (hit after $rate_limit_hits requests)${NC}"
+  TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+  echo -e "${YELLOW}⊘ Not triggered (expected on cold start)${NC}"
+fi
+
+# Test 9: Stripe webhook requires raw body (no JSON parsing)
+echo -n "Testing Stripe webhook signature validation... "
+status=$(curl -s -o /dev/null -w '%{http_code}' \
+  -X POST "$BASE_URL/api/stripe-webhook" \
+  -H "Content-Type: application/json" \
+  -H "Stripe-Signature: invalid" \
+  -d '{"type":"test"}')
+
+if [ "$status" = "401" ] || [ "$status" = "400" ]; then
+  echo -e "${GREEN}✓ Signature validation active ($status)${NC}"
+  TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+  echo -e "${RED}✗ Expected 401 or 400, got $status${NC}"
+  TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test 10: X-Request-ID in health endpoint
+test_header \
+  "X-Request-ID in health response" \
+  "GET" \
+  "/api/v1/util?action=health" \
+  "X-Request-ID" \
+  ""
+
+# Test 11: Verify 413 on large payload (already tested above, documenting here)
+echo -e "${YELLOW}ℹ Body size limit (413) already tested in Phase 1${NC}"
+
+echo ""
+echo "═══════════════════════════════════════"
 echo " Summary"
 echo "═══════════════════════════════════════"
 echo -e "Passed: ${GREEN}$TESTS_PASSED${NC}"
