@@ -12,6 +12,13 @@ export const ErrorCode = {
   NOT_FOUND: 'NOT_FOUND',
   SERVER_ERROR: 'SERVER_ERROR',
   METHOD_NOT_ALLOWED: 'METHOD_NOT_ALLOWED',
+
+  // Section 6: Gateway-specific error codes
+  ACTION_UNKNOWN: 'ACTION_UNKNOWN',
+  GATEWAY_TIMEOUT: 'GATEWAY_TIMEOUT',
+  UNSUPPORTED_MEDIA_TYPE: 'UNSUPPORTED_MEDIA_TYPE',
+  RATE_LIMITED: 'RATE_LIMITED',
+  PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
 } as const;
 
 export type ErrorCodeType = typeof ErrorCode[keyof typeof ErrorCode];

@@ -2,34 +2,155 @@
   "buildCommand": "cd web && pnpm build",
   "installCommand": "pnpm install --prefix web",
   "outputDirectory": "web/dist",
-  "functions": {
-    "api/generate-quiz.ts": {
-      "maxDuration": 60
-    },
-    "api/grade.ts": {
-      "maxDuration": 30
-    }
-  },
   "redirects": [
     {
       "source": "/waitlist",
       "destination": "/",
       "permanent": true
+    },
+    {
+      "source": "/api/generate-quiz",
+      "destination": "/api/v1/ai?action=generate_quiz",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/grade",
+      "destination": "/api/v1/ai?action=grade",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/attempts/start",
+      "destination": "/api/v1/attempts?action=start",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/attempts/autosave",
+      "destination": "/api/v1/attempts?action=autosave",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/attempts/meta",
+      "destination": "/api/v1/attempts?action=update_meta",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/folders/create",
+      "destination": "/api/v1/workspace?action=folder_create",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/folders/tree",
+      "destination": "/api/v1/workspace?action=folder_tree",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/folders/flat",
+      "destination": "/api/v1/workspace?action=folder_flat",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/folders/update",
+      "destination": "/api/v1/workspace?action=folder_update",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/folders/delete",
+      "destination": "/api/v1/workspace?action=folder_delete",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/folders/notes",
+      "destination": "/api/v1/workspace?action=folder_notes",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/folders/path",
+      "destination": "/api/v1/workspace?action=folder_path",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/notes/add-to-folder",
+      "destination": "/api/v1/workspace?action=note_add_to_folder",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/notes/remove-from-folder",
+      "destination": "/api/v1/workspace?action=note_remove_from_folder",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/classes/notes-uncategorized",
+      "destination": "/api/v1/workspace?action=notes_uncategorized",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/ping",
+      "destination": "/api/v1/util?action=ping",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/v1/util?action=health",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/track",
+      "destination": "/api/v1/util?action=track",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/use-tokens",
+      "destination": "/api/v1/util?action=use_tokens",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/join-waitlist",
+      "destination": "/api/v1/marketing?action=join_waitlist",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/create-checkout-session",
+      "destination": "/api/v1/billing?action=create_checkout",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/router",
+      "has": [
+        {
+          "type": "query",
+          "key": "action",
+          "value": "stripe-checkout"
+        }
+      ],
+      "destination": "/api/v1/billing?action=create_checkout",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/router",
+      "has": [
+        {
+          "type": "query",
+          "key": "action",
+          "value": "stripe-portal"
+        }
+      ],
+      "destination": "/api/v1/billing?action=portal",
+      "statusCode": 307
+    },
+    {
+      "source": "/api/router",
+      "has": [
+        {
+          "type": "query",
+          "key": "action",
+          "value": "join-waitlist"
+        }
+      ],
+      "destination": "/api/v1/marketing?action=join_waitlist",
+      "statusCode": 307
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/join-waitlist",
-      "destination": "/api/router?action=join-waitlist"
-    },
-    {
-      "source": "/api/ls-create-checkout",
-      "destination": "/api/router?action=ls-create-checkout"
-    },
-    {
-      "source": "/api/fake-subscribe",
-      "destination": "/api/router?action=fake-subscribe"
-    },
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"

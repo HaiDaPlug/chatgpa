@@ -1,0 +1,131 @@
+/**
+ * ChatGPA Design Tokens
+ * WCAG AA compliant color system for dark mode
+ *
+ * All token pairs verified for contrast ratio compliance:
+ * - Normal text: ≥4.5:1
+ * - Large text (≥18pt/24px): ≥3:1
+ *
+ * Last Updated: 2025-11-10
+ * Version: 1.0.0
+ */
+
+:root {
+  /* ===== Base Neutrals (Stone, Dark) ===== */
+  --bg: #0F1216;
+  --surface: #151A1F;
+  --card: #1B2230;
+  --border: #2A3446;
+  --fg: #E8EDF2;
+  --fg-muted: #B9C3CE;
+
+  /* ===== Brand (Coral) ===== */
+  --brand-600: #E2464E;
+  --brand-500: #F35E63;  /* Primary CTA color */
+  --brand-400: #FF7B82;
+  --brand-contrast: #0B0F14;  /* For text on brand backgrounds */
+
+  /* ===== Accent (Leaf) ===== */
+  --accent-600: #239C63;
+  --accent-500: #2FB879;  /* Secondary accent color */
+  --accent-400: #56CB94;
+  --accent-contrast: #0B0F14;  /* For text on accent backgrounds */
+
+  /* ===== State Colors ===== */
+  --success: #3CB179;
+  --warning: #E3A008;
+  --danger: #F25C5C;  /* Lightened for AA compliance (was #E12D39) */
+  --info: #2E90FA;
+
+  /* ===== Semantic Quiz Tokens ===== */
+  --quiz-mcq: var(--brand-500);
+  --quiz-typing: var(--accent-500);
+  --quiz-hybrid: #8B8EF7;
+
+  /* ===== Semantic Score Tokens ===== */
+  --score-pass: #2EB67D;
+  --score-fail: #F56565;  /* Lightened for AA compliance (was #E03E3E) */
+
+  /* ===== Legacy Token Aliases (for backward compatibility) ===== */
+  /* Keep these until full hex audit complete */
+  --text: var(--fg);
+  --text-muted: var(--fg-muted);
+}
+
+/**
+ * Allowed Token Pair Matrix (for CI validation)
+ *
+ * Background → Text combinations that MUST pass AA:
+ *
+ * 1. --brand-500 bg + --brand-contrast text
+ * 2. --accent-500 bg + --accent-contrast text
+ * 3. --bg + --fg text
+ * 4. --bg + --fg-muted text
+ * 5. --surface + --fg text
+ * 6. --surface + --fg-muted text
+ * 7. --card + --fg text
+ * 8. --card + --fg-muted text
+ * 9. --card + --quiz-mcq text
+ * 10. --card + --quiz-typing text
+ * 11. --card + --quiz-hybrid text
+ * 12. --card + --score-pass text
+ * 13. --card + --score-fail text
+ * 14. --card + --success text
+ * 15. --card + --warning text
+ * 16. --card + --danger text
+ * 17. --card + --info text
+ *
+ * FORBIDDEN Pairs (will fail contrast check):
+ * - --fg text on --brand-500 bg (insufficient contrast)
+ * - --fg text on --accent-500 bg (insufficient contrast)
+ * - Use --brand-contrast or --accent-contrast instead
+ */
+
+/**
+ * Ocean Dark Theme (Alternative Preset)
+ * Activated via data-theme="ocean-dark" attribute
+ */
+[data-theme="ocean-dark"] {
+  --brand-600: #0A7FBA;
+  --brand-500: #0E95D8;  /* Ocean blue */
+  --brand-400: #32A9E3;
+  --brand-contrast: #0B0F14;
+
+  --accent-600: #057A8C;
+  --accent-500: #0B9BAD;  /* Teal */
+  --accent-400: #2FB5C6;
+  --accent-contrast: #0B0F14;
+
+  /* Neutrals remain the same */
+}
+
+/**
+ * Dev Mode Helper: Log Hex Values
+ * Helps identify hardcoded colors during incremental audit
+ */
+@media screen {
+  body::before {
+    content: "🎨 Theme: " attr(data-theme) " | Tokens loaded";
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    padding: 4px 8px;
+    font-size: 10px;
+    background: var(--card);
+    color: var(--fg-muted);
+    border: 1px solid var(--border);
+    border-radius: 4px 0 0 0;
+    z-index: 9999;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+}
+
+/**
+ * Production: Hide dev indicator
+ */
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    display: none;
+  }
+}

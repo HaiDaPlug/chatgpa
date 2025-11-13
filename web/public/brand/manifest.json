@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "updatedAt": "2025-11-10T00:00:00Z",
+  "frames": [
+    {
+      "id": "frame-basic-01",
+      "path": "/brand/frames/frame-basic-01.svg",
+      "hash": "placeholder",
+      "bytes": 0,
+      "tintable": true,
+      "aspect": "auto",
+      "alt": "rounded frame with subtle border"
+    },
+    {
+      "id": "frame-basic-02",
+      "path": "/brand/frames/frame-basic-02.svg",
+      "hash": "placeholder",
+      "bytes": 0,
+      "tintable": true,
+      "aspect": "auto",
+      "alt": "clean minimal frame"
+    },
+    {
+      "id": "frame-accent-01",
+      "path": "/brand/frames/frame-accent-01.svg",
+      "hash": "placeholder",
+      "bytes": 0,
+      "tintable": true,
+      "aspect": "auto",
+      "alt": "accent frame with decorative corners"
+    }
+  ],
+  "patterns": [
+    {
+      "id": "dots-01",
+      "path": "/brand/patterns/dots-01.svg",
+      "hash": "placeholder",
+      "bytes": 0,
+      "tile": "repeat",
+      "opacity": 0.08,
+      "alt": "fine dotted pattern"
+    },
+    {
+      "id": "dots-02",
+      "path": "/brand/patterns/dots-02.svg",
+      "hash": "placeholder",
+      "bytes": 0,
+      "tile": "repeat",
+      "opacity": 0.12,
+      "alt": "medium dotted pattern"
+    }
+  ]
+}
