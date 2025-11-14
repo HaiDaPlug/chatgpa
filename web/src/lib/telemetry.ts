@@ -68,7 +68,7 @@ export function track(event: TelemetryEvent, data?: Record<string, any>) {
     console.log(`[telemetry] ${event}`, enrichedData);
 
     const payload = JSON.stringify({ event, data: enrichedData });
-    const url = "/api/track";
+    const url = "/api/v1/util?action=track";
 
     // Prefer sendBeacon for non-blocking behavior
     if (navigator.sendBeacon) {

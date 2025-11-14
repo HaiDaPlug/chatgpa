@@ -492,7 +492,7 @@ export default function Generate() {
       const configToSend = getCurrentConfig();
 
       // Call quiz generator API
-      const res = await fetch("/api/generate-quiz", {
+      const res = await fetch("/api/v1/ai?action=generate_quiz", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
