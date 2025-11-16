@@ -5,7 +5,7 @@
 import type { GatewayContext } from '../../_types';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-import { JoinWaitlistInput } from '../schemas';
+import { JoinWaitlistInput } from '../_schemas';
 
 /**
  * Confirmation email template

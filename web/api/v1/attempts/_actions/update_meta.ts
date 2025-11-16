@@ -4,7 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { GatewayContext } from '../../_types';
-import { UpdateMetaInput, type UpdateMetaOutputType } from '../schemas';
+import { UpdateMetaInput, type UpdateMetaOutputType } from '../_schemas';
 
 /**
  * Update Meta Action

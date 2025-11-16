@@ -4,7 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { GatewayContext } from '../../_types';
-import { GenerateQuizInput, GenerateQuizOutput, quizResponseSchema } from '../schemas';
+import { GenerateQuizInput, GenerateQuizOutput, quizResponseSchema } from '../_schemas';
 import { validateAIConfig } from '../../../_lib/ai';
 import { getUserPlan, getQuizCount } from '../../../_lib/plan';
 import { generateWithRouter } from '../../../_lib/ai-router';

@@ -4,7 +4,7 @@
 
 import type { GatewayContext } from '../../_types';
 import { createClient } from '@supabase/supabase-js';
-import { NoteAddToFolderInput } from '../schemas';
+import { NoteAddToFolderInput } from '../_schemas';
 
 export async function note_add_to_folder(
   data: unknown,

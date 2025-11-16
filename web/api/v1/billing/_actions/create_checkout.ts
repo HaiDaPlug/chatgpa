@@ -4,7 +4,7 @@
 
 import type { GatewayContext } from '../../_types';
 import Stripe from 'stripe';
-import { CreateCheckoutInput } from '../schemas';
+import { CreateCheckoutInput } from '../_schemas';
 
 export async function create_checkout(
   data: unknown,

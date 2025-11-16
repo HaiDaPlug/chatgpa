@@ -5,7 +5,7 @@
 import type { GatewayContext } from '../../_types';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
-import { PortalInput } from '../schemas';
+import { PortalInput } from '../_schemas';
 
 export async function portal(
   data: unknown,
