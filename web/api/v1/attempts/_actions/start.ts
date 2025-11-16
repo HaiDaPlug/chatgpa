@@ -4,7 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { GatewayContext } from '../../_types';
-import { StartInput, type StartOutputType } from '../schemas';
+import { StartInput, type StartOutputType } from '../_schemas';
 
 /**
  * Start Action

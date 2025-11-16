@@ -4,7 +4,7 @@
 
 import type { GatewayContext } from '../../_types';
 import { createClient } from '@supabase/supabase-js';
-import { FolderTreeQuery } from '../schemas';
+import { FolderTreeQuery } from '../_schemas';
 
 interface Folder {
   id: string;

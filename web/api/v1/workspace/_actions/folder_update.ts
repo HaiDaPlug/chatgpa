@@ -4,7 +4,7 @@
 
 import type { GatewayContext } from '../../_types';
 import { createClient } from '@supabase/supabase-js';
-import { FolderUpdateInput } from '../schemas';
+import { FolderUpdateInput } from '../_schemas';
 
 export async function folder_update(
   data: unknown,

@@ -4,7 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { GatewayContext } from '../../_types';
-import { AutosaveInput, type AutosaveOutputType } from '../schemas';
+import { AutosaveInput, type AutosaveOutputType } from '../_schemas';
 
 // Max payload size: 500KB (in bytes)
 const MAX_PAYLOAD_SIZE = 500 * 1024;

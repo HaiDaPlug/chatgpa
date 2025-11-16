@@ -4,7 +4,7 @@
 
 import type { GatewayContext } from '../../_types';
 import { createClient } from '@supabase/supabase-js';
-import { UseTokensInput } from '../schemas';
+import { UseTokensInput } from '../_schemas';
 
 export async function use_tokens(
   data: unknown,

@@ -3,7 +3,7 @@
 // Features: Non-blocking, swallows errors, no auth required
 
 import type { GatewayContext } from '../../_types';
-import { TrackInput } from '../schemas';
+import { TrackInput } from '../_schemas';
 
 export async function track(
   data: unknown,
