@@ -5,7 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { GatewayContext } from '../../_types.js';
 import { GradeInput } from '../_schemas.js';
-import { gradeSubmission, type Question } from '../../../../src/lib/grader';
+import { gradeSubmission, type Question } from '../../../_lib/grader.js';
 import {
   insertGradingAnalytics,
   insertGradingFailure
