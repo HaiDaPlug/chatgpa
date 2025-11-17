@@ -3,7 +3,7 @@
 // Rate limit: 6 calls per 30 seconds per user
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleGatewayRequest } from '../_middleware';
+import { handleGatewayRequest } from '../_middleware.js';
 import * as actions from './_actions';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
