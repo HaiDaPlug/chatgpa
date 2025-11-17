@@ -51,7 +51,7 @@ export const questionSchema = z.discriminatedUnion('type', [
 ]);
 
 export const quizResponseSchema = z.object({
-  questions: z.array(questionSchema).min(5).max(10)
+  questions: z.array(questionSchema).min(1).max(10) // Align with quiz config: 1-10 questions allowed
 });
 
 // ===== Grade Schemas =====

@@ -270,9 +270,39 @@ export async function generateQuiz(
   // Validate quiz structure with Zod
   const quizValidation = quizResponseSchema.safeParse(quizJson);
   if (!quizValidation.success) {
+    // Log validation failure details for debugging
+    console.error(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        request_id: routerResult.metrics.request_id,
+        user_id,
+        action: 'generate_quiz',
+        error: 'Quiz validation failed',
+        validation_errors: quizValidation.error.issues,
+        quiz_structure: {
+          has_questions: !!quizJson?.questions,
+          question_count: quizJson?.questions?.length,
+          first_question_sample: quizJson?.questions?.[0] ? {
+            id: quizJson.questions[0].id,
+            type: quizJson.questions[0].type,
+            has_prompt: !!quizJson.questions[0].prompt,
+            has_options: !!quizJson.questions[0].options,
+            has_answer: !!quizJson.questions[0].answer,
+            prompt_length: quizJson.questions[0].prompt?.length
+          } : null
+        },
+        message: 'Generated quiz failed Zod validation'
+      })
+    );
+
     throw {
-      code: 'SCHEMA_INVALID',
-      message: 'Generated quiz failed validation',
+      code: 'QUIZ_VALIDATION_FAILED',
+      message: 'Generated quiz did not match expected schema',
+      details: quizValidation.error.issues.slice(0, 3).map(issue => ({
+        path: issue.path.join('.'),
+        message: issue.message
+      })),
       status: 500
     };
   }
