@@ -3,7 +3,7 @@
 // Rate limit: 30 calls/60s (high-traffic utility operations)
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleGatewayRequest } from '../_middleware';
+import { handleGatewayRequest } from '../_middleware.js';
 import * as actions from './_actions';
 
 export const config = { runtime: 'nodejs' };

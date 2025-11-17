@@ -3,7 +3,7 @@
 // Rate limit: 20 calls/10s (high-traffic for folder tree operations)
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleGatewayRequest } from '../_middleware';
+import { handleGatewayRequest } from '../_middleware.js';
 import * as actions from './_actions';
 
 export const config = { runtime: 'nodejs' };
