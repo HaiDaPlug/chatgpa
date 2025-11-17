@@ -78,14 +78,36 @@ export async function generateQuiz(
   }
 
   // 4. Create Supabase client with user token (RLS)
-  const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false }
-    }
-  );
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        request_id,
+        user_id,
+        action: 'generate_quiz',
+        error: 'Missing Supabase configuration',
+        env_missing: [
+          !supabaseUrl && 'SUPABASE_URL',
+          !supabaseAnonKey && 'SUPABASE_ANON_KEY'
+        ].filter(Boolean),
+        message: 'Supabase environment variables not configured'
+      })
+    );
+    throw {
+      code: 'SERVER_ERROR',
+      message: 'Database configuration error',
+      status: 500
+    };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false }
+  });
 
   // 5. Verify class ownership and fetch name (if class_id provided)
   let className: string | null = null;
