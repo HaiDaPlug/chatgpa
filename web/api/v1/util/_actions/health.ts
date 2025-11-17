@@ -2,7 +2,7 @@
 // Migrated from: /api/health
 // Features: Environment validation, AI Router health, folder metrics
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { validateAIConfig, aiDiagnostics } from '../../../_lib/ai.js';
 import { getRouterHealthStatus, getRouterConfigSummary, getConfigMetrics24h } from '../../../_lib/ai-health.js';
 import { getFolderHealthMetricsDirectSQL } from '../../../_lib/folder-health.js';

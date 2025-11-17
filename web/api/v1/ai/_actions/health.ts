@@ -1,8 +1,8 @@
 // Purpose: AI Router health diagnostics (gateway action)
 // Provides: Router config, recent fallbacks, 24h metrics
 
-import type { GatewayContext } from '../../_types';
-import { getRouterHealthStatus } from '../../../_lib/ai-health';
+import type { GatewayContext } from '../../_types.js';
+import { getRouterHealthStatus } from '../../../_lib/ai-health.js';
 
 /**
  * Health Action

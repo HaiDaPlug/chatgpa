@@ -2,9 +2,9 @@
 // Migrated from: /api/use-tokens
 // Features: Uses SERVICE_ROLE_KEY for RPC, checks balance, 402 on insufficient
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
-import { UseTokensInput } from '../_schemas';
+import { UseTokensInput } from '../_schemas.js';
 
 export async function use_tokens(
   data: unknown,

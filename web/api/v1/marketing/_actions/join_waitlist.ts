@@ -2,10 +2,10 @@
 // Migrated from: /api/router?action=join-waitlist (and /api/join-waitlist)
 // Features: Turnstile verification, rate limiting, honeypot, Resend email
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-import { JoinWaitlistInput } from '../_schemas';
+import { JoinWaitlistInput } from '../_schemas.js';
 
 /**
  * Confirmation email template

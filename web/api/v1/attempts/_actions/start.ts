@@ -3,8 +3,8 @@
 // Connects to: quiz_attempts table
 
 import { createClient } from '@supabase/supabase-js';
-import type { GatewayContext } from '../../_types';
-import { StartInput, type StartOutputType } from '../_schemas';
+import type { GatewayContext } from '../../_types.js';
+import { StartInput, type StartOutputType } from '../_schemas.js';
 
 /**
  * Start Action

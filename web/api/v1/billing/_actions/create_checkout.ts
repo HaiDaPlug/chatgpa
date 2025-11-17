@@ -2,9 +2,9 @@
 // Migrated from: /api/router?action=stripe-checkout (and /api/create-checkout-session)
 // Features: Test/Live mode switching, tier-based pricing, metadata tracking
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import Stripe from 'stripe';
-import { CreateCheckoutInput } from '../_schemas';
+import { CreateCheckoutInput } from '../_schemas.js';
 
 export async function create_checkout(
   data: unknown,

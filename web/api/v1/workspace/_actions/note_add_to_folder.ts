@@ -2,9 +2,9 @@
 // Migrated from: /api/notes/add-to-folder
 // Features: Class mismatch validation, UPSERT for race conditions, RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
-import { NoteAddToFolderInput } from '../_schemas';
+import { NoteAddToFolderInput } from '../_schemas.js';
 
 export async function note_add_to_folder(
   data: unknown,
