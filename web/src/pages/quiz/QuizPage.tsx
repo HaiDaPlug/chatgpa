@@ -60,7 +60,7 @@ export default function QuizPage() {
         quiz_id: quiz.id,
         answers: Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })),
       };
-      const res = await fetch("/api/grade", {
+      const res = await fetch("/api/v1/ai?action=grade", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
@@ -70,7 +70,9 @@ export default function QuizPage() {
         push({ type: "error", message: json?.message || json?.code || "Failed to grade." });
         return;
       }
-      push({ type: "success", message: `Scored ${Math.round(json.score)}% (${json.letter})` });
+      // Gateway wraps response as {ok, data, request_id}
+      const result = json.data || json;
+      push({ type: "success", message: `Scored ${Math.round(result.score)}% (${result.letter})` });
     } finally {
       setSubmitting(false);
     }

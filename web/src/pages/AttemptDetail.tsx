@@ -239,7 +239,7 @@ export default function AttemptDetailPage() {
         await performAutosave();
       }
 
-      const response = await fetch("/api/grade", {
+      const response = await fetch("/api/v1/ai?action=grade", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -75,28 +75,41 @@ async function aiShortFeedbackBatch(
 
   const client = new OpenAI({ apiKey });
 
-  // Ask for structured JSON back (strict).
-  const payload = {
-    items: shorts.map((q) => ({
-      id: q.id,
-      prompt: q.prompt,
-      reference: q.answer ?? "",
-      response: responses[q.id] ?? "",
-    })),
-    instructions:
-      "For each item: evaluate correctness (boolean), write one-sentence feedback explaining why, and give one concrete improvement tip. Be concise and actionable.",
-  };
+  // Compact grading prompt - only essential info
+  const items = shorts.map((q) => ({
+    id: q.id,
+    q: q.prompt,
+    ref: q.answer ?? "",
+    ans: responses[q.id] ?? "",
+  }));
 
-  const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-5");
+  // Light telemetry for grading token usage
+  const promptStr = JSON.stringify(items);
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      action: 'grade_ai',
+      question_count: shorts.length,
+      prompt_chars: promptStr.length,
+      estimated_tokens: Math.round(promptStr.length / 4),
+      message: 'AI grading short answers'
+    })
+  );
+
+  const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-4o-mini");
+  const maxTokens = Math.min(512, 64 + shorts.length * 64); // Scale with question count, cap at 512
+
   const res = await client.chat.completions.create({
     model,
     temperature: 0.1,
+    max_tokens: maxTokens,
     messages: [
       {
         role: "user",
         content:
-          "Return STRICT JSON for grading. Schema: { results: Array<{ id: string, correct: boolean, feedback: string, improvement: string }> }.\n" +
-          JSON.stringify(payload, null, 2),
+          "Grade these short answers. Return JSON: {results:[{id,correct:boolean,feedback:string,improvement:string}]}.\n" +
+          JSON.stringify(items),
       },
     ],
     response_format: { type: "json_object" as const },

@@ -186,7 +186,7 @@ export default function QuizPage() {
       }
 
       // Submit to grading API (creates attempt via RLS)
-      const res = await fetch("/api/grade", {
+      const res = await fetch("/api/v1/ai?action=grade", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -208,8 +208,9 @@ export default function QuizPage() {
         return;
       }
 
-      // Success - API created the attempt
-      push({ kind: "success", text: payload?.summary || "Graded!" });
+      // Success - API created the attempt (gateway wraps as {ok, data, request_id})
+      const result = payload.data || payload;
+      push({ kind: "success", text: result?.summary || "Graded!" });
       navigate("/results");
     } catch (error) {
       console.error("SUBMIT_ERROR", { error });
