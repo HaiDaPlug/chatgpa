@@ -530,7 +530,7 @@ export default function Generate() {
         return;
       }
 
-      const quizId: string | undefined = payload?.quiz_id || payload?.id;
+      const quizId: string | undefined = payload?.data?.quiz_id || payload?.data?.id;
       if (!quizId) {
         console.error("GENERATE_API_NO_ID", payload);
         track("quiz_generated_failure", { reason: "no_quiz_id" });
@@ -543,7 +543,7 @@ export default function Generate() {
       track("quiz_generated_success", { mode, quizId });
 
       // Section 4: Check if fewer questions were generated due to insufficient notes
-      const actualCount = payload?.actual_question_count;
+      const actualCount = payload?.data?.actual_question_count;
       if (actualCount && actualCount < questionCount) {
         push({
           kind: "success",
