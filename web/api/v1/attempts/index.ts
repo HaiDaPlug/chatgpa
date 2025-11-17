@@ -4,7 +4,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handleGatewayRequest } from '../_middleware.js';
-import * as actions from './_actions';
+import * as actions from './_actions/index.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   return handleGatewayRequest(req, res, actions, {
