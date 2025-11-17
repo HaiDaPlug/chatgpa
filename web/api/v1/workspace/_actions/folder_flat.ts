@@ -2,7 +2,7 @@
 // Migrated from: /api/folders/flat
 // Features: Optional note counts, sorted by sort_index, RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
 
 interface Folder {

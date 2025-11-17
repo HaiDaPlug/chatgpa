@@ -2,7 +2,7 @@
 // Migrated from: /api/folders/delete
 // Features: Cascade modes (move-to-parent, move-to-uncategorized), RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
 
 type CascadeMode = 'move-to-parent' | 'move-to-uncategorized';

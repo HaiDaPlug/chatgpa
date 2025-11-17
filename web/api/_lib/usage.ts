@@ -2,7 +2,7 @@
 // Connects to: /api/generate-quiz
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Result, ok, err, ErrorCode } from './validation';
+import { Result, ok, err, ErrorCode } from './validation.js';
 
 // Free tier limits
 const FREE_TIER_LIMITS = {

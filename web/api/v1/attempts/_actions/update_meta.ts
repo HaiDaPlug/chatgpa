@@ -3,8 +3,8 @@
 // Connects to: quiz_attempts table
 
 import { createClient } from '@supabase/supabase-js';
-import type { GatewayContext } from '../../_types';
-import { UpdateMetaInput, type UpdateMetaOutputType } from '../_schemas';
+import type { GatewayContext } from '../../_types.js';
+import { UpdateMetaInput, type UpdateMetaOutputType } from '../_schemas.js';
 
 /**
  * Update Meta Action

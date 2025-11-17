@@ -2,7 +2,7 @@
 // Migrated from: /api/folders/path
 // Features: Circular reference detection, depth limit, RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
 
 interface BreadcrumbSegment {

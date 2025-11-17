@@ -3,23 +3,23 @@
 // Connects to: quizzes table, usage_limits, analytics
 
 import { createClient } from '@supabase/supabase-js';
-import type { GatewayContext } from '../../_types';
-import { GenerateQuizInput, GenerateQuizOutput, quizResponseSchema } from '../_schemas';
-import { validateAIConfig } from '../../../_lib/ai';
-import { getUserPlan, getQuizCount } from '../../../_lib/plan';
-import { generateWithRouter } from '../../../_lib/ai-router';
+import type { GatewayContext } from '../../_types.js';
+import { GenerateQuizInput, GenerateQuizOutput, quizResponseSchema } from '../_schemas.js';
+import { validateAIConfig } from '../../../_lib/ai.js';
+import { getUserPlan, getQuizCount } from '../../../_lib/plan.js';
+import { generateWithRouter } from '../../../_lib/ai-router.js';
 import {
   insertGenerationAnalytics,
   insertGenerationFailure,
   type Question
-} from '../../../_lib/analytics-service';
-import { generateQuizMetadata } from '../../../_lib/auto-naming';
+} from '../../../_lib/analytics-service.js';
+import { generateQuizMetadata } from '../../../_lib/auto-naming.js';
 import {
   validateAndNormalizeConfig,
   DEFAULT_QUIZ_CONFIG
-} from '../../../_lib/quiz-config-schema';
+} from '../../../_lib/quiz-config-schema.js';
 import type { QuizConfig } from '../../../../shared/types';
-import { buildQuizGenerationPrompt } from '../../../_lib/prompt-builder';
+import { buildQuizGenerationPrompt } from '../../../_lib/prompt-builder.js';
 
 /**
  * Generate Quiz Action

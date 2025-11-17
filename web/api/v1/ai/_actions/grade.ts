@@ -3,15 +3,15 @@
 // Connects to: quiz_attempts table, grading analytics
 
 import { createClient } from '@supabase/supabase-js';
-import type { GatewayContext } from '../../_types';
-import { GradeInput } from '../_schemas';
+import type { GatewayContext } from '../../_types.js';
+import { GradeInput } from '../_schemas.js';
 import { gradeSubmission, type Question } from '../../../../src/lib/grader';
 import {
   insertGradingAnalytics,
   insertGradingFailure
-} from '../../../_lib/grading-analytics';
-import { RUBRIC_VERSION } from '../../../_lib/rubric-engine';
-import type { RouterMetrics } from '../../../_lib/ai-router';
+} from '../../../_lib/grading-analytics.js';
+import { RUBRIC_VERSION } from '../../../_lib/rubric-engine.js';
+import type { RouterMetrics } from '../../../_lib/ai-router.js';
 
 /**
  * Grade Action

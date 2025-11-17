@@ -2,8 +2,8 @@
 // Migrated from: /api/track
 // Features: Non-blocking, swallows errors, no auth required
 
-import type { GatewayContext } from '../../_types';
-import { TrackInput } from '../_schemas';
+import type { GatewayContext } from '../../_types.js';
+import { TrackInput } from '../_schemas.js';
 
 export async function track(
   data: unknown,

@@ -2,7 +2,7 @@
 // Connects to: generate, grade actions
 
 import { z } from 'zod';
-import { quizConfigSchema } from '../../_lib/quiz-config-schema';
+import { quizConfigSchema } from '../../_lib/quiz-config-schema.js';
 
 // ===== Generate Quiz Schemas =====
 

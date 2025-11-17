@@ -2,10 +2,10 @@
 // Migrated from: /api/router?action=stripe-portal
 // Features: Test/Live mode switching, customer lookup, portal URL generation
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
-import { PortalInput } from '../_schemas';
+import { PortalInput } from '../_schemas.js';
 
 export async function portal(
   data: unknown,

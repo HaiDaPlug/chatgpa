@@ -2,9 +2,9 @@
 // Migrated from: /api/folders/update
 // Features: Circular reference prevention, parent validation, RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
-import { FolderUpdateInput } from '../_schemas';
+import { FolderUpdateInput } from '../_schemas.js';
 
 export async function folder_update(
   data: unknown,

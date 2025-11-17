@@ -3,8 +3,8 @@
 // Connects to: quiz_attempts table
 
 import { createClient } from '@supabase/supabase-js';
-import type { GatewayContext } from '../../_types';
-import { AutosaveInput, type AutosaveOutputType } from '../_schemas';
+import type { GatewayContext } from '../../_types.js';
+import { AutosaveInput, type AutosaveOutputType } from '../_schemas.js';
 
 // Max payload size: 500KB (in bytes)
 const MAX_PAYLOAD_SIZE = 500 * 1024;

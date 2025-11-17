@@ -9,7 +9,7 @@ import {
   RateLimitResult,
   RateLimitEntry,
   ActionHandler
-} from './_types';
+} from './_types.js';
 
 // In-memory rate limit store (per function instance)
 const rateLimitStore = new Map<string, RateLimitEntry>();

@@ -2,7 +2,7 @@
 // Migrated from: /api/folders/notes
 // Features: Cursor-based pagination, RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
 
 export async function folder_notes(

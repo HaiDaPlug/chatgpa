@@ -2,7 +2,7 @@
 // Migrated from: /api/ping
 // Features: No auth required, instant response
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 
 export async function ping(
   data: unknown,

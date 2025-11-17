@@ -2,9 +2,9 @@
 // Migrated from: /api/folders/tree
 // Features: Tree building, note counts, depth limiting, RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
-import { FolderTreeQuery } from '../_schemas';
+import { FolderTreeQuery } from '../_schemas.js';
 
 interface Folder {
   id: string;

@@ -2,9 +2,9 @@
 // Migrated from: /api/folders/create
 // Features: Parent validation, sort_index calculation, RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
-import { FolderCreateInput } from '../_schemas';
+import { FolderCreateInput } from '../_schemas.js';
 
 export async function folder_create(
   data: unknown,

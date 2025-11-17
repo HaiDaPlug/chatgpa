@@ -2,7 +2,7 @@
 // Migrated from: /api/notes/remove-from-folder
 // Features: Mapping verification, RLS enforcement
 
-import type { GatewayContext } from '../../_types';
+import type { GatewayContext } from '../../_types.js';
 import { createClient } from '@supabase/supabase-js';
 
 export async function note_remove_from_folder(
