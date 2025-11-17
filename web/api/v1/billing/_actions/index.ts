@@ -1,3 +1,3 @@
 // Export all billing actions
-export { create_checkout } from './create_checkout';
-export { portal } from './portal';
+export { create_checkout } from './create_checkout.js';
+export { portal } from './portal.js';
