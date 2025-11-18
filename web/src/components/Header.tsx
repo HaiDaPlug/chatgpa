@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -27,65 +27,74 @@ export function Header() {
   }
 
   return (
-    <div
-      className="h-14 flex items-center justify-between px-6"
-      style={{ backdropFilter: "saturate(120%) blur(6px)" }}
-    >
-      {/* Logo / Home Link */}
-      <Link to="/" className="flex items-center gap-2 select-none hover:opacity-80 transition-opacity">
-        <div className="w-6 h-6 radius surface-2 bdr flex items-center justify-center text-[14px] font-semibold">
-          G
-        </div>
-        <span className="text-[16px] font-semibold">ChatGPA</span>
-      </Link>
-
-      {/* Profile Dropdown */}
-      <div className="relative" ref={menuRef}>
-        <button
-          className="btn ghost"
-          onClick={() => setMenuOpen(s => !s)}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
+    <div className="relative" ref={menuRef}>
+      <button
+        className="px-3 py-1.5 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors text-[14px] font-medium focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
+        onClick={() => setMenuOpen((s) => !s)}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        style={{
+          color: "var(--text)",
+          transition: "background var(--motion-duration-normal) var(--motion-ease)",
+        }}
+      >
+        Profile
+      </button>
+      {menuOpen && (
+        <div
+          className="absolute right-0 mt-2 min-w-[180px] z-50 rounded-lg p-2"
+          role="menu"
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border-subtle)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          }}
         >
-          Profile
-        </button>
-        {menuOpen && (
-          <div
-            className="absolute right-0 mt-2 surface bdr radius shadow p-2 min-w-[180px] z-50"
-            role="menu"
-            style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}
+          <button
+            className="w-full text-left px-3 py-2 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors text-[14px]"
+            onClick={() => {
+              setMenuOpen(false);
+              navigate("/settings/appearance");
+            }}
+            style={{
+              color: "var(--text)",
+              transition: "background var(--motion-duration-normal) var(--motion-ease)",
+            }}
           >
-            <button
-              className="w-full text-left px-3 py-2 radius hover:surface-2 transition-colors text-[14px]"
-              onClick={() => {
-                setMenuOpen(false);
-                navigate("/profile");
-              }}
-            >
-              Profile
-            </button>
-            <button
-              className="w-full text-left px-3 py-2 radius hover:surface-2 transition-colors text-[14px]"
-              onClick={() => {
-                setMenuOpen(false);
-                navigate("/settings");
-              }}
-            >
-              Settings
-            </button>
-            <div className="my-2" style={{ borderTop: "1px solid var(--border)" }} />
-            <button
-              className="w-full text-left px-3 py-2 radius hover:surface-2 transition-colors text-[14px]"
-              onClick={() => {
-                setMenuOpen(false);
-                handleSignOut();
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        )}
-      </div>
+            Appearance
+          </button>
+          <button
+            className="w-full text-left px-3 py-2 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors text-[14px]"
+            onClick={() => {
+              setMenuOpen(false);
+              navigate("/billing");
+            }}
+            style={{
+              color: "var(--text)",
+              transition: "background var(--motion-duration-normal) var(--motion-ease)",
+            }}
+          >
+            Billing
+          </button>
+          <div
+            className="my-2"
+            style={{ borderTop: "1px solid var(--border-subtle)" }}
+          />
+          <button
+            className="w-full text-left px-3 py-2 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors text-[14px]"
+            onClick={() => {
+              setMenuOpen(false);
+              handleSignOut();
+            }}
+            style={{
+              color: "var(--text-danger)",
+              transition: "background var(--motion-duration-normal) var(--motion-ease)",
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      )}
     </div>
   );
 }
