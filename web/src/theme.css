@@ -34,7 +34,7 @@ body {
   padding: 8px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--surface-raised);
   transition: transform var(--motion-duration-normal) var(--motion-ease),
               box-shadow var(--motion-duration-normal) var(--motion-ease),
               background var(--motion-duration-normal) var(--motion-ease);
