@@ -20,13 +20,13 @@
 
 :root,
 :root[data-theme="academic-dark"] {
-  /* ===== Base Neutrals (Layout) ===== */
-  --bg: #0F1115;
-  --surface: #16191F;
-  --surface-raised: #1C1F26;
-  --surface-subtle: #1A1D24;
-  --border-subtle: #242831;
-  --border-strong: #3A3F4A;
+  /* ===== Base Neutrals (Layout) - Academic SaaS palette ===== */
+  --bg: #30302E;
+  --surface: #3A3A38;
+  --surface-raised: #444442;
+  --surface-subtle: #262624;
+  --border-subtle: #4A4A48;
+  --border-strong: #5C5C59;
   --overlay: rgba(0, 0, 0, 0.60);
 
   /* ===== Text Hierarchy ===== */
@@ -39,7 +39,7 @@
 
   /* ===== State & Scoring ===== */
   --score-pass: #48E28A;
-  --score-fail: #F56565;
+  --score-fail: #EF4444;
 
   /* ===== Chip/Badge Tokens ===== */
   --chip-bg: rgba(255, 255, 255, 0.08);
@@ -123,18 +123,21 @@
    ACCENT PRESETS
    ======================================== */
 
-:root[data-accent="coral"] {
-  --accent: #FF7B72;
-  --accent-soft: rgba(255, 123, 114, 0.12);
-  --accent-strong: #FF4C3A;
+/* Primary accent: Study Blue */
+:root,
+:root[data-accent="study-blue"] {
+  --accent: #6E8CFB;
+  --accent-soft: rgba(110, 140, 251, 0.12);
+  --accent-strong: #4C66F3;
 
-  /* Legacy brand tokens */
-  --brand-500: #F35E63;
-  --brand-600: #E2464E;
-  --brand-400: #FF7B82;
-  --brand-contrast: #0B0F14;
+  /* Legacy brand tokens for backward compatibility */
+  --brand-500: #6E8CFB;
+  --brand-600: #4C66F3;
+  --brand-400: #8FA7FC;
+  --brand-contrast: #1A1D24;
 }
 
+/* Alternative: Leaf (green accent) */
 :root[data-accent="leaf"] {
   --accent: #48E28A;
   --accent-soft: rgba(72, 226, 138, 0.12);
@@ -144,13 +147,7 @@
   --accent-500: #2FB879;
   --accent-600: #239C63;
   --accent-400: #56CB94;
-  --accent-contrast: #0B0F14;
-}
-
-:root[data-accent="focus"] {
-  --accent: #3A9BFF;
-  --accent-soft: rgba(58, 155, 255, 0.12);
-  --accent-strong: #2563EB;
+  --accent-contrast: #1A1D24;
 }
 
 /* ========================================
