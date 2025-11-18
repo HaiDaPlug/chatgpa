@@ -22,17 +22,17 @@
 :root[data-theme="academic-dark"] {
   /* ===== Base Neutrals (Layout) - Academic SaaS palette ===== */
   --bg: #30302E;
-  --surface: #3A3A38;
-  --surface-raised: #444442;
-  --surface-subtle: #262624;
-  --border-subtle: #4A4A48;
-  --border-strong: #5C5C59;
+  --surface: #212121;
+  --surface-raised: #2A2A2A;
+  --surface-subtle: #1A1A1A;
+  --border-subtle: #3A3A3A;
+  --border-strong: #4A4A4A;
   --overlay: rgba(0, 0, 0, 0.60);
 
   /* ===== Text Hierarchy ===== */
-  --text: rgba(255, 255, 255, 0.92);
-  --text-muted: rgba(255, 255, 255, 0.60);
-  --text-soft: rgba(255, 255, 255, 0.45);
+  --text: rgba(255, 255, 255, 0.95);
+  --text-muted: rgba(255, 255, 255, 0.70);
+  --text-soft: rgba(255, 255, 255, 0.50);
   --text-danger: #EF4444;
   --text-success: #48E28A;
   --text-warning: #FBBF24;
