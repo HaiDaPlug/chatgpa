@@ -20,7 +20,7 @@ export default function AuthTest() {
 
   return (
     <div className="p-4 space-y-2">
-      <button onClick={handleLogin} className="rounded bg-white text-black px-3 py-2">Login</button>
+      <button onClick={handleLogin} className="rounded bg-[color:var(--surface-raised)] text-[color:var(--text)] border border-[color:var(--border-subtle)] px-3 py-2">Login</button>
       <button onClick={handleLogout} className="rounded bg-white/10 px-3 py-2">Logout</button>
       <button onClick={handleGetUser} className="rounded bg-white/10 px-3 py-2">Get user</button>
     </div>

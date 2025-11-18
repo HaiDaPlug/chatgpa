@@ -50,9 +50,9 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+    <div className="min-h-screen bg-[color:var(--bg)]">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b bg-[color:var(--surface)]/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-indigo-600" />
@@ -148,7 +148,7 @@ export default function Landing() {
       <section className="max-w-6xl mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Simple Pricing</h2>
         <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="border-2 border-gray-200 rounded-2xl p-8 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="border-2 border-[color:var(--border-subtle)] rounded-2xl p-8 bg-[color:var(--surface)] shadow-sm hover:shadow-md transition-shadow">
             <h3 className="text-xl font-semibold mb-3 text-gray-900">Free</h3>
             <p className="text-5xl font-extrabold mb-6 text-gray-900">$0</p>
             <ul className="text-gray-600 space-y-3 text-sm">
@@ -163,7 +163,7 @@ export default function Landing() {
               </li>
             </ul>
           </div>
-          <div className="border-2 border-indigo-500 rounded-2xl p-8 bg-gradient-to-br from-indigo-50 to-white shadow-lg hover:shadow-xl transition-shadow relative">
+          <div className="border-2 border-indigo-500 rounded-2xl p-8 bg-[color:var(--surface)] shadow-lg hover:shadow-xl transition-shadow relative">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-500 text-white px-4 py-1.5 rounded-full text-xs font-semibold shadow-md">
               POPULAR
             </div>
@@ -181,7 +181,7 @@ export default function Landing() {
               </li>
             </ul>
           </div>
-          <div className="border-2 border-gray-200 rounded-2xl p-8 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="border-2 border-[color:var(--border-subtle)] rounded-2xl p-8 bg-[color:var(--surface)] shadow-sm hover:shadow-md transition-shadow">
             <h3 className="text-xl font-semibold mb-3 text-gray-900">Annual Pro</h3>
             <p className="text-5xl font-extrabold mb-6 text-gray-900">$79<span className="text-xl font-normal text-gray-500">/yr</span></p>
             <ul className="text-gray-600 space-y-3 text-sm">
@@ -202,7 +202,7 @@ export default function Landing() {
       {/* Login */}
       {!userId && (
         <section id="login" className="max-w-md mx-auto px-4 py-16">
-          <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="bg-[color:var(--surface)] rounded-xl shadow-lg p-8">
             <h2 className="text-2xl font-bold text-center mb-6 text-gray-900">Get Started Free</h2>
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
