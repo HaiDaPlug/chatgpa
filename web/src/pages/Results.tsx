@@ -92,7 +92,8 @@ export default function ResultsPage() {
 
         {error && (
           <div className="surface bdr radius elev-1 p-8 text-center">
-            <p className="text-muted m-0">{error}</p>
+            {/* ✅ Use semantic error token for visibility (not text-muted which can have theme collisions) */}
+            <p className="m-0 font-medium text-[var(--score-fail)]">{error}</p>
             <button className="btn mt-4" onClick={() => window.location.reload()}>Retry</button>
           </div>
         )}
