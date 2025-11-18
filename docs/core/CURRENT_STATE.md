@@ -1,91 +1,90 @@
-# ChatGPA  Current State
+# ChatGPA  Current State
 
-**Last Updated**: November 18, 2025 (Session 16 Complete)
+**Last Updated**: November 18, 2025 (Session 17 Complete)
 **Branch**: `claude/fix-api-esm-modules-019FVewAuohBpVpYk6AvGGSs`
-**Build Status**:  Passing (0 TypeScript errors in active code)
+**Build Status**:  Passing (0 TypeScript errors in active code)
 
 ---
 
-##  What's Working (Production-Ready)
+##  What's Working (Production-Ready)
 
 ### Core Study Loop
--  **Upload Notes**  ClassNotes page, real data storage
--  **Configure Quiz**  Section 4 quiz config system with LocalStorage
--  **Generate Quiz**  `/api/v1/ai?action=generate_quiz` with AI Router
--  **Take Quiz**  QuizPage with MCQ + typing questions
--  **Submit & Grade**  `/api/v1/ai?action=grade` with rubric engine
--  **Telemetry**  `/api/v1/util?action=track` analytics events
+-  **Upload Notes**  ClassNotes page, real data storage
+-  **Configure Quiz**  Section 4 quiz config system with LocalStorage
+-  **Generate Quiz**  `/api/v1/ai?action=generate_quiz` with AI Router
+-  **Take Quiz**  QuizPage with MCQ + typing questions
+-  **Submit & Grade**  `/api/v1/ai?action=grade` with rubric engine
+-  **View Results**  Results page with error visibility fixed (Session 17)
+-  **Telemetry**  `/api/v1/util?action=track` analytics events
 
 ### Sections Complete (1-7)
--  **Section 1**: AI Router with automatic fallback (gpt-4o-mini ’ gpt-5-mini)
--  **Section 2**: Length-agnostic rubric grading system
--  **Section 3**: Results page with autosave + conflict resolution
--  **Section 4**: Quiz configuration system (question types, difficulty, coverage)
--  **Section 5**: Folder workspace with 10 API endpoints (all 9 phases)
--  **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
--  **Section 7**: Visual system with theme tokens + FrameWrapper (all 5 phases)
+-  **Section 1**: AI Router with automatic fallback (gpt-4o-mini â†’ gpt-5-mini)
+-  **Section 2**: Length-agnostic rubric grading system
+-  **Section 3**: Results page with autosave + conflict resolution
+-  **Section 4**: Quiz configuration system (question types, difficulty, coverage)
+-  **Section 5**: Folder workspace with 10 API endpoints (all 9 phases)
+-  **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
+-  **Section 7**: Theme System V2 with Academic Dark + Study Blue palette
 
 ### Infrastructure
--  **Database**: 11 tables with RLS policies enforced
--  **API Gateway**: 6 gateways (`/api/v1/{ai,attempts,billing,marketing,util,workspace}`)
--  **ESM Compliance**: All imports use `.js` extensions, NodeNext module resolution
--  **Security**: Parent-ownership RLS verified, no service role abuse
--  **Feature Flags**: 4 active flags for gradual rollout
+-  **Database**: 11 tables with RLS policies enforced
+-  **API Gateway**: 6 gateways (`/api/v1/{ai,attempts,billing,marketing,util,workspace}`)
+-  **ESM Compliance**: All imports use `.js` extensions, NodeNext module resolution
+-  **Security**: Parent-ownership RLS verified, no service role abuse
+-  **Feature Flags**: 4 active flags for gradual rollout
+-  **Theme System V2**: Token-based design with Academic Dark + Study Blue (Session 17)
+-  **Error UX**: Fixed invisible error text, added escape routes from error states (Session 17)
 
 ---
 
-## =4 Known Issues (Critical)
+## Recent Fixes (Session 17)
 
-### Bug #5: Results Page Crashes   BLOCKING
-**Severity**: P0  Blocks quiz completion flow
-**Impact**: Users can't see quiz results after submission
+### Bug #5: Results Page Error Visibility - FIXED
+**Status**:  Complete
+**What was broken**:
+- Error text used white color (invisible on light backgrounds)
+- Users trapped in error state with no escape route
 
-**Symptoms**:
-- After submitting quiz, redirected to results page
-- Page shows "Something went wrong" error
-- Error text uses white color ’ invisible on light background
-- User cannot exit or reload
+**Fix applied**:
+- Error text now uses `--score-fail` token (always visible)
+- Error boundary uses theme tokens (`var(--bg)`, `var(--text)`)
+- Added "Back to Dashboard" escape button
+- Added "Reload" button for recovery
 
-**Root Cause** (suspected):
-- Results page component accessing `payload.score` instead of `payload.data.score`
-- Missing gateway response envelope handling
-- Missing error boundary with visible error styling
+### Bug #6: Error Page UX - FIXED
+**Status**:  Complete
+**What was broken**:
+- Hardcoded colors conflicted with theme
+- No way to escape error boundary
 
-**Fix Required**:
-1. Update results page to handle gateway response envelope
-2. Add proper error boundary with theme-aware styling
-3. Fix text color contrast (use `var(--text)`)
-4. Add fallback UI if results fail to load
+**Fix applied**:
+- All error UI uses semantic theme tokens
+- Error boundary provides escape routes
+- Users can always navigate back to safety
 
----
+### Router Fix: Attempt Resume Crash - FIXED
+**Status**:  Complete
+**What was broken**:
+- Clicking "Resume" from Results page crashed with `useBlocker` error
+- `useBlocker` requires data router, but we use `<BrowserRouter>`
 
-### Bug #6: Feedback Popup Barely Visible
-**Severity**: P1  Poor UX, users miss feedback
-**Impact**: Users don't see detailed grading feedback
-
-**Symptoms**:
-- Grading feedback appears in tiny toast notification
-- Positioned on far right edge of screen
-- Barely visible, important feedback is being missed
-
-**Fix Required**:
-1. Reposition feedback to center or prominent location
-2. Increase toast size for better visibility
-3. Consider modal or dedicated feedback section instead of toast
-4. Ensure feedback persists long enough to read (or make dismissible)
+**Fix applied**:
+- Removed `useBlocker` from `AttemptDetail.tsx`
+- Kept `beforeunload` handler for browser close protection
+- Attempt resume now works without crashes
 
 ---
 
-## =á Improvement Opportunities
+## Improvement Opportunities
 
 ### Feature Requests (User-Validated)
 
 **1. Auto-Question Count**
 - Currently: Manual selection (1-10 questions)
 - Desired: Auto-detect based on note length/density
-- Small notes (< 500 chars) ’ 3-5 questions
-- Normal notes (500-2000 chars) ’ 6-8 questions
-- Dense notes (2000+ chars) ’ 10-12+ questions
+- Small notes (< 500 chars) â†’ 3-5 questions
+- Normal notes (500-2000 chars) â†’ 6-8 questions
+- Dense notes (2000+ chars) â†’ 10-12+ questions
 
 **2. Follow-Up Insights (Post-Grade)**
 - Show "What to revise" based on poor scores
@@ -106,7 +105,7 @@
 
 ---
 
-## =Ê System Stats
+## System Stats
 
 ### API Endpoints
 - **Total**: 23 endpoints across 6 gateways
@@ -123,42 +122,82 @@
 - **System**: analytics, subscriptions, usage_limits, folder_health
 
 ### Frontend Pages
-- `/`  Landing with magic link auth
-- `/dashboard`  Class list + recent attempts
-- `/generate`  Quiz generation UI
-- `/quiz/:id`  Quiz taking interface
-- `/results/:attemptId`  Results + feedback (BROKEN - Bug #5)
-- `/classes/:classId/notes`  ClassNotes workspace
+- `/`  Landing with magic link auth
+- `/dashboard`  Class list + recent attempts
+- `/generate`  Quiz generation UI
+- `/quiz/:id`  Quiz taking interface
+- `/results/:attemptId`  Results + feedback (WORKING  - Fixed in Session 17)
+- `/attempts/:id`  Resume in-progress attempt (WORKING  - Fixed in Session 17)
+- `/classes/:classId/notes`  ClassNotes workspace
 
 ### Feature Flags
 ```env
 VITE_FEATURE_WORKSPACE_FOLDERS=false   # Folder workspace toggle
 VITE_FEATURE_FOLDER_DND=false          # Drag-and-drop reordering
 VITE_FEATURE_VISUALS=false             # Decorative frames/patterns
-VITE_FEATURE_THEME_PICKER=false        # User theme selection
+VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 ```
 
 ---
 
-## =€ Immediate Priorities
+## Theme System V2 (Session 17)
 
-### Priority 0 (Blocking Production)
-1. **Fix Bug #5**  Results page crash (unblock quiz flow)
-2. **Fix Bug #6**  Feedback visibility (improve UX)
-3. **Implement Full Results Component**  Reusable for immediate + historical views
+### Current Palette
+**Academic Dark (Default)**:
+- Surfaces: Warm charcoal (`#30302E`, `#3A3A38`, `#444442`)
+- Text: High contrast white with hierarchy
+- Borders: Subtle grays (`#4A4A48`, `#5C5C59`)
 
-### Priority 1 (High-Value UX)
-4. **Auto-Question Count**  Smart defaults based on note analysis
-5. **One-Question-At-A-Time UI**  Less overwhelming quiz experience
+**Study Blue Accent (Default)**:
+- Primary: `#6E8CFB`
+- Hover: `#4C66F3`
+- Soft: `rgba(110, 140, 251, 0.12)`
 
-### Priority 2 (Value-Add Features)
-6. **Follow-Up Insights**  Post-grade revision suggestions
-7. **Missing Material Analysis**  Pre-quiz gap detection
-8. **Feature Flags Audit**  Document all flags, remove stale ones
+**Alternative Accents**:
+- Leaf (green): Available via `data-accent="leaf"`
+
+### Design Tokens
+All components use semantic CSS variables:
+- `--bg`, `--surface`, `--surface-raised`, `--surface-subtle`
+- `--text`, `--text-muted`, `--text-soft`
+- `--accent`, `--accent-soft`, `--accent-strong`
+- `--score-pass`, `--score-fail`
+- `--motion-duration-*`, `--motion-ease`
+
+### Data Attributes
+Theme variations via `<html>` attributes:
+```html
+<html
+  data-theme="academic-dark"
+  data-accent="study-blue"
+  data-font="inter"
+  data-contrast="normal"
+  data-motion="full"
+>
+```
 
 ---
 
-## =' Technical Debt
+## Immediate Priorities
+
+### Priority 1 (High-Value UX)
+1. **Appearance Settings UI**  Let users customize theme/accent/font
+2. **Auto-Question Count**  Smart defaults based on note analysis
+3. **One-Question-At-A-Time UI**  Less overwhelming quiz experience
+
+### Priority 2 (Value-Add Features)
+4. **Follow-Up Insights**  Post-grade revision suggestions
+5. **Missing Material Analysis**  Pre-quiz gap detection
+6. **Database Theme Sync**  Persist theme preferences to Supabase
+
+### Priority 3 (Infrastructure)
+7. **Feature Flags Audit**  Document all flags, remove stale ones
+8. **Data Router Migration**  Migrate from `<BrowserRouter>` to `createBrowserRouter`
+9. **Light Theme Polish**  Test and refine `academic-light` preset
+
+---
+
+## Technical Debt
 
 ### Minor Issues
 - **TypeScript Errors**: 12 errors in legacy/deprecated files (non-blocking)
@@ -171,28 +210,30 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection
 - **Real-time Updates**: Results page doesn't subscribe to new attempts
 - **Notes Count Badge**: Could add to dashboard cards
 - **E2E Testing**: No Playwright/Cypress specs yet
+- **In-App Navigation Blocking**: Removed `useBlocker` (will need data router for full restoration)
 
 ---
 
-## =È Next Session Goals
+## Next Session Goals
 
-1. **Fix critical bugs** (#5 and #6) to unblock production use
-2. **Complete results component** (full question-by-question breakdown)
-3. **Test end-to-end flow** (upload ’ configure ’ generate ’ take ’ grade ’ results)
-4. **Deploy to production** with feature flags OFF (safe rollout)
+1. **Build Appearance Settings UI**  Theme/accent/font picker with live preview
+2. **Test end-to-end flow**  Verify all critical paths work with new theme
+3. **Implement auto-question count**  First high-value UX improvement
+4. **Deploy to production**  With theme system live, feature flags managed
 
 ---
 
-## = Quick Links
+## Quick Links
 
 - **System Design**: [Architecture.md](./Architecture.md)
 - **API Contracts**: [API_Reference.md](./API_Reference.md)
 - **Feature Specs**: [Features.md](./Features.md)
+- **Design System**: [Design_System.md](./Design_System.md)
 - **Security Rules**: [Security_Rules.md](./Security_Rules.md)
 - **ESM Guidelines**: [ESM_Rules.md](./ESM_Rules.md)
 - **Session History**: [/docs/archive/sessions/](../archive/sessions/)
 
 ---
 
-**Last Verified**: November 18, 2025 (Session 16 ESM fixes complete)
-**Next Review**: After Bug #5 and #6 fixes
+**Last Verified**: November 18, 2025 (Session 17 - Theme System V2 + Error UX fixes complete)
+**Next Review**: After Appearance Settings UI implementation
