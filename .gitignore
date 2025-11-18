@@ -43,9 +43,8 @@ Thumbs.db
 !.claude/
 .claude/settings.local.json  # Keep project context, ignore local settings
 
-# Session context and documentation (local only)
+# Session context (local only) - Note: docs/ is now version controlled
 handoffs/
-docs/
 features/
 prompts/
 build-plan/
