@@ -7,6 +7,30 @@ import { track } from "@/lib/telemetry";
 
 type ClassRow = { id: string; name: string };
 
+// Simple inline SVG icons
+const DashboardIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="11" y="11" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+
+const ClassesIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 4H16V16H4V4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    <path d="M4 8H16" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M8 4V16" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+
+const StudyToolsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 3L11.5 7.5H16L12.5 10.5L14 15L10 12L6 15L7.5 10.5L4 7.5H8.5L10 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+  </svg>
+);
+
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
@@ -112,36 +136,12 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
         {/* Dashboard */}
         <div className="mb-6">
-          <SidebarItem to="/dashboard" collapsed={collapsed}>
+          <SidebarItem to="/dashboard" collapsed={collapsed} icon={<DashboardIcon />}>
             Dashboard
           </SidebarItem>
         </div>
 
-        {/* Study Tools */}
-        <div className="mb-6">
-          {!collapsed && (
-            <div
-              className="px-3 pt-4 pb-1 text-xs uppercase tracking-wide"
-              style={{
-                color: "var(--text-muted)",
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-              }}
-            >
-              Study Tools
-            </div>
-          )}
-          <div className="space-y-1">
-            <SidebarItem to="/tools/generate" collapsed={collapsed}>
-              Generate Quiz
-            </SidebarItem>
-            <SidebarItem to="/results" collapsed={collapsed} matchPrefix>
-              Results
-            </SidebarItem>
-          </div>
-        </div>
-
-        {/* Classes */}
+        {/* Classes - Now BEFORE Study Tools */}
         <div className="mb-6">
           {!collapsed && (
             <div
@@ -157,7 +157,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           )}
 
           {/* All Classes Link */}
-          <SidebarItem to="/dashboard" collapsed={collapsed}>
+          <SidebarItem to="/dashboard" collapsed={collapsed} icon={<ClassesIcon />}>
             All Classes
           </SidebarItem>
 
@@ -222,7 +222,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           )}
         </div>
 
-        {/* Account */}
+        {/* Study Tools - Now AFTER Classes */}
         <div className="mb-6">
           {!collapsed && (
             <div
@@ -233,18 +233,20 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                 letterSpacing: "0.05em",
               }}
             >
-              Account
+              Study Tools
             </div>
           )}
           <div className="space-y-1">
-            <SidebarItem to="/settings/appearance" collapsed={collapsed}>
-              Appearance
+            <SidebarItem to="/tools/generate" collapsed={collapsed} icon={<StudyToolsIcon />}>
+              Generate Quiz
             </SidebarItem>
-            <SidebarItem to="/billing" collapsed={collapsed}>
-              Billing
+            <SidebarItem to="/results" collapsed={collapsed} matchPrefix icon={<StudyToolsIcon />}>
+              Results
             </SidebarItem>
           </div>
         </div>
+
+        {/* Account section removed - moved to header account menu */}
       </nav>
     </div>
   );

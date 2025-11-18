@@ -22,8 +22,8 @@
 :root[data-theme="academic-dark"] {
   /* ===== Base Neutrals (Layout) - Academic SaaS palette ===== */
   --bg: #212121;
-  --surface: #181818;
-  --surface-raised: #181818;
+  --surface: #303030;
+  --surface-raised: #303030;
   --surface-subtle: #141414;
   --border-subtle: #333333;
   --border-strong: #444444;

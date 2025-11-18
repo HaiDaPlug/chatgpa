@@ -1,7 +1,8 @@
 import { ReactNode, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "./Sidebar";
-import { Header } from "./Header";
+import { AccountMenu } from "./AccountMenu";
+import { AppearanceSettingsPanel } from "./AppearanceSettingsPanel";
 import { Breadcrumbs } from "./Breadcrumbs";
 
 const COLLAPSE_KEY = "chatgpa.sidebarCollapsed";
@@ -16,6 +17,9 @@ export function PageShell({ children }: { children: ReactNode }) {
       return false;
     }
   });
+
+  // Appearance modal state
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
 
   // Responsive collapse: auto-collapse on small screens
   useEffect(() => {
@@ -52,6 +56,20 @@ export function PageShell({ children }: { children: ReactNode }) {
   // Respect reduced motion preference
   const motionPref = document.documentElement.dataset.motion;
   const reducedMotion = motionPref === "reduced";
+
+  // ESC key handler for appearance modal
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && appearanceOpen) {
+        setAppearanceOpen(false);
+      }
+    }
+
+    if (appearanceOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [appearanceOpen]);
 
   return (
     <>
@@ -97,7 +115,7 @@ export function PageShell({ children }: { children: ReactNode }) {
         >
           <div className="h-full flex items-center justify-between px-6">
             <Breadcrumbs />
-            <Header />
+            <AccountMenu onOpenAppearance={() => setAppearanceOpen(true)} />
           </div>
         </header>
 
@@ -124,6 +142,63 @@ export function PageShell({ children }: { children: ReactNode }) {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Appearance Settings Modal */}
+      {appearanceOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "var(--overlay)" }}
+          onClick={() => setAppearanceOpen(false)}
+        >
+          <motion.div
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.96, y: 8 }}
+            animate={reducedMotion ? false : { opacity: 1, scale: 1, y: 0 }}
+            exit={reducedMotion ? false : { opacity: 0, scale: 0.96, y: 4 }}
+            transition={{
+              duration: 0.18,
+              ease: [0.2, 0, 0, 1],
+            }}
+            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl p-8"
+            style={{
+              background: "var(--surface-raised)",
+              border: "1px solid var(--border-subtle)",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setAppearanceOpen(false)}
+                className="p-2 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors"
+                style={{
+                  color: "var(--text-muted)",
+                  transition: "background var(--motion-duration-normal) var(--motion-ease)",
+                }}
+                aria-label="Close appearance settings"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M5 5L15 15M5 15L15 5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Settings Panel */}
+            <AppearanceSettingsPanel />
+          </motion.div>
+        </div>
+      )}
     </>
   );
 }
