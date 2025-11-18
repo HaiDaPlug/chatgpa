@@ -60,7 +60,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--bdr);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .dialog-title {
@@ -86,7 +86,7 @@
 }
 
 .dialog-close:hover {
-  background: var(--surface-2);
+  background: var(--surface-subtle);
   color: var(--text);
 }
 
@@ -116,15 +116,15 @@
   font-size: 14px;
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--bdr);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
   transition: all 0.15s ease;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-bg);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .form-input:disabled {
@@ -141,8 +141,9 @@
 /* Error message */
 .error-message {
   padding: 12px;
-  background: var(--error-bg);
-  color: var(--error);
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--text-danger);
+  border: 1px solid var(--text-danger);
   border-radius: 6px;
   font-size: 14px;
   margin-top: 16px;
@@ -154,7 +155,8 @@
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  background: var(--warning-bg);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid var(--text-warning);
   border-radius: 6px;
   margin-bottom: 16px;
 }
@@ -193,7 +195,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  border: 1px solid var(--bdr);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -201,8 +203,8 @@
 }
 
 .cascade-option:hover {
-  border-color: var(--primary);
-  background: var(--surface-2);
+  border-color: var(--accent);
+  background: var(--surface-subtle);
 }
 
 .cascade-option input[type="radio"] {
@@ -236,7 +238,7 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid var(--bdr);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* Buttons */
@@ -265,13 +267,13 @@
 }
 
 .btn.ghost:hover:not(:disabled) {
-  background: var(--surface-2);
+  background: var(--surface-subtle);
   color: var(--text);
 }
 
 .btn.primary {
-  background: var(--primary);
-  color: var(--primary-text);
+  background: var(--accent);
+  color: var(--bg);
 }
 
 .btn.primary:hover:not(:disabled) {
@@ -279,7 +281,7 @@
 }
 
 .btn.danger {
-  background: var(--error);
+  background: var(--score-fail);
   color: white;
 }
 
@@ -302,7 +304,7 @@
 }
 
 .text-warning {
-  color: var(--warning);
+  color: var(--text-warning);
 }
 
 /* Responsive */
