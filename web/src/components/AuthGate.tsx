@@ -75,7 +75,7 @@ function GoogleButton() {
   return (
     <button
       onClick={signIn}
-      className="w-full rounded-xl bg-white text-black py-2.5 font-medium hover:opacity-90 transition"
+      className="w-full rounded-xl bg-[color:var(--surface-raised)] text-[color:var(--text)] border border-[color:var(--border-subtle)] py-2.5 font-medium hover:bg-[color:var(--surface)] transition"
     >
       Continue with Google
     </button>
