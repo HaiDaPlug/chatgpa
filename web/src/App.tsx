@@ -15,6 +15,9 @@ import Generate from './pages/tools/Generate';
 import Flashcards from './pages/tools/Flashcards';
 import Summarize from './pages/tools/Summarize';
 
+// Settings
+import { AppearanceSettingsPage } from './pages/settings/AppearanceSettingsPage';
+
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
@@ -35,6 +38,9 @@ export default function App() {
           <Route path="/tools/generate" element={<RequireAuth><Generate /></RequireAuth>} />
           <Route path="/tools/flashcards" element={<RequireAuth><Flashcards /></RequireAuth>} />
           <Route path="/tools/summarize" element={<RequireAuth><Summarize /></RequireAuth>} />
+
+          {/* Settings routes */}
+          <Route path="/settings/appearance" element={<RequireAuth><AppearanceSettingsPage /></RequireAuth>} />
 
           {/* Fallback → root landing */}
           <Route path="*" element={<Landing />} />
