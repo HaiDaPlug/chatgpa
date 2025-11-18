@@ -60,7 +60,15 @@ export function SidebarItem({ to, icon, children, collapsed, matchPrefix = false
               }}
             >
               {icon && (
-                <span className="flex-shrink-0" style={{ width: "20px", height: "20px" }}>
+                <span
+                  className="flex-shrink-0"
+                  style={{
+                    width: "20px",
+                    height: "20px",
+                    color: active ? "var(--text)" : "var(--text-soft)",
+                    transition: "color var(--motion-duration-normal) var(--motion-ease)",
+                  }}
+                >
                   {icon}
                 </span>
               )}
