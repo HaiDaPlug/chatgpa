@@ -1,131 +1,242 @@
 /**
- * ChatGPA Design Tokens
- * WCAG AA compliant color system for dark mode
+ * ChatGPA Theme System V2
+ * Comprehensive token-based design system with theme presets
  *
- * All token pairs verified for contrast ratio compliance:
- * - Normal text: ≥4.5:1
- * - Large text (≥18pt/24px): ≥3:1
+ * Architecture:
+ * - Semantic tokens (--bg, --surface, --text, etc.)
+ * - Theme presets via [data-theme] (academic-dark, academic-light, midnight-focus)
+ * - Accent presets via [data-accent] (coral, leaf, focus)
+ * - Font presets via [data-font] (inter, georgia, system)
+ * - Contrast levels via [data-contrast] (normal, high)
+ * - Motion preferences via [data-motion] (full, reduced)
  *
- * Last Updated: 2025-11-10
- * Version: 1.0.0
+ * Last Updated: 2025-11-18
+ * Version: 2.0.0
  */
+
+/* ========================================
+   BASE TOKEN DEFINITIONS (Academic Dark Default)
+   ======================================== */
+
+:root,
+:root[data-theme="academic-dark"] {
+  /* ===== Base Neutrals (Layout) ===== */
+  --bg: #0F1115;
+  --surface: #16191F;
+  --surface-raised: #1C1F26;
+  --surface-subtle: #1A1D24;
+  --border-subtle: #242831;
+  --border-strong: #3A3F4A;
+  --overlay: rgba(0, 0, 0, 0.60);
+
+  /* ===== Text Hierarchy ===== */
+  --text: rgba(255, 255, 255, 0.92);
+  --text-muted: rgba(255, 255, 255, 0.60);
+  --text-soft: rgba(255, 255, 255, 0.45);
+  --text-danger: #EF4444;
+  --text-success: #48E28A;
+  --text-warning: #FBBF24;
+
+  /* ===== State & Scoring ===== */
+  --score-pass: #48E28A;
+  --score-fail: #F56565;
+
+  /* ===== Chip/Badge Tokens ===== */
+  --chip-bg: rgba(255, 255, 255, 0.08);
+  --chip-border: rgba(255, 255, 255, 0.12);
+
+  /* ===== Legacy Aliases (Backward Compatibility) ===== */
+  --fg: var(--text);
+  --fg-muted: var(--text-muted);
+  --card: var(--surface-raised);
+  --border: var(--border-subtle);
+  --success: var(--text-success);
+  --danger: var(--text-danger);
+  --warning: var(--text-warning);
+
+  /* ===== Motion Tokens ===== */
+  --motion-duration-fast: 100ms;
+  --motion-duration-normal: 180ms;
+  --motion-duration-slow: 250ms;
+  --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ===== Font Stacks ===== */
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-system: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: var(--font-sans);
+}
+
+/* ========================================
+   THEME PRESETS
+   ======================================== */
+
+/* Academic Light Theme (for future) */
+:root[data-theme="academic-light"] {
+  --bg: #FFFFFF;
+  --surface: #F7F8F9;
+  --surface-raised: #FFFFFF;
+  --surface-subtle: #EFF1F4;
+  --border-subtle: #E1E3E6;
+  --border-strong: #C4C7CF;
+  --overlay: rgba(0, 0, 0, 0.30);
+
+  --text: #1A1D21;
+  --text-muted: #60656B;
+  --text-soft: #8B9097;
+  --text-danger: #B91C1C;
+  --text-success: #16A34A;
+  --text-warning: #D97706;
+
+  --score-pass: #16A34A;
+  --score-fail: #B91C1C;
+
+  --chip-bg: rgba(0, 0, 0, 0.06);
+  --chip-border: rgba(0, 0, 0, 0.10);
+}
+
+/* Midnight Focus Theme (deep work mode) */
+:root[data-theme="midnight-focus"] {
+  --bg: #0B0D11;
+  --surface: #101217;
+  --surface-raised: #171A20;
+  --surface-subtle: #1C1F28;
+  --border-subtle: #232730;
+  --border-strong: #343945;
+  --overlay: rgba(0, 0, 0, 0.70);
+
+  --text: rgba(255, 255, 255, 0.95);
+  --text-muted: rgba(255, 255, 255, 0.55);
+  --text-soft: rgba(255, 255, 255, 0.40);
+  --text-danger: #F97373;
+  --text-success: #48E28A;
+  --text-warning: #FBBF24;
+
+  --score-pass: #48E28A;
+  --score-fail: #F97373;
+
+  --chip-bg: rgba(255, 255, 255, 0.06);
+  --chip-border: rgba(255, 255, 255, 0.10);
+}
+
+/* ========================================
+   ACCENT PRESETS
+   ======================================== */
+
+:root[data-accent="coral"] {
+  --accent: #FF7B72;
+  --accent-soft: rgba(255, 123, 114, 0.12);
+  --accent-strong: #FF4C3A;
+
+  /* Legacy brand tokens */
+  --brand-500: #F35E63;
+  --brand-600: #E2464E;
+  --brand-400: #FF7B82;
+  --brand-contrast: #0B0F14;
+}
+
+:root[data-accent="leaf"] {
+  --accent: #48E28A;
+  --accent-soft: rgba(72, 226, 138, 0.12);
+  --accent-strong: #22C55E;
+
+  /* Legacy accent tokens */
+  --accent-500: #2FB879;
+  --accent-600: #239C63;
+  --accent-400: #56CB94;
+  --accent-contrast: #0B0F14;
+}
+
+:root[data-accent="focus"] {
+  --accent: #3A9BFF;
+  --accent-soft: rgba(58, 155, 255, 0.12);
+  --accent-strong: #2563EB;
+}
+
+/* ========================================
+   FONT PRESETS
+   ======================================== */
+
+:root[data-font="inter"] {
+  --font-body: "Inter", var(--font-sans);
+}
+
+:root[data-font="georgia"] {
+  --font-body: var(--font-serif);
+}
+
+:root[data-font="system"] {
+  --font-body: var(--font-system);
+}
+
+/* ========================================
+   CONTRAST PRESETS
+   ======================================== */
+
+:root[data-contrast="normal"] {
+  /* Already defined in base theme - these are the defaults */
+}
+
+:root[data-contrast="high"] {
+  --text: #FFFFFF;
+  --text-muted: #D0D4D8;
+  --text-soft: #B4BAC2;
+}
+
+/* ========================================
+   MOTION PRESETS
+   ======================================== */
+
+:root[data-motion="full"] {
+  /* Already defined in base - these are the defaults */
+}
+
+:root[data-motion="reduced"] {
+  --motion-duration-fast: 0ms;
+  --motion-duration-normal: 0ms;
+  --motion-duration-slow: 0ms;
+  --motion-ease: linear;
+}
+
+/* Respect system motion preference */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) {
+    --motion-duration-fast: 0ms;
+    --motion-duration-normal: 0ms;
+    --motion-duration-slow: 0ms;
+    --motion-ease: linear;
+  }
+}
+
+/* ========================================
+   SEMANTIC QUIZ TOKENS (Backward Compatibility)
+   ======================================== */
 
 :root {
-  /* ===== Base Neutrals (Stone, Dark) ===== */
-  --bg: #0F1216;
-  --surface: #151A1F;
-  --card: #1B2230;
-  --border: #2A3446;
-  --fg: #E8EDF2;
-  --fg-muted: #B9C3CE;
-
-  /* ===== Brand (Coral) ===== */
-  --brand-600: #E2464E;
-  --brand-500: #F35E63;  /* Primary CTA color */
-  --brand-400: #FF7B82;
-  --brand-contrast: #0B0F14;  /* For text on brand backgrounds */
-
-  /* ===== Accent (Leaf) ===== */
-  --accent-600: #239C63;
-  --accent-500: #2FB879;  /* Secondary accent color */
-  --accent-400: #56CB94;
-  --accent-contrast: #0B0F14;  /* For text on accent backgrounds */
-
-  /* ===== State Colors ===== */
-  --success: #3CB179;
-  --warning: #E3A008;
-  --danger: #F25C5C;  /* Lightened for AA compliance (was #E12D39) */
-  --info: #2E90FA;
-
-  /* ===== Semantic Quiz Tokens ===== */
-  --quiz-mcq: var(--brand-500);
-  --quiz-typing: var(--accent-500);
+  --quiz-mcq: var(--accent);
+  --quiz-typing: var(--accent-strong);
   --quiz-hybrid: #8B8EF7;
-
-  /* ===== Semantic Score Tokens ===== */
-  --score-pass: #2EB67D;
-  --score-fail: #F56565;  /* Lightened for AA compliance (was #E03E3E) */
-
-  /* ===== Legacy Token Aliases (for backward compatibility) ===== */
-  /* Keep these until full hex audit complete */
-  --text: var(--fg);
-  --text-muted: var(--fg-muted);
+  --info: #2E90FA;
 }
 
-/**
- * Allowed Token Pair Matrix (for CI validation)
- *
- * Background → Text combinations that MUST pass AA:
- *
- * 1. --brand-500 bg + --brand-contrast text
- * 2. --accent-500 bg + --accent-contrast text
- * 3. --bg + --fg text
- * 4. --bg + --fg-muted text
- * 5. --surface + --fg text
- * 6. --surface + --fg-muted text
- * 7. --card + --fg text
- * 8. --card + --fg-muted text
- * 9. --card + --quiz-mcq text
- * 10. --card + --quiz-typing text
- * 11. --card + --quiz-hybrid text
- * 12. --card + --score-pass text
- * 13. --card + --score-fail text
- * 14. --card + --success text
- * 15. --card + --warning text
- * 16. --card + --danger text
- * 17. --card + --info text
- *
- * FORBIDDEN Pairs (will fail contrast check):
- * - --fg text on --brand-500 bg (insufficient contrast)
- * - --fg text on --accent-500 bg (insufficient contrast)
- * - Use --brand-contrast or --accent-contrast instead
- */
+/* ========================================
+   DEV MODE HELPER
+   ======================================== */
 
-/**
- * Ocean Dark Theme (Alternative Preset)
- * Activated via data-theme="ocean-dark" attribute
- */
-[data-theme="ocean-dark"] {
-  --brand-600: #0A7FBA;
-  --brand-500: #0E95D8;  /* Ocean blue */
-  --brand-400: #32A9E3;
-  --brand-contrast: #0B0F14;
-
-  --accent-600: #057A8C;
-  --accent-500: #0B9BAD;  /* Teal */
-  --accent-400: #2FB5C6;
-  --accent-contrast: #0B0F14;
-
-  /* Neutrals remain the same */
-}
-
-/**
- * Dev Mode Helper: Log Hex Values
- * Helps identify hardcoded colors during incremental audit
- */
 @media screen {
   body::before {
-    content: "🎨 Theme: " attr(data-theme) " | Tokens loaded";
+    content: "🎨 " attr(data-theme) " | " attr(data-accent) " | " attr(data-font);
     position: fixed;
     bottom: 0;
     right: 0;
     padding: 4px 8px;
     font-size: 10px;
-    background: var(--card);
-    color: var(--fg-muted);
-    border: 1px solid var(--border);
+    background: var(--surface-raised);
+    color: var(--text-soft);
+    border: 1px solid var(--border-subtle);
     border-radius: 4px 0 0 0;
     z-index: 9999;
     opacity: 0.3;
     pointer-events: none;
-  }
-}
-
-/**
- * Production: Hide dev indicator
- */
-@media (prefers-reduced-motion: reduce) {
-  body::before {
-    display: none;
   }
 }

@@ -1,49 +1,67 @@
-/* Neutral, Claude-calm tokens — tweak in one place */
-:root{
-  --bg:#f8f9fb;
-  --surface:#ffffff;
-  --surface-2:#f3f4f6;
-  --surface-3:#e5e7eb;
-  --text:#1a1a1a;
-  --text-muted:#6b7280;
-  --border:rgba(0,0,0,0.08);
+/**
+ * Legacy Theme File - Deprecated
+ *
+ * Theme variables now live in theme-tokens.css
+ * This file kept only for base styles and resets
+ *
+ * DO NOT add new theme variables here - use theme-tokens.css instead
+ */
 
-  /* Accent placeholders (wire later to coral × leaf) */
-  --accent:#2b2b2b;
-  --success:#2b2b2b;
-
-  --radius:8px;
-  --shadow:0 6px 24px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
-  --ring:0 0 0 2px rgba(0,0,0,.15);
-
-  --space-1:4px; --space-2:8px; --space-3:16px;
-  --space-4:24px; --space-5:32px; --space-6:40px;
-}
-html,body{height:100%}
-body{background:var(--bg);color:var(--text);line-height:1.45}
-
-/* Primitive helpers (work with Tailwind utilities) */
-.surface{background:var(--surface)}
-.surface-2{background:var(--surface-2)}
-.surface-3{background:var(--surface-3)}
-.text-muted{color:var(--text-muted)}
-.bdr{border:1px solid var(--border)}
-.radius{border-radius:var(--radius)}
-.elev-1{box-shadow:var(--shadow)}
-.focus-ring:focus-visible{outline:none;box-shadow:var(--ring)}
-
-.btn{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);transition:transform .16s cubic-bezier(.2,0,0,1),box-shadow .16s cubic-bezier(.2,0,0,1),background .16s cubic-bezier(.2,0,0,1)}
-.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
-.btn.primary{background:var(--surface-2)}
-.btn.ghost{background:var(--surface)}
-
-/* Force light theme (override any stray dark mode from old code) */
-html, body, #root {
-  background: var(--bg) !important;
-  color: var(--text) !important;
+/* ===== Base Resets & Typography ===== */
+html, body {
+  height: 100%;
 }
 
-/* Section 4: Animations for config controls */
+body {
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.45;
+  font-family: var(--font-body);
+}
+
+/* ===== Primitive Helper Classes (using tokens) ===== */
+.surface { background: var(--surface); }
+.surface-2 { background: var(--surface-subtle); }
+.surface-3 { background: var(--surface-raised); }
+.text-muted { color: var(--text-muted); }
+.bdr { border: 1px solid var(--border-subtle); }
+.radius { border-radius: 8px; }
+.elev-1 { box-shadow: 0 6px 24px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04); }
+.focus-ring:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+
+/* ===== Button Classes ===== */
+.btn {
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface);
+  transition: transform var(--motion-duration-normal) var(--motion-ease),
+              box-shadow var(--motion-duration-normal) var(--motion-ease),
+              background var(--motion-duration-normal) var(--motion-ease);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn.ghost:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+/* ===== Animation Helpers ===== */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -54,3 +72,4 @@ html, body, #root {
     transform: translateY(0);
   }
 }
+

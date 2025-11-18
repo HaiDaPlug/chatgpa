@@ -6,16 +6,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base (light, transparent so pages control background) */
-:root { color-scheme: light; }
+/* Base (theme-aware via CSS variables) */
+:root { color-scheme: dark light; }
 html { scroll-behavior: smooth; }
 html, body, #root { height: 100%; }
 body {
-  background: transparent;            /* was bg-black */
-  color: rgb(23 23 23);               /* text-neutral-900 */
+  /* ✅ Use theme tokens instead of hardcoded colors */
+  background: var(--bg);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-family: InterVariable, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+  font-family: var(--font-body);
 }
 
 /* Respect user's motion preferences */
@@ -30,11 +31,34 @@ body {
 
 /* Reusable tokens in components layer */
 @layer components {
-  .btn { @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-medium transition; }
-  .btn-primary { @apply btn bg-black text-white hover:opacity-90; }           /* still fine on light */
-  .btn-ghost { @apply btn border border-black/10 text-black/80 hover:bg-black/5; } /* adjust from white-on-dark */
+  /* ✅ Use theme tokens for consistent theming */
+  .btn { @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-medium; }
+  .btn-primary {
+    @apply btn;
+    background: var(--accent);
+    color: var(--bg);
+    transition: opacity var(--motion-duration-normal) var(--motion-ease);
+  }
+  .btn-primary:hover { @apply opacity-90; }
 
-  .card { @apply rounded-2xl border border-black/10 bg-white/70 backdrop-blur; }
+  .btn-ghost {
+    @apply btn;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    background: transparent;
+    transition: background var(--motion-duration-normal) var(--motion-ease),
+                color var(--motion-duration-normal) var(--motion-ease);
+  }
+  .btn-ghost:hover {
+    background: var(--surface-subtle);
+    color: var(--text);
+  }
+
+  .card {
+    @apply rounded-2xl backdrop-blur;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface);
+  }
 
   /* Skeleton loader */
   .skel { @apply animate-pulse bg-white/10 rounded; }
