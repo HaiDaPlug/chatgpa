@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate, useBlocker } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { track } from "@/lib/telemetry";
 import { useToast } from "@/lib/toast";
@@ -47,11 +47,9 @@ export default function AttemptDetailPage() {
   const autosaveTimer = useRef<number | null>(null);
   const lastAutosaveVersion = useRef<number>(0);
 
-  // Blocker to prevent navigation when dirty
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isDirty && attempt?.status === "in_progress" && currentLocation.pathname !== nextLocation.pathname
-  );
+  // ✅ Removed useBlocker - incompatible with non-data router (BrowserRouter)
+  // Navigation blocking now handled only by beforeunload handler for full page unloads
+  // Will revisit in-app navigation guards when we migrate to data router in future
 
   useEffect(() => {
     if (id) {
@@ -299,30 +297,6 @@ export default function AttemptDetailPage() {
 
   return (
     <PageShell>
-      {/* Blocker Dialog */}
-      {blocker.state === "blocked" && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="surface bdr radius p-6 max-w-md">
-            <h2 className="text-xl font-bold mb-4">Unsaved Changes</h2>
-            <p className="text-muted mb-6">You have unsaved answers. What would you like to do?</p>
-            <div className="flex gap-3">
-              <button
-                className="btn flex-1"
-                onClick={async () => {
-                  await performAutosave();
-                  blocker.proceed();
-                }}
-              >
-                Save & Leave
-              </button>
-              <button className="btn btn-ghost flex-1" onClick={() => blocker.reset()}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="p-8 max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
