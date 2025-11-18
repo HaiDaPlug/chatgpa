@@ -44,7 +44,13 @@ type TelemetryEvent =
   | "quiz_visuals_disabled"
   | "asset_load_success"
   | "asset_load_error"
-  | "text_only_mode_toggled";
+  | "text_only_mode_toggled"
+  // Appearance settings events
+  | "theme_changed"
+  | "accent_changed"
+  | "font_changed"
+  | "contrast_changed"
+  | "motion_changed";
 
 /**
  * Track telemetry event - sends to server endpoint
