@@ -20,7 +20,7 @@ import { AppearanceSettingsPage } from './pages/settings/AppearanceSettingsPage'
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[color:var(--bg)]">
       <main className="flex-grow">
         <Routes>
           {/* Public routes */}
