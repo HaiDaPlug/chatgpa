@@ -12,9 +12,9 @@ import { ToastProvider } from '@/lib/toast';
 function initializeTheme() {
   const root = document.documentElement;
 
-  // Read preferences from localStorage (defaults: academic-dark, coral, inter, normal, full)
+  // Read preferences from localStorage (defaults: academic-dark, study-blue, inter, normal, full)
   const theme = localStorage.getItem('chatgpa.theme') || 'academic-dark';
-  const accent = localStorage.getItem('chatgpa.accent') || 'coral';
+  const accent = localStorage.getItem('chatgpa.accent') || 'study-blue';
   const font = localStorage.getItem('chatgpa.font') || 'inter';
   const contrast = localStorage.getItem('chatgpa.contrast') || 'normal';
   const motion = localStorage.getItem('chatgpa.motion') || 'full';
