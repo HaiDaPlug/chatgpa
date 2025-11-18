@@ -126,15 +126,16 @@
 /* Primary accent: Study Blue */
 :root,
 :root[data-accent="study-blue"] {
-  --accent: #6E8CFB;
-  --accent-soft: rgba(110, 140, 251, 0.12);
-  --accent-strong: #4C66F3;
+  --accent: #4965cc;
+  --accent-soft: rgba(73, 101, 204, 0.12);
+  --accent-strong: #3d55b3;
+  --accent-text: rgba(255, 255, 255, 0.98);
 
   /* Legacy brand tokens for backward compatibility */
-  --brand-500: #6E8CFB;
-  --brand-600: #4C66F3;
-  --brand-400: #8FA7FC;
-  --brand-contrast: #1A1D24;
+  --brand-500: #4965cc;
+  --brand-600: #3d55b3;
+  --brand-400: #6B85E6;
+  --brand-contrast: rgba(255, 255, 255, 0.98);
 }
 
 /* Alternative: Leaf (green accent) */
