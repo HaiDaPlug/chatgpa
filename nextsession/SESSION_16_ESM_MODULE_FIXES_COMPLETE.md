@@ -582,3 +582,231 @@ Without **Part 2**, even with correct TypeScript config, the source imports them
 - Frontend no longer sees `Unexpected token 'A'` parse errors
 
 The API codebase is now **fully compliant** with Node.js ES Module requirements.
+
+---
+
+## Known Bugs & Improvement Priorities
+
+**Status as of**: November 17, 2025
+**Context**: Core functionality (Generate → Take → Submit → Grade) now works end-to-end. The following issues were identified during user testing.
+
+---
+
+### Priority 1: Critical UX Bugs (Blocking User Experience)
+
+#### **Bug #5: Results Page Crashes with "Something Went Wrong"**
+**Severity**: 🔴 Critical - Blocks quiz completion flow
+
+**Issue**:
+- After submitting quiz, user redirected to results page
+- Page shows "Something went wrong" error
+- User cannot exit or reload
+- Error text uses white color → invisible on light background
+- Quiz submission succeeds (grading works), but results display fails
+
+**Impact**: Users complete quiz but cannot see their results
+
+**Root Cause**: Likely one of:
+- Results page component trying to access `payload.score` instead of `payload.data.score`
+- Missing error boundary or fallback UI
+- CSS color contrast issue (white text on white background)
+
+**Fix Required**:
+1. Update results page to handle gateway response envelope
+2. Add proper error boundary with visible error styling
+3. Fix text color contrast (use theme-aware colors)
+4. Add fallback UI if results fail to load
+
+---
+
+#### **Bug #6: Feedback Popup Position - Barely Visible**
+**Severity**: 🟡 High - Poor UX
+
+**Issue**:
+- Grading feedback appears in tiny toast notification
+- Positioned on far right edge of screen
+- Barely visible to users
+- Important feedback is being missed
+
+**Impact**: Users don't see detailed grading feedback
+
+**Fix Required**:
+1. Reposition feedback to center or prominent location
+2. Increase toast size for better visibility
+3. Consider modal or dedicated feedback section instead of toast
+4. Ensure feedback persists long enough to read (or make dismissible)
+
+---
+
+### Priority 2: Feature Enhancements
+
+#### **Feature #1: Auto-Question Count**
+**Severity**: 🟢 Enhancement
+
+**Current Behavior**:
+- User manually selects question count (1-10)
+
+**Desired Behavior**:
+- Auto-detect optimal quiz length based on note characteristics:
+  - **Small notes** (< 500 chars) → 3-5 questions
+  - **Normal notes** (500-2000 chars) → 6-8 questions
+  - **Dense notes** (2000+ chars) → 10-12+ questions
+- Consider content density (concepts per character)
+- Still allow manual override
+
+**Implementation Notes**:
+- Add heuristic in quiz config normalization
+- Could use simple character count thresholds initially
+- Advanced: Analyze note structure (sections, bullet points, key terms)
+
+---
+
+#### **Feature #2: Follow-Up Function - Post-Grade Insights**
+**Severity**: 🟢 Enhancement
+
+**Desired Behavior**:
+- After grading, show actionable insights:
+  - "What to revise" - concepts where user scored poorly
+  - "What's unclear" - questions with wrong answers
+  - Suggest specific note sections to review
+- Help users close knowledge gaps
+
+**Implementation Notes**:
+- Extend grading output schema to include revision suggestions
+- Map incorrect answers back to note sections
+- Could use AI to generate targeted study recommendations
+
+---
+
+#### **Feature #3: One-Question-At-A-Time UI**
+**Severity**: 🟢 Enhancement
+
+**Current Behavior**:
+- All questions displayed in long scrollable form
+
+**Desired Behavior**:
+- Each question appears in modal/popup
+- One question visible at a time
+- Clear navigation (Next, Previous, Submit)
+- Progress indicator (e.g., "Question 3 of 8")
+
+**Impact**: Improved focus, less overwhelming for users
+
+**Implementation Notes**:
+- Create modal component for question display
+- Track current question index in state
+- Allow jumping to specific questions
+- Preserve answers when navigating
+
+---
+
+#### **Feature #4: Missing Material Insights - Pre-Quiz Analysis**
+**Severity**: 🟢 Enhancement
+
+**Desired Behavior**:
+- After quiz generation, before user starts taking it:
+  - Analyze what concepts weren't covered well
+  - Identify gaps in user's notes
+  - Suggest improvements to notes before taking quiz
+- Example: "Your notes don't cover X concept in depth. Consider adding more detail before taking this quiz."
+
+**Impact**: Proactive learning - users improve notes before testing
+
+**Implementation Notes**:
+- Extend quiz generation to include coverage analysis
+- Compare generated questions against note sections
+- Identify under-represented topics
+- Return insights in generation response
+- Display in pre-quiz screen
+
+---
+
+#### **Feature #7: Full Results Page Component**
+**Severity**: 🟡 High - Needed for #5 fix
+
+**Current State**:
+- Results display is broken or incomplete
+
+**Desired Behavior**:
+- Comprehensive results page showing:
+  - Overall score (percentage, letter grade)
+  - All questions with:
+    - Question prompt
+    - User's answer
+    - Correct answer
+    - Explanation/feedback
+    - Points earned
+  - Summary feedback
+- Reusable component for:
+  - Immediate post-submission view
+  - Reopening past attempts from history
+
+**Implementation Notes**:
+- Create standalone Results component
+- Fetch attempt data by ID
+- Handle both fresh submissions and historical attempts
+- Ensure gateway response envelope compatibility
+- Add loading states and error boundaries
+
+---
+
+### Priority 3: Infrastructure & Maintenance
+
+#### **Audit #9: Feature Flags Review**
+**Severity**: 🟢 Maintenance
+
+**Questions to Answer**:
+1. Which feature flags exist in the codebase?
+2. What functionality do they toggle?
+3. Are flags actually respected in code?
+4. Do they work correctly in production?
+5. Are any flags stale (always on/off)?
+
+**Action Items**:
+- Document all feature flags with:
+  - Flag name
+  - Purpose
+  - Default value
+  - Where it's checked
+  - Deployment status (dev/prod)
+- Remove unused flags
+- Ensure consistent flag checking pattern
+- Consider centralized flag management
+
+**Example Flags to Check**:
+- `VITE_FEATURE_WORKSPACE_FOLDERS`
+- `DEMO_INSTANT_GRADE`
+- `ENABLE_USAGE_LIMITS`
+
+---
+
+## Next Steps
+
+**Immediate (blocking production use)**:
+1. Fix Bug #5 (Results page crash) - CRITICAL
+2. Fix Bug #6 (Feedback visibility)
+3. Implement Feature #7 (Full Results component)
+
+**Short-term (UX improvements)**:
+4. Implement Feature #1 (Auto-question count)
+5. Implement Feature #3 (One-question-at-a-time UI)
+
+**Medium-term (value-add features)**:
+6. Implement Feature #2 (Follow-up insights)
+7. Implement Feature #4 (Missing material analysis)
+8. Complete Audit #9 (Feature flags review)
+
+---
+
+## Testing Verification
+
+After fixes, verify:
+- ✅ Quiz generation works (CONFIRMED)
+- ✅ Telemetry tracking works (CONFIRMED)
+- ✅ Grading endpoint routes correctly (CONFIRMED)
+- ✅ Token usage optimized for grading (CONFIRMED)
+- ⏳ Results page displays without errors
+- ⏳ Feedback is visible and well-positioned
+- ⏳ User can complete full quiz flow without getting stuck
+
+---
