@@ -10,7 +10,9 @@ interface AccountMenuProps {
 export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -29,8 +31,23 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
   }, [menuOpen]);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
-    navigate("/");
+    setIsSigningOut(true);
+    setSignOutError(null);
+
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        throw error;
+      }
+
+      // Redirect to signin page on success
+      navigate("/signin");
+    } catch (error) {
+      console.error("Sign out error:", error);
+      setSignOutError("Unable to sign out. Please try again.");
+      setIsSigningOut(false);
+    }
   }
 
   async function handleBilling() {
@@ -81,10 +98,10 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
         aria-label="Account menu"
         aria-haspopup="menu"
         aria-expanded={menuOpen}
-        disabled={isRedirecting}
+        disabled={isRedirecting || isSigningOut}
         style={{
           transition: "background var(--motion-duration-normal) var(--motion-ease)",
-          opacity: isRedirecting ? 0.6 : 1,
+          opacity: isRedirecting || isSigningOut ? 0.6 : 1,
         }}
       >
         {/* Simple user circle icon */}
@@ -114,7 +131,7 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
         )}
       </button>
 
-      {/* Error Message */}
+      {/* Error Messages */}
       {billingError && (
         <div
           className="absolute bottom-full left-0 right-0 mb-2 p-3 rounded-lg text-[13px]"
@@ -125,6 +142,18 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
           }}
         >
           {billingError}
+        </div>
+      )}
+      {signOutError && (
+        <div
+          className="absolute bottom-full left-0 right-0 mb-2 p-3 rounded-lg text-[13px]"
+          style={{
+            background: "var(--surface-raised)",
+            border: "1px solid var(--text-danger)",
+            color: "var(--text-danger)",
+          }}
+        >
+          {signOutError}
         </div>
       )}
 
@@ -174,12 +203,14 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
               setMenuOpen(false);
               handleSignOut();
             }}
+            disabled={isSigningOut || isRedirecting}
             style={{
               color: "var(--text-danger)",
               transition: "background var(--motion-duration-normal) var(--motion-ease)",
+              opacity: isSigningOut || isRedirecting ? 0.6 : 1,
             }}
           >
-            Sign out
+            {isSigningOut ? "Signing out..." : "Sign out"}
           </button>
         </div>
       )}

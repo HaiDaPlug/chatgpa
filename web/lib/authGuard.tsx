@@ -33,9 +33,9 @@ export function RequireAuth({ children }: { children: JSX.Element }) {
   // Show nothing while checking session (prevents flash)
   if (loading) return null;
 
-  // Redirect to landing if not authenticated
+  // Redirect to signin if not authenticated
   if (!session) {
-    return <Navigate to="/" replace state={{ from: location }} />;
+    return <Navigate to="/signin" replace state={{ from: location }} />;
   }
 
   return children;
