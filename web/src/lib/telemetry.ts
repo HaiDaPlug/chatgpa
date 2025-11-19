@@ -50,7 +50,13 @@ type TelemetryEvent =
   | "accent_changed"
   | "font_changed"
   | "contrast_changed"
-  | "motion_changed";
+  | "motion_changed"
+  // Auth events
+  | "auth_signin_started"
+  | "auth_signin_success"
+  | "auth_signin_failed"
+  | "auth_google_signin_started"
+  | "auth_google_signin_failed";
 
 /**
  * Track telemetry event - sends to server endpoint

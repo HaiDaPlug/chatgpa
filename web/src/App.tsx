@@ -2,6 +2,9 @@ import { Routes, Route } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 
 import Landing from './pages/Landing';
+import Signin from './pages/Signin';
+import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
 import QuizPage from './pages/QuizPage';
 import DashboardPage from './pages/dashboard';
 import GeneratePage from './pages/generate';
@@ -25,6 +28,9 @@ export default function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
+          <Route path="/signin" element={<Signin />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Protected routes (require authentication) */}
           <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
