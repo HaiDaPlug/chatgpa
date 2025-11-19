@@ -56,7 +56,8 @@ type TelemetryEvent =
   | "auth_signin_success"
   | "auth_signin_failed"
   | "auth_google_signin_started"
-  | "auth_google_signin_failed";
+  | "auth_google_signin_failed"
+  | "auth_signout";
 
 /**
  * Track telemetry event - sends to server endpoint
