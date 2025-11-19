@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { track } from "@/lib/telemetry";
 
 interface AccountMenuProps {
   onOpenAppearance: () => void;
@@ -33,6 +34,7 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
   async function handleSignOut() {
     setIsSigningOut(true);
     setSignOutError(null);
+    track("auth_signout");
 
     try {
       const { error } = await supabase.auth.signOut();
