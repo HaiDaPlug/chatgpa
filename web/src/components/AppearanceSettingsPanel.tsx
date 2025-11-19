@@ -80,7 +80,7 @@ const FONT_OPTIONS: FontOption[] = [
 function ThemeColorSwatch({ themeId }: { themeId: ThemeId }) {
   // Mini preview showing theme colors
   const colors: Record<ThemeId, { bg: string; surface: string; text: string }> = {
-    'academic-dark': { bg: '#30302E', surface: '#3A3A38', text: '#FAFBFC' },
+    'academic-dark': { bg: '#0d1117', surface: '#161b22', text: '#FAFBFC' },
     'academic-light': { bg: '#FFFFFF', surface: '#F7F8F9', text: '#1A1D21' },
     'midnight-focus': { bg: '#0B0D11', surface: '#101217', text: '#FFFFFF' },
   };
@@ -112,7 +112,7 @@ function ThemeColorSwatch({ themeId }: { themeId: ThemeId }) {
 
 function AccentColorDot({ accentId }: { accentId: AccentId }) {
   const colors: Record<AccentId, string> = {
-    'study-blue': '#4965cc',
+    'study-blue': '#5b7ae6',
     'leaf': '#48E28A',
   };
 
