@@ -1,245 +1,518 @@
-// Purpose: ChatGPA landing page - MVP placeholder
-// Connects to: App.tsx, Supabase Auth
+// Purpose: ChatGPA landing page - public marketing page
+// Connects to: App.tsx routing, /signin page
 
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
-import { getUserId, signOut } from '@/lib/auth'
-import { BookOpen, Zap, Brain } from 'lucide-react'
-
-const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 export default function Landing() {
-  const navigate = useNavigate()
-  const [userId, setUserId] = useState<string | null>(null)
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    getUserId().then(setUserId)
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null)
-    })
-
-    return () => authListener?.subscription?.unsubscribe?.()
-  }, [])
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email) return
-
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${APP_URL}/` }
-    })
-
-    if (error) {
-      alert(`Login failed: ${error.message}`)
-    } else {
-      alert('Check your email for the magic link!')
-      setEmail('')
-    }
-    setLoading(false)
-  }
-
-  const handleLogout = async () => {
-    await signOut()
-    setUserId(null)
-  }
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    element?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
       {/* Header */}
-      <header className="border-b bg-[color:var(--surface)]/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-indigo-600" />
-            <span className="font-bold text-xl text-gray-900">ChatGPA</span>
+      <header
+        className="border-b"
+        style={{
+          borderColor: "var(--border-subtle)",
+          background: "var(--bg)",
+        }}
+      >
+        <div className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 h-16 flex items-center justify-between">
+          {/* Brand */}
+          <div className="flex items-center">
+            <h1
+              className="text-xl font-semibold"
+              style={{
+                fontFamily: "var(--font-serif)",
+                color: "var(--text)",
+              }}
+            >
+              ChatGPA
+            </h1>
           </div>
-          <div>
-            {userId ? (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
-                >
-                  Dashboard
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => document.getElementById('login')?.scrollIntoView({ behavior: 'smooth' })}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
-              >
-                Get Started
-              </button>
-            )}
-          </div>
+
+          {/* Nav */}
+          <nav className="flex items-center gap-6">
+            <button
+              onClick={() => scrollToSection("how-it-works")}
+              className="text-sm transition-colors"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            >
+              Product
+            </button>
+            <button
+              onClick={() => scrollToSection("pricing")}
+              className="text-sm transition-colors"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            >
+              Pricing
+            </button>
+            <button
+              onClick={() => navigate("/signin")}
+              className="text-sm px-4 py-2 rounded-md border transition-all"
+              style={{
+                color: "var(--text)",
+                borderColor: "var(--border-subtle)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--surface-subtle)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              Sign in
+            </button>
+          </nav>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="max-w-6xl mx-auto px-4 py-20 text-center">
-        <h1 className="text-5xl font-bold text-gray-900 mb-6">
-          Turn messy notes into <span className="text-indigo-600">adaptive quizzes</span>
-        </h1>
-        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          Upload your study materials and let AI generate personalized quizzes with instant, adaptive grading
-        </p>
-        <div className="flex justify-center gap-4">
-          <a
-            href="#login"
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-lg"
+      {/* Hero Section */}
+      <section className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-16 md:py-24">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          {/* Left: Text */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.18,
+              ease: [0.4, 0, 0.2, 1],
+            }}
           >
-            Start Learning
-          </a>
-          <a
-            href="#features"
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-lg"
-          >
-            Learn More
-          </a>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="max-w-6xl mx-auto px-4 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">How ChatGPA Works</h2>
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="text-center p-6">
-            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-6 h-6 text-indigo-600" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Upload Notes</h3>
-            <p className="text-gray-600">
-              Paste your notes. (PDF upload coming soon)
+            <p
+              className="text-sm mb-4"
+              style={{ color: "var(--text-soft)" }}
+            >
+              Study with AI, not chaos.
             </p>
-          </div>
-          <div className="text-center p-6">
-            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Zap className="w-6 h-6 text-indigo-600" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Generate Quiz</h3>
-            <p className="text-gray-600">
-              AI creates relevant quizzes from your material.
+            <h2
+              className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6"
+              style={{
+                fontFamily: "var(--font-serif)",
+                color: "var(--text)",
+                lineHeight: 1.2,
+              }}
+            >
+              Turn your messy notes into targeted quizzes.
+            </h2>
+            <p
+              className="text-lg mb-8"
+              style={{ color: "var(--text-muted)" }}
+            >
+              ChatGPA helps you upload your notes, generate smart quizzes, and get feedback on what you actually don't know yet.
             </p>
-          </div>
-          <div className="text-center p-6">
-            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Brain className="w-6 h-6 text-indigo-600" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Adaptive Grading</h3>
-            <p className="text-gray-600">
-              Flexible grading with clear, actionable feedback.
-            </p>
-          </div>
-        </div>
-      </section>
 
-      {/* Pricing */}
-      <section className="max-w-6xl mx-auto px-4 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Simple Pricing</h2>
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="border-2 border-[color:var(--border-subtle)] rounded-2xl p-8 bg-[color:var(--surface)] shadow-sm hover:shadow-md transition-shadow">
-            <h3 className="text-xl font-semibold mb-3 text-gray-900">Free</h3>
-            <p className="text-5xl font-extrabold mb-6 text-gray-900">$0</p>
-            <ul className="text-gray-600 space-y-3 text-sm">
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span> 1 class
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span> 5 quizzes total
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span> Basic grading
-              </li>
-            </ul>
-          </div>
-          <div className="border-2 border-indigo-500 rounded-2xl p-8 bg-[color:var(--surface)] shadow-lg hover:shadow-xl transition-shadow relative">
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-500 text-white px-4 py-1.5 rounded-full text-xs font-semibold shadow-md">
-              POPULAR
-            </div>
-            <h3 className="text-xl font-semibold mb-3 text-gray-900">Monthly Pro</h3>
-            <p className="text-5xl font-extrabold mb-6 text-indigo-600">$9<span className="text-xl font-normal text-gray-500">/mo</span></p>
-            <ul className="text-gray-700 space-y-3 text-sm font-medium">
-              <li className="flex items-center gap-2">
-                <span className="text-indigo-500">✓</span> Unlimited classes
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-indigo-500">✓</span> Unlimited quizzes
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-indigo-500">✓</span> Advanced grading
-              </li>
-            </ul>
-          </div>
-          <div className="border-2 border-[color:var(--border-subtle)] rounded-2xl p-8 bg-[color:var(--surface)] shadow-sm hover:shadow-md transition-shadow">
-            <h3 className="text-xl font-semibold mb-3 text-gray-900">Annual Pro</h3>
-            <p className="text-5xl font-extrabold mb-6 text-gray-900">$79<span className="text-xl font-normal text-gray-500">/yr</span></p>
-            <ul className="text-gray-600 space-y-3 text-sm">
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span> Everything in Monthly
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span> Save $29/year
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span> Priority support
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* Login */}
-      {!userId && (
-        <section id="login" className="max-w-md mx-auto px-4 py-16">
-          <div className="bg-[color:var(--surface)] rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-center mb-6 text-gray-900">Get Started Free</h2>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
-                  required
-                />
-              </div>
+            {/* CTA */}
+            <div className="flex flex-col gap-3">
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50"
+                onClick={() => navigate("/signin")}
+                className="px-6 py-3 rounded-md font-medium text-base transition-all focus:outline-none active:scale-[0.98]"
+                style={{
+                  background: "var(--accent)",
+                  color: "var(--accent-text)",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--accent-strong)";
+                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(91,122,230,0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--accent)";
+                  e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
+                }}
               >
-                {loading ? 'Sending...' : 'Send Magic Link'}
+                Get started
               </button>
-              <p className="text-xs text-gray-500 text-center">
-                We'll email you a magic link for a password-free sign in.
+              <p className="text-sm" style={{ color: "var(--text-soft)" }}>
+                Already have an account?{" "}
+                <button
+                  onClick={() => navigate("/signin")}
+                  className="underline transition-colors"
+                  style={{ color: "var(--text-muted)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                >
+                  Sign in
+                </button>
               </p>
-            </form>
-          </div>
-        </section>
-      )}
+            </div>
+          </motion.div>
+
+          {/* Right: Visual placeholder */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.18,
+              ease: [0.4, 0, 0.2, 1],
+              delay: 0.1,
+            }}
+            className="rounded-xl p-6 md:p-8"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border-subtle)",
+            }}
+          >
+            {/* TODO: Replace with Canva export */}
+            {/* <img src="/landing/hero.png" alt="ChatGPA demo" /> */}
+            {/* <video src="/landing/hero.mp4" autoPlay loop muted /> */}
+
+            {/* Placeholder: Mini quiz UI mockup */}
+            <div className="space-y-4">
+              <div>
+                <p
+                  className="text-sm font-medium mb-3"
+                  style={{ color: "var(--text)" }}
+                >
+                  What is the main purpose of mitochondria in cells?
+                </p>
+                <div className="space-y-2">
+                  {["Energy production", "Protein synthesis", "DNA storage", "Waste removal"].map((option, i) => (
+                    <div
+                      key={i}
+                      className="px-3 py-2 rounded-md text-sm transition-all"
+                      style={{
+                        background: i === 0 ? "var(--accent-soft)" : "var(--surface-subtle)",
+                        border: `1px solid ${i === 0 ? "var(--accent)" : "var(--border-subtle)"}`,
+                        color: "var(--text)",
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div
+                className="text-xs p-3 rounded-md"
+                style={{
+                  background: "var(--accent-soft)",
+                  color: "var(--text-muted)",
+                }}
+              >
+                ✓ Your answer demonstrates understanding of cellular respiration.
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section
+        id="how-it-works"
+        className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-16"
+        style={{
+          borderTop: "1px solid var(--border-subtle)",
+        }}
+      >
+        <h3
+          className="text-2xl md:text-3xl font-semibold text-center mb-12"
+          style={{
+            fontFamily: "var(--font-serif)",
+            color: "var(--text)",
+          }}
+        >
+          How ChatGPA works
+        </h3>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            {
+              step: "1",
+              title: "Upload your notes",
+              description: "Paste text or upload files from your classes, in any order.",
+            },
+            {
+              step: "2",
+              title: "Generate smart quizzes",
+              description: "AI creates tailored questions based on what's actually in your notes.",
+            },
+            {
+              step: "3",
+              title: "Get feedback on your answers",
+              description: "ChatGPA grades your responses and shows what to focus on next.",
+            },
+          ].map((item) => (
+            <div
+              key={item.step}
+              className="p-6 rounded-lg transition-all"
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border-subtle)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <div
+                className="inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold mb-4"
+                style={{
+                  background: "var(--accent-soft)",
+                  color: "var(--accent)",
+                }}
+              >
+                {item.step}
+              </div>
+              <h4
+                className="text-lg font-semibold mb-2"
+                style={{ color: "var(--text)" }}
+              >
+                {item.title}
+              </h4>
+              <p
+                className="text-sm"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Why students use ChatGPA */}
+      <section className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-16">
+        <h3
+          className="text-2xl md:text-3xl font-semibold text-center mb-12"
+          style={{
+            fontFamily: "var(--font-serif)",
+            color: "var(--text)",
+          }}
+        >
+          Why students actually use this
+        </h3>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {[
+            "Start studying in 2 minutes, not 2 hours of organizing notes.",
+            "Get instant feedback that actually tells you what's missing.",
+            "Stop guessing what to review the night before an exam.",
+            "Keep track of quiz attempts and see your progress over time.",
+          ].map((benefit, i) => (
+            <div key={i} className="flex gap-3">
+              <div
+                className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
+                style={{ background: "var(--text-soft)" }}
+              />
+              <p
+                className="text-base"
+                style={{ color: "var(--text)" }}
+              >
+                {benefit}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Who it's for */}
+      <section className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-16">
+        <h3
+          className="text-2xl md:text-3xl font-semibold text-center mb-12"
+          style={{
+            fontFamily: "var(--font-serif)",
+            color: "var(--text)",
+          }}
+        >
+          Who it's for
+        </h3>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            {
+              persona: "The Procrastinator",
+              description: "Exam in a week? Upload your notes and we'll highlight what you don't know yet.",
+            },
+            {
+              persona: "The Exhausted Student",
+              description: "Already working hard? Let ChatGPA generate quizzes so you can focus on learning.",
+            },
+            {
+              persona: "The Crammer",
+              description: "Need to triage fast in the last 2–3 days? Use quick quizzes to find the gaps.",
+            },
+          ].map((item) => (
+            <div
+              key={item.persona}
+              className="p-6 rounded-lg"
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border-subtle)",
+              }}
+            >
+              <h4
+                className="text-lg font-semibold mb-3"
+                style={{ color: "var(--text)" }}
+              >
+                {item.persona}
+              </h4>
+              <p
+                className="text-sm"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing placeholder */}
+      <section
+        id="pricing"
+        className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-16"
+        style={{
+          borderTop: "1px solid var(--border-subtle)",
+        }}
+      >
+        <h3
+          className="text-2xl md:text-3xl font-semibold text-center mb-6"
+          style={{
+            fontFamily: "var(--font-serif)",
+            color: "var(--text)",
+          }}
+        >
+          Simple pricing
+        </h3>
+        <p
+          className="text-center mb-12"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Start free. Upgrade when you need more.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          {[
+            {
+              name: "Free",
+              price: "$0",
+              features: ["1 class", "5 quizzes total", "Basic grading"],
+            },
+            {
+              name: "Monthly Pro",
+              price: "$9",
+              period: "/mo",
+              features: ["Unlimited classes", "Unlimited quizzes", "Advanced grading"],
+              highlight: true,
+            },
+            {
+              name: "Annual Pro",
+              price: "$79",
+              period: "/yr",
+              features: ["Everything in Monthly", "Save $29/year", "Priority support"],
+            },
+          ].map((plan) => (
+            <div
+              key={plan.name}
+              className="p-6 rounded-xl transition-all"
+              style={{
+                background: "var(--surface)",
+                border: plan.highlight
+                  ? "2px solid var(--accent)"
+                  : "1px solid var(--border-subtle)",
+              }}
+            >
+              {plan.highlight && (
+                <div
+                  className="text-xs font-semibold mb-2 inline-block px-2 py-1 rounded"
+                  style={{
+                    background: "var(--accent-soft)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  POPULAR
+                </div>
+              )}
+              <h4
+                className="text-lg font-semibold mb-2"
+                style={{ color: "var(--text)" }}
+              >
+                {plan.name}
+              </h4>
+              <div className="mb-4">
+                <span
+                  className="text-3xl font-bold"
+                  style={{ color: plan.highlight ? "var(--accent)" : "var(--text)" }}
+                >
+                  {plan.price}
+                </span>
+                {plan.period && (
+                  <span
+                    className="text-lg"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    {plan.period}
+                  </span>
+                )}
+              </div>
+              <ul className="space-y-2">
+                {plan.features.map((feature, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center gap-2 text-sm"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <span style={{ color: plan.highlight ? "var(--accent)" : "var(--text-soft)" }}>
+                      ✓
+                    </span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="border-t mt-20">
-        <div className="max-w-6xl mx-auto px-4 py-8 text-center text-gray-600 text-sm">
-          © {new Date().getFullYear()} ChatGPA. Built with AI.
+      <footer
+        className="mt-20"
+        style={{
+          borderTop: "1px solid var(--border-subtle)",
+        }}
+      >
+        <div className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <p
+              className="text-sm"
+              style={{ color: "var(--text-soft)" }}
+            >
+              © {new Date().getFullYear()} ChatGPA. All rights reserved.
+            </p>
+            <div className="flex gap-6">
+              <a
+                href="#"
+                className="text-sm transition-colors"
+                style={{ color: "var(--text-soft)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-soft)")}
+              >
+                Privacy
+              </a>
+              <a
+                href="#"
+                className="text-sm transition-colors"
+                style={{ color: "var(--text-soft)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-soft)")}
+              >
+                Terms
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
-  )
+  );
 }
