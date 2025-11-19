@@ -1,7 +1,6 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "./Sidebar";
-import { AccountMenu } from "./AccountMenu";
 import { AppearanceSettingsPanel } from "./AppearanceSettingsPanel";
 import { Breadcrumbs } from "./Breadcrumbs";
 
@@ -20,6 +19,8 @@ export function PageShell({ children }: { children: ReactNode }) {
 
   // Appearance modal state
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
 
   // Responsive collapse: auto-collapse on small screens
   useEffect(() => {
@@ -71,6 +72,30 @@ export function PageShell({ children }: { children: ReactNode }) {
     }
   }, [appearanceOpen]);
 
+  // Focus management and body scroll lock for modal
+  useEffect(() => {
+    if (appearanceOpen) {
+      // Save current focus
+      previousActiveElement.current = document.activeElement as HTMLElement;
+
+      // Focus modal
+      modalRef.current?.focus();
+
+      // Prevent body scroll
+      document.body.style.overflow = "hidden";
+
+      return () => {
+        // Restore body scroll
+        document.body.style.overflow = "";
+
+        // Restore focus
+        if (previousActiveElement.current) {
+          previousActiveElement.current.focus();
+        }
+      };
+    }
+  }, [appearanceOpen]);
+
   return (
     <>
       {/* Skip to content link for accessibility */}
@@ -102,7 +127,11 @@ export function PageShell({ children }: { children: ReactNode }) {
           style={{ gridArea: "sidebar" }}
           className="surface bdr overflow-hidden"
         >
-          <Sidebar collapsed={collapsed} onToggle={handleToggle} />
+          <Sidebar
+            collapsed={collapsed}
+            onToggle={handleToggle}
+            onOpenAppearance={() => setAppearanceOpen(true)}
+          />
         </aside>
 
         {/* Header with Breadcrumbs */}
@@ -113,9 +142,8 @@ export function PageShell({ children }: { children: ReactNode }) {
           }}
           className="surface/70 bdr sticky top-0 z-10"
         >
-          <div className="h-full flex items-center justify-between px-6">
+          <div className="h-full flex items-center px-6">
             <Breadcrumbs />
-            <AccountMenu onOpenAppearance={() => setAppearanceOpen(true)} />
           </div>
         </header>
 
@@ -144,28 +172,38 @@ export function PageShell({ children }: { children: ReactNode }) {
       </div>
 
       {/* Appearance Settings Modal */}
-      {appearanceOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "var(--overlay)" }}
-          onClick={() => setAppearanceOpen(false)}
-        >
+      <AnimatePresence>
+        {appearanceOpen && (
           <motion.div
-            initial={reducedMotion ? false : { opacity: 0, scale: 0.96, y: 8 }}
-            animate={reducedMotion ? false : { opacity: 1, scale: 1, y: 0 }}
-            exit={reducedMotion ? false : { opacity: 0, scale: 0.96, y: 4 }}
-            transition={{
-              duration: 0.18,
-              ease: [0.2, 0, 0, 1],
-            }}
-            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl p-8"
-            style={{
-              background: "var(--surface-raised)",
-              border: "1px solid var(--border-subtle)",
-              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-            }}
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "var(--overlay)" }}
+            onClick={() => setAppearanceOpen(false)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
+            <motion.div
+              ref={modalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="appearance-modal-title"
+              tabIndex={-1}
+              initial={reducedMotion ? false : { opacity: 0, scale: 0.96, y: 8 }}
+              animate={reducedMotion ? false : { opacity: 1, scale: 1, y: 0 }}
+              exit={reducedMotion ? false : { opacity: 0, scale: 0.96, y: 4 }}
+              transition={{
+                duration: 0.18,
+                ease: [0.2, 0, 0, 1],
+              }}
+              className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl p-8"
+              style={{
+                background: "var(--surface-raised)",
+                border: "1px solid var(--border-subtle)",
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
             {/* Close button */}
             <div className="flex justify-end mb-4">
               <button
@@ -197,8 +235,9 @@ export function PageShell({ children }: { children: ReactNode }) {
             {/* Settings Panel */}
             <AppearanceSettingsPanel />
           </motion.div>
-        </div>
+        </motion.div>
       )}
+    </AnimatePresence>
     </>
   );
 }

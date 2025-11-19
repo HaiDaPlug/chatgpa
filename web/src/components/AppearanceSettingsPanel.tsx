@@ -144,7 +144,7 @@ export function AppearanceSettingsPanel() {
     <div className="space-y-8">
       {/* ===== Header ===== */}
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-[color:var(--text)]">
+        <h1 id="appearance-modal-title" className="text-2xl font-semibold text-[color:var(--text)]">
           Appearance
         </h1>
         <p className="text-sm text-[color:var(--text-muted)]">
