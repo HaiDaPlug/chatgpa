@@ -29,36 +29,83 @@ body {
 .elev-1 { box-shadow: 0 6px 24px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04); }
 .focus-ring:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); }
 
-/* ===== Button Classes ===== */
+/* ===== Button Classes (Minimal & Polished) ===== */
 .btn {
-  padding: 8px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  border-radius: 6px;
   background: var(--surface-raised);
-  transition: transform var(--motion-duration-normal) var(--motion-ease),
-              box-shadow var(--motion-duration-normal) var(--motion-ease),
-              background var(--motion-duration-normal) var(--motion-ease);
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--motion-duration-normal) var(--motion-ease);
+  outline: none;
 }
 
 .btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+  background: var(--surface-subtle);
+  border-color: var(--border-subtle);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 4px var(--accent);
 }
 
 .btn.primary {
   background: var(--accent);
   color: var(--accent-text);
   border-color: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn.primary:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  box-shadow: 0 2px 8px rgba(73, 101, 204, 0.25);
+}
+
+.btn.secondary {
+  background: var(--surface-raised);
+  color: var(--text);
+  border-color: var(--border-subtle);
+}
+
+.btn.secondary:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
 }
 
 .btn.ghost {
   background: transparent;
   color: var(--text-muted);
+  border-color: transparent;
 }
 
 .btn.ghost:hover {
   background: var(--surface-subtle);
   color: var(--text);
+}
+
+.btn.danger {
+  background: var(--text-danger);
+  color: rgba(255, 255, 255, 0.98);
+  border-color: var(--text-danger);
+}
+
+.btn.danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ===== Animation Helpers ===== */

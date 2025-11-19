@@ -4,10 +4,13 @@ import { supabase } from "@/lib/supabase";
 
 interface AccountMenuProps {
   onOpenAppearance: () => void;
+  collapsed?: boolean;
 }
 
-export function AccountMenu({ onOpenAppearance }: AccountMenuProps) {
+export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -31,15 +34,15 @@ export function AccountMenu({ onOpenAppearance }: AccountMenuProps) {
   }
 
   async function handleBilling() {
-    setMenuOpen(false);
+    setIsRedirecting(true);
+    setBillingError(null);
 
     try {
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
 
       if (!token) {
-        console.error("No auth token for billing");
-        return;
+        throw new Error("No authentication token");
       }
 
       const response = await fetch("/api/v1/billing?action=portal", {
@@ -50,15 +53,22 @@ export function AccountMenu({ onOpenAppearance }: AccountMenuProps) {
         },
       });
 
+      if (!response.ok) {
+        throw new Error("Failed to access billing portal");
+      }
+
       const data = await response.json();
 
       if (data.portal_url) {
         window.location.href = data.portal_url;
       } else {
-        console.error("No portal URL returned");
+        throw new Error("No portal URL returned");
       }
     } catch (error) {
       console.error("Billing portal error:", error);
+      setBillingError("Unable to access billing. Please try again.");
+      setIsRedirecting(false);
+      setMenuOpen(false);
     }
   }
 
@@ -67,22 +77,24 @@ export function AccountMenu({ onOpenAppearance }: AccountMenuProps) {
       {/* Account Icon Button */}
       <button
         onClick={() => setMenuOpen((s) => !s)}
-        className="p-2 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
+        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
         aria-label="Account menu"
         aria-haspopup="menu"
         aria-expanded={menuOpen}
+        disabled={isRedirecting}
         style={{
           transition: "background var(--motion-duration-normal) var(--motion-ease)",
+          opacity: isRedirecting ? 0.6 : 1,
         }}
       >
         {/* Simple user circle icon */}
         <svg
-          width="24"
-          height="24"
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          style={{ color: "var(--text-muted)" }}
+          style={{ color: "var(--text-muted)", flexShrink: 0 }}
         >
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
           <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5" />
@@ -93,17 +105,38 @@ export function AccountMenu({ onOpenAppearance }: AccountMenuProps) {
             strokeLinecap="round"
           />
         </svg>
+
+        {/* Account text - only show when not collapsed */}
+        {!collapsed && (
+          <span className="text-[14px] font-medium" style={{ color: "var(--text)" }}>
+            Account
+          </span>
+        )}
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Error Message */}
+      {billingError && (
+        <div
+          className="absolute bottom-full left-0 right-0 mb-2 p-3 rounded-lg text-[13px]"
+          style={{
+            background: "var(--surface-raised)",
+            border: "1px solid var(--text-danger)",
+            color: "var(--text-danger)",
+          }}
+        >
+          {billingError}
+        </div>
+      )}
+
+      {/* Dropdown Menu - Opens UPWARD */}
       {menuOpen && (
         <div
-          className="absolute right-0 mt-2 min-w-[200px] z-50 rounded-lg p-2"
+          className="absolute bottom-full left-0 mb-2 min-w-[200px] z-50 rounded-lg p-2"
           role="menu"
           style={{
-            background: "var(--surface)",
+            background: "var(--surface-raised)",
             border: "1px solid var(--border-subtle)",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
           }}
         >
           <button
@@ -122,12 +155,14 @@ export function AccountMenu({ onOpenAppearance }: AccountMenuProps) {
           <button
             className="w-full text-left px-3 py-2 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors text-[14px]"
             onClick={handleBilling}
+            disabled={isRedirecting}
             style={{
               color: "var(--text)",
               transition: "background var(--motion-duration-normal) var(--motion-ease)",
+              opacity: isRedirecting ? 0.6 : 1,
             }}
           >
-            Billing
+            {isRedirecting ? "Redirecting..." : "Billing"}
           </button>
           <div
             className="my-2"

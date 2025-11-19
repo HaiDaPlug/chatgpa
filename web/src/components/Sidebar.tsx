@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { SidebarItem } from "./SidebarItem";
+import { AccountMenu } from "./AccountMenu";
 import { track } from "@/lib/telemetry";
 
 type ClassRow = { id: string; name: string };
@@ -31,7 +32,15 @@ const StudyToolsIcon = () => (
   </svg>
 );
 
-export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export function Sidebar({
+  collapsed,
+  onToggle,
+  onOpenAppearance
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  onOpenAppearance: () => void;
+}) {
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [classesExpanded, setClassesExpanded] = useState(true);
@@ -246,8 +255,13 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           </div>
         </div>
 
-        {/* Account section removed - moved to header account menu */}
+        {/* Account section removed - moved to bottom of sidebar */}
       </nav>
+
+      {/* Account Menu - Bottom Left Corner (like Spotify, VS Code, Discord) */}
+      <div className="pt-2 mt-auto border-t border-[color:var(--border-subtle)]">
+        <AccountMenu onOpenAppearance={onOpenAppearance} collapsed={collapsed} />
+      </div>
     </div>
   );
 }
