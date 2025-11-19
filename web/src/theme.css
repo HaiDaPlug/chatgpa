@@ -66,7 +66,7 @@ body {
 .btn.primary:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  box-shadow: 0 2px 8px rgba(73, 101, 204, 0.25);
+  box-shadow: 0 2px 8px rgba(91, 122, 230, 0.3);
 }
 
 .btn.secondary {
