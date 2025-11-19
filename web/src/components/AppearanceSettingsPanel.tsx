@@ -81,8 +81,8 @@ function ThemeColorSwatch({ themeId }: { themeId: ThemeId }) {
   // Mini preview showing theme colors
   const colors: Record<ThemeId, { bg: string; surface: string; text: string }> = {
     'academic-dark': { bg: '#0d1117', surface: '#161b22', text: '#FAFBFC' },
-    'academic-light': { bg: '#FFFFFF', surface: '#F7F8F9', text: '#1A1D21' },
-    'midnight-focus': { bg: '#0B0D11', surface: '#101217', text: '#FFFFFF' },
+    'academic-light': { bg: '#fafbfc', surface: '#f3f4f6', text: '#1A1D21' },
+    'midnight-focus': { bg: '#050609', surface: '#0a0d12', text: '#FFFFFF' },
   };
 
   const theme = colors[themeId];

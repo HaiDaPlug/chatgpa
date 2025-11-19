@@ -72,15 +72,15 @@
    THEME PRESETS
    ======================================== */
 
-/* Academic Light Theme (for future) */
+/* Academic Light Theme - Soft blue-tinted whites */
 :root[data-theme="academic-light"] {
-  --bg: #FFFFFF;
-  --surface: #F7F8F9;
-  --surface-raised: #FFFFFF;
-  --surface-subtle: #EFF1F4;
-  --border-subtle: #E1E3E6;
-  --border-strong: #C4C7CF;
-  --overlay: rgba(0, 0, 0, 0.30);
+  --bg: #fafbfc;              /* Soft off-white (not harsh pure white) */
+  --surface: #f3f4f6;          /* Subtle gray with blue hint */
+  --surface-raised: #ffffff;   /* Pure white for clear elevation */
+  --surface-subtle: #e5e7eb;   /* Deeper for pressed states */
+  --border-subtle: rgba(73, 101, 204, 0.08);   /* Blue-tinted subtle borders */
+  --border-strong: rgba(73, 101, 204, 0.12);   /* Blue-tinted separators */
+  --overlay: rgba(0, 0, 0, 0.40);  /* Modal overlay */
 
   --text: #1A1D21;
   --text-muted: #60656B;
@@ -92,23 +92,23 @@
   --score-pass: #16A34A;
   --score-fail: #B91C1C;
 
-  --chip-bg: rgba(0, 0, 0, 0.06);
-  --chip-border: rgba(0, 0, 0, 0.10);
+  --chip-bg: rgba(73, 101, 204, 0.06);
+  --chip-border: rgba(73, 101, 204, 0.10);
 }
 
-/* Midnight Focus Theme (deep work mode) */
+/* Midnight Focus Theme - Ultra-deep OLED darkness for extreme focus */
 :root[data-theme="midnight-focus"] {
-  --bg: #0B0D11;
-  --surface: #101217;
-  --surface-raised: #171A20;
-  --surface-subtle: #1C1F28;
-  --border-subtle: #232730;
-  --border-strong: #343945;
-  --overlay: rgba(0, 0, 0, 0.70);
+  --bg: #050609;              /* Near-black with subtle blue tint (OLED-friendly) */
+  --surface: #0a0d12;          /* Deeper than academic-dark */
+  --surface-raised: #0f1419;   /* Still deep but elevated */
+  --surface-subtle: #020305;   /* Actually subtle - deeper than bg */
+  --border-subtle: rgba(110, 140, 251, 0.06);  /* Blue-tinted, barely visible */
+  --border-strong: rgba(110, 140, 251, 0.12);  /* Blue-tinted separators */
+  --overlay: rgba(0, 0, 0, 0.90);  /* Very dark overlay */
 
-  --text: rgba(255, 255, 255, 0.95);
-  --text-muted: rgba(255, 255, 255, 0.55);
-  --text-soft: rgba(255, 255, 255, 0.40);
+  --text: rgba(255, 255, 255, 0.98);
+  --text-muted: rgba(255, 255, 255, 0.65);
+  --text-soft: rgba(255, 255, 255, 0.45);
   --text-danger: #F97373;
   --text-success: #48E28A;
   --text-warning: #FBBF24;
@@ -116,8 +116,8 @@
   --score-pass: #48E28A;
   --score-fail: #F97373;
 
-  --chip-bg: rgba(255, 255, 255, 0.06);
-  --chip-border: rgba(255, 255, 255, 0.10);
+  --chip-bg: rgba(255, 255, 255, 0.04);
+  --chip-border: rgba(255, 255, 255, 0.08);
 }
 
 /* ========================================
@@ -151,6 +151,26 @@
   --accent-600: #239C63;
   --accent-400: #56CB94;
   --accent-contrast: rgba(255, 255, 255, 0.98);
+}
+
+/* ========================================
+   THEME-SPECIFIC ACCENT ADJUSTMENTS
+   ======================================== */
+
+/* Academic Light: Darker accent for better contrast on light backgrounds */
+:root[data-theme="academic-light"][data-accent="study-blue"] {
+  --accent: #4965cc;              /* Darker for better contrast */
+  --accent-soft: rgba(73, 101, 204, 0.12);
+  --accent-strong: #3d55b3;       /* Even darker for hover */
+  --accent-text: rgba(255, 255, 255, 0.98);
+}
+
+/* Midnight Focus: Brighter accent for maximum contrast on ultra-dark bg */
+:root[data-theme="midnight-focus"][data-accent="study-blue"] {
+  --accent: #7a95ff;              /* Much brighter for ultra-dark bg */
+  --accent-soft: rgba(122, 149, 255, 0.18);  /* More visible glow */
+  --accent-strong: #5b7ae6;       /* Slightly dimmed for hover */
+  --accent-text: rgba(255, 255, 255, 0.98);
 }
 
 /* ========================================
