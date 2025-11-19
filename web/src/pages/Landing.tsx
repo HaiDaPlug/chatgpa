@@ -26,9 +26,8 @@ export default function Landing() {
           {/* Brand */}
           <div className="flex items-center">
             <h1
-              className="text-xl font-semibold"
+              className="text-xl font-bold tracking-tight"
               style={{
-                fontFamily: "var(--font-serif)",
                 color: "var(--text)",
               }}
             >
@@ -95,11 +94,10 @@ export default function Landing() {
               Study with AI, not chaos.
             </p>
             <h2
-              className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6"
+              className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 tracking-tight"
               style={{
-                fontFamily: "var(--font-serif)",
                 color: "var(--text)",
-                lineHeight: 1.2,
+                lineHeight: 1.1,
               }}
             >
               Turn your messy notes into targeted quizzes.
@@ -214,9 +212,8 @@ export default function Landing() {
         }}
       >
         <h3
-          className="text-2xl md:text-3xl font-semibold text-center mb-12"
+          className="text-2xl md:text-3xl font-bold text-center mb-12 tracking-tight"
           style={{
-            fontFamily: "var(--font-serif)",
             color: "var(--text)",
           }}
         >
@@ -284,9 +281,8 @@ export default function Landing() {
       {/* Why students use ChatGPA */}
       <section className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-16">
         <h3
-          className="text-2xl md:text-3xl font-semibold text-center mb-12"
+          className="text-2xl md:text-3xl font-bold text-center mb-12 tracking-tight"
           style={{
-            fontFamily: "var(--font-serif)",
             color: "var(--text)",
           }}
         >
@@ -319,9 +315,8 @@ export default function Landing() {
       {/* Who it's for */}
       <section className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-16">
         <h3
-          className="text-2xl md:text-3xl font-semibold text-center mb-12"
+          className="text-2xl md:text-3xl font-bold text-center mb-12 tracking-tight"
           style={{
-            fontFamily: "var(--font-serif)",
             color: "var(--text)",
           }}
         >
@@ -377,9 +372,8 @@ export default function Landing() {
         }}
       >
         <h3
-          className="text-2xl md:text-3xl font-semibold text-center mb-6"
+          className="text-2xl md:text-3xl font-bold text-center mb-6 tracking-tight"
           style={{
-            fontFamily: "var(--font-serif)",
             color: "var(--text)",
           }}
         >
