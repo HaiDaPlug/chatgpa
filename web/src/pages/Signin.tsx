@@ -1,332 +1,167 @@
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { track } from "@/lib/telemetry";
+import { Link } from "react-router-dom";
 
 export default function SignInPage() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Redirect if already authenticated
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        navigate("/dashboard", { replace: true });
-      }
-    };
-    checkSession();
-  }, [navigate]);
-
-  // Handle OAuth callback errors
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const error = params.get("error");
-    const errorDescription = params.get("error_description");
-
-    if (error) {
-      const friendlyMessage = errorDescription || "Unable to sign in with Google. Please try again.";
-      setErrorMessage(friendlyMessage);
-      track("auth_google_signin_failed", { method: "google", code: error });
-
-      // Clean up URL
-      navigate("/signin", { replace: true });
-    }
-  }, [navigate]);
-
-  const mapErrorToMessage = (code: string | undefined): string => {
-    switch (code) {
-      case "invalid_credentials":
-        return "Invalid email or password.";
-      case "email_not_confirmed":
-        return "Please verify your email before signing in.";
-      case "too_many_requests":
-        return "Too many attempts. Please try again later.";
-      default:
-        return "Unable to sign in. Please try again.";
-    }
-  };
-
-  const handlePasswordSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validation
-    if (!email.trim() || !password.trim()) {
-      setErrorMessage("Please enter both email and password.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsLoading(true);
-    track("auth_signin_started", { method: "password" });
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-
-      if (error) throw error;
-
-      track("auth_signin_success", { method: "password" });
-      navigate("/dashboard", { replace: true });
-    } catch (error: any) {
-      const friendlyMessage = mapErrorToMessage(error?.code);
-      setErrorMessage(friendlyMessage);
-      track("auth_signin_failed", {
-        method: "password",
-        code: error?.code ?? "unknown",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setErrorMessage(null);
-    setIsGoogleLoading(true);
-    track("auth_google_signin_started", { method: "google" });
-
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin + "/signin",
-        },
-      });
-
-      if (error) throw error;
-    } catch (error: any) {
-      setErrorMessage("Unable to connect to Google. Please try again.");
-      track("auth_google_signin_failed", {
-        method: "google",
-        code: error?.code ?? "unknown",
-      });
-      setIsGoogleLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[color:var(--bg)] text-[color:var(--text)] flex">
-      {/* LEFT COLUMN */}
-      <div className="flex flex-1 items-center justify-center px-6 py-10">
-        <div className="w-full max-w-md space-y-10">
-          {/* Logo */}
-          <div className="space-y-3">
-            <div className="logo text-[0.75rem] font-semibold tracking-[0.16em] uppercase text-[color:var(--text-soft)]">
-              ChatGPA
-            </div>
+    <div className="min-h-screen flex w-full bg-[#0a0a0a]">
+      {/* LEFT COLUMN - FORM */}
+      <div className="flex-1 flex flex-col justify-center px-16 py-16 max-[640px]:px-6 max-[640px]:py-8 relative">
+        <Link
+          to="/"
+          className="absolute top-8 left-8 max-[640px]:top-4 max-[640px]:left-4 inline-flex items-center gap-3 px-5 py-3 text-base font-medium bg-[#171717] border border-[#404040] rounded-xl transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[#262626] hover:border-[#525252] hover:-translate-x-0.5"
+        >
+          <span className="text-xl font-light leading-none">&lt;</span>
+          <span className="text-[#e5e5e5]">Back</span>
+        </Link>
 
-            {/* Header */}
+        <div className="w-full flex flex-col gap-10">
+          <div className="bg-[#171717] rounded-2xl border border-[#404040] px-6 py-7 flex flex-col gap-6 max-[640px]:px-5 max-[640px]:py-6">
             <div>
-              <h1 className="text-[2.3rem] leading-tight font-serif text-[color:var(--text)]">
-                Sign in to ChatGPA
+              <h1 className="text-[2.5rem] max-[640px]:text-[2rem] leading-[1.1] font-medium mb-2 text-[#e5e5e5] tracking-[-0.02em]">
+                Welcome
               </h1>
-              <p className="text-[0.95rem] text-[color:var(--text-muted)] mt-2 max-w-xs">
-                Welcome back. Let's get you studying again.
+              <p className="text-base text-[#a3a3a3] font-normal">
+                Let's get you studying.
               </p>
             </div>
-          </div>
 
-          {/* FORM CARD */}
-          <div className="bg-[color:var(--surface)] border border-[color:var(--border-subtle)] rounded-2xl p-6 space-y-6 shadow-sm">
-            <form onSubmit={handlePasswordSignIn} className="space-y-5">
-              {/* Error Banner */}
-              {errorMessage && (
-                <div
-                  role="alert"
-                  aria-live="polite"
-                  className="bg-[color:var(--surface-subtle)] border border-[color:var(--border-strong)] rounded-md px-3 py-2"
-                >
-                  <p className="text-sm text-[color:var(--text-danger)]">
-                    {errorMessage}
-                  </p>
-                </div>
-              )}
-
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="email"
-                  className="text-[0.85rem] font-medium text-[color:var(--text)]"
-                >
-                  Email
+            <form className="flex flex-col gap-5">
+              <div className="flex flex-col gap-[0.4rem]">
+                <label htmlFor="email" className="text-[0.85rem] font-medium text-[#e5e5e5]">
+                  Email address
                 </label>
                 <input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading || isGoogleLoading}
-                  aria-invalid={!!errorMessage}
-                  placeholder="you@example.com"
+                  placeholder="student@university.edu"
                   autoComplete="email"
-                  className="w-full h-11 rounded-xl bg-[color:var(--surface-subtle)] border border-[color:var(--border-subtle)]
-                  px-3 text-[0.9rem] text-[color:var(--text)] outline-none
-                  focus-visible:border-[color:var(--accent)] focus-visible:ring-1 focus-visible:ring-[color:var(--accent)]
-                  disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-11 rounded-[10px] border border-[#404040] bg-[#262626] px-[0.9rem] text-[0.9rem] text-[#e5e5e5] outline-none transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] placeholder:text-[#737373] focus:border-[#3b82f6] focus:shadow-[0_0_0_1px_#3b82f6]"
                 />
               </div>
 
-              {/* Password */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="password"
-                  className="text-[0.85rem] font-medium text-[color:var(--text)]"
-                >
+              <div className="flex flex-col gap-[0.4rem]">
+                <label htmlFor="password" className="text-[0.85rem] font-medium text-[#e5e5e5]">
                   Password
                 </label>
                 <input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading || isGoogleLoading}
-                  aria-invalid={!!errorMessage}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  className="w-full h-11 rounded-xl bg-[color:var(--surface-subtle)] border border-[color:var(--border-subtle)]
-                  px-3 text-[0.9rem] text-[color:var(--text)] outline-none
-                  focus-visible:border-[color:var(--accent)] focus-visible:ring-1 focus-visible:ring-[color:var(--accent)]
-                  disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-11 rounded-[10px] border border-[#404040] bg-[#262626] px-[0.9rem] text-[0.9rem] text-[#e5e5e5] outline-none transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] placeholder:text-[#737373] focus:border-[#3b82f6] focus:shadow-[0_0_0_1px_#3b82f6]"
                 />
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end mb-1">
                 <Link
                   to="/forgot-password"
-                  className="text-[0.85rem] text-[color:var(--text-muted)] hover:text-[color:var(--accent)] transition-colors"
+                  className="text-[0.85rem] text-[#a3a3a3] no-underline transition-colors duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] hover:text-[#3b82f6]"
                 >
                   Forgot your password?
                 </Link>
               </div>
 
-              {/* Primary CTA */}
               <button
                 type="submit"
-                disabled={isLoading || isGoogleLoading}
-                aria-busy={isLoading}
-                className="w-full h-11 rounded-full bg-[color:var(--accent)] text-[color:var(--accent-text)]
-                shadow-[0_10px_30px_rgba(59,130,246,0.25)]
-                font-medium text-[0.95rem]
-                transition-all duration-150
-                hover:translate-y-[-1px] hover:shadow-[0_14px_40px_rgba(59,130,246,0.35)]
-                active:translate-y-0 active:shadow-[0_8px_22px_rgba(59,130,246,0.2)]
-                disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0"
+                className="inline-flex items-center justify-center w-full h-11 rounded-full text-[0.95rem] font-medium bg-white text-black shadow-[0_4px_12px_rgba(255,255,255,0.1)] transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] hover:-translate-y-px hover:shadow-[0_6px_16px_rgba(255,255,255,0.15)] active:scale-[0.98] active:shadow-[0_2px_8px_rgba(255,255,255,0.1)] disabled:opacity-60 disabled:cursor-default disabled:shadow-none disabled:transform-none"
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                Sign in
               </button>
 
-              {/* Divider */}
-              <div className="flex items-center gap-3 text-[0.75rem] uppercase tracking-[0.14em] text-[color:var(--text-soft)]">
-                <div className="h-px flex-1 bg-[color:var(--border-subtle)]" />
+              <div className="flex items-center gap-3 text-[0.75rem] uppercase tracking-[0.14em] text-[#737373]">
+                <div className="flex-1 h-px bg-[#404040]"></div>
                 <span>or continue with</span>
-                <div className="h-px flex-1 bg-[color:var(--border-subtle)]" />
+                <div className="flex-1 h-px bg-[#404040]"></div>
               </div>
 
-              {/* Google */}
               <button
                 type="button"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading || isGoogleLoading}
-                aria-busy={isGoogleLoading}
-                className="w-full h-11 rounded-full bg-[color:var(--surface-subtle)]
-                border border-[color:var(--border-subtle)]
-                text-[color:var(--text)] text-[0.95rem] font-medium
-                flex items-center justify-center gap-2
-                transition-all duration-150
-                hover:translate-y-[-1px] hover:bg-[color:var(--surface)]
-                active:translate-y-0
-                disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0"
+                className="inline-flex items-center justify-center w-full h-11 rounded-full text-[0.95rem] font-medium bg-[#262626] text-[#e5e5e5] border border-[#404040] transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] hover:-translate-y-px hover:bg-[#171717] active:translate-y-0 disabled:opacity-60 disabled:cursor-default disabled:shadow-none disabled:transform-none"
               >
-                <span
-                  className="flex items-center justify-center h-5 w-5 rounded-full
-                bg-[color:var(--bg)] text-[0.7rem] font-semibold"
-                >
-                  G
-                </span>
-                {isGoogleLoading ? "Connecting to Google..." : "Continue with Google"}
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '0.5rem' }}>
+                  <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4"/>
+                  <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z" fill="#34A853"/>
+                  <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
+                  <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L14.9891 2.37682C13.4632 0.953182 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"/>
+                </svg>
+                Continue with Google
               </button>
 
-              <div className="pt-1 text-[0.85rem] text-[color:var(--text-muted)] space-x-1">
-                <span>Don't have an account?</span>
-                <Link
-                  to="/signup"
-                  className="hover:text-[color:var(--accent)] transition-colors"
-                >
-                  Sign up
-                </Link>
+              <div className="flex flex-col gap-2 mt-2 text-[0.85rem] text-[#a3a3a3]">
+                <div className="flex gap-1">
+                  <span>Don't have an account?</span>
+                  <Link
+                    to="/signup"
+                    className="no-underline text-[#a3a3a3] transition-colors duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] hover:text-[#3b82f6]"
+                  >
+                    Sign up
+                  </Link>
+                </div>
               </div>
             </form>
           </div>
         </div>
       </div>
 
-      {/* RIGHT HERO PANEL */}
-      <div className="hidden lg:flex flex-1 items-center justify-center px-10 py-10 relative">
-        <div
-          className="relative w-full h-full max-w-xl bg-[color:var(--surface)]
-        border border-[color:var(--border-subtle)] rounded-3xl overflow-hidden
-        shadow-[0_0_40px_rgba(0,0,0,0.4)]
-        flex items-center justify-center p-10"
-        >
-          {/* Glow layers */}
+      {/* RIGHT COLUMN - HERO PANEL */}
+      <div className="hidden min-[960px]:flex flex-1 relative p-8">
+        <div className="relative w-full h-full min-h-[360px] rounded-[24px] bg-[#171717] border border-[#404040] overflow-hidden flex items-center justify-center p-10">
+          {/* Background glows */}
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[color:var(--accent-soft)] blur-[70px]" />
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-[color:var(--surface-subtle)] blur-[70px]" />
+            <div className="absolute w-[260px] h-[260px] rounded-full opacity-80 blur-[50px] bg-[rgba(59,130,246,0.28)] -top-[60px] -right-[60px]"></div>
+            <div className="absolute w-[260px] h-[260px] rounded-full opacity-80 blur-[50px] bg-[rgba(38,38,38,0.9)] -bottom-[60px] -left-[60px]"></div>
           </div>
 
-          {/* Foreground content */}
-          <div className="relative z-10 max-w-xs space-y-4">
-            <div className="text-[0.75rem] uppercase tracking-[0.2em] text-[color:var(--text-soft)]">
-              Study snapshot
+          {/* Background "messy notes" card */}
+          <div className="absolute w-[280px] h-[360px] bg-[#262626] border border-[#404040] rounded-xl rotate-[-4deg] translate-x-[-30px] opacity-30 p-5 z-[1]">
+            <div className="h-2 bg-[#404040] rounded mb-3 w-[40%]"></div>
+            <div className="h-2 bg-[#404040] rounded mb-3 w-[80%]"></div>
+            <div className="h-2 bg-[#404040] rounded mb-3 w-[60%]"></div>
+            <div className="h-2 bg-[#404040] rounded mb-3 w-[80%]"></div>
+            <div className="mt-5"></div>
+            <div className="h-2 bg-[#404040] rounded mb-3 w-[60%]"></div>
+            <div className="h-2 bg-[#404040] rounded mb-3 w-[80%]"></div>
+            <div className="h-2 bg-[#404040] rounded mb-3 w-[40%]"></div>
+          </div>
+
+          {/* Foreground "clean quiz" card */}
+          <div
+            className="relative w-[320px] bg-[rgba(23,23,23,0.9)] backdrop-blur-xl border border-[#525252] rounded-2xl p-5 z-[2] shadow-[0_20px_50px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)]"
+            style={{
+              animation: 'float 6s ease-in-out infinite',
+            }}
+          >
+            <style dangerouslySetInnerHTML={{
+              __html: `
+                @keyframes float {
+                  0%, 100% { transform: translateY(0px); }
+                  50% { transform: translateY(-10px); }
+                }
+              `
+            }} />
+
+            <span className="inline-block px-[10px] py-1 bg-[#3b82f6] text-white text-[10px] uppercase tracking-[0.05em] rounded-full font-semibold mb-3">
+              Biology 101
+            </span>
+
+            <h3 className="font-serif text-[1.1rem] text-[#e5e5e5] mb-4 leading-[1.4]">
+              What is the main function of the mitochondria in a cell?
+            </h3>
+
+            <div className="flex items-center px-[14px] py-[10px] rounded-full border border-[#404040] mb-2 text-[#a3a3a3] text-[0.85rem] bg-[rgba(38,38,38,0.4)] transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]">
+              <div className="w-4 h-4 border-2 border-[#525252] rounded-full mr-[10px] flex items-center justify-center flex-shrink-0"></div>
+              Store genetic information
             </div>
 
-            <div className="text-[1.35rem] font-semibold leading-tight">
-              Turn messy notes into{" "}
-              <span className="text-[color:var(--accent)]">focused quizzes</span>.
+            <div className="flex items-center px-[14px] py-[10px] rounded-full border border-[#3b82f6] mb-2 text-[#e5e5e5] text-[0.85rem] bg-[rgba(59,130,246,0.15)] transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]">
+              <div className="w-4 h-4 border-2 border-[#3b82f6] bg-[#3b82f6] rounded-full mr-[10px] flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px] text-white font-bold">✓</span>
+              </div>
+              Produce energy (ATP)
             </div>
 
-            <p className="text-[0.95rem] text-[color:var(--text-muted)]">
-              See one question at a time, track attempts, and let ChatGPA
-              highlight what you don’t know yet.
-            </p>
-
-            {/* Small quiz card */}
-            <div
-              className="rounded-2xl bg-[color:var(--bg)]/70 border border-[color:var(--border-subtle)]
-            p-4 space-y-2 backdrop-blur-sm"
-            >
-              <div className="text-[0.7rem] uppercase tracking-[0.15em] text-[color:var(--text-soft)]">
-                Example question
-              </div>
-
-              <div className="text-[0.9rem] text-[color:var(--text)]">
-                What is the main function of the mitochondria in a cell?
-              </div>
-
-              <div className="space-y-2 pt-1">
-                {["Store genetic information", "Produce energy (ATP)", "Control cell division"].map(
-                  (opt, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-2 p-2 rounded-full bg-[color:var(--surface-subtle)]
-                      text-[0.8rem] text-[color:var(--text-muted)]"
-                    >
-                      <div className="h-[14px] w-[14px] rounded-full border border-[color:var(--border-subtle)] bg-black/40" />
-                      {opt}
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-
-            <div className="text-[0.7rem] text-[color:var(--text-soft)] pt-1">
-              This visual will later be replaced with a Canva animation.
+            <div className="flex items-center px-[14px] py-[10px] rounded-full border border-[#404040] text-[#a3a3a3] text-[0.85rem] bg-[rgba(38,38,38,0.4)] transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]">
+              <div className="w-4 h-4 border-2 border-[#525252] rounded-full mr-[10px] flex items-center justify-center flex-shrink-0"></div>
+              Control cell division
             </div>
           </div>
         </div>
