@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { track } from "@/lib/telemetry";
+import type { User } from "@supabase/supabase-js";
 
 interface AccountMenuProps {
   onOpenAppearance: () => void;
@@ -14,8 +15,35 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Check auth state
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+      } catch (error) {
+        console.error("Auth check error:", error);
+        setUser(null);
+      } finally {
+        setIsLoadingAuth(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsLoadingAuth(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Close menu on click outside
   useEffect(() => {
@@ -34,7 +62,7 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
   async function handleSignOut() {
     setIsSigningOut(true);
     setSignOutError(null);
-    track("auth_signout");
+    track("auth_signout", { method: "manual" });
 
     try {
       const { error } = await supabase.auth.signOut();
@@ -91,6 +119,81 @@ export function AccountMenu({ onOpenAppearance, collapsed = false }: AccountMenu
     }
   }
 
+  // Loading skeleton
+  if (isLoadingAuth) {
+    return (
+      <div className="relative" ref={menuRef}>
+        <div className="w-full flex items-center gap-3 p-2 rounded-lg">
+          {/* Skeleton circle */}
+          <div
+            className="w-5 h-5 rounded-full animate-pulse"
+            style={{ background: "var(--surface-subtle)" }}
+          />
+          {!collapsed && (
+            <div
+              className="h-4 w-16 rounded animate-pulse"
+              style={{ background: "var(--surface-subtle)" }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Signed out state - show "Sign in" button
+  if (!user) {
+    return (
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => navigate("/signin")}
+          className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-[color:var(--surface-subtle)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
+          aria-label="Sign in"
+          style={{
+            transition: "background var(--motion-duration-normal) var(--motion-ease)",
+          }}
+        >
+          {/* Sign in icon */}
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ color: "var(--text-muted)", flexShrink: 0 }}
+          >
+            <path
+              d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M10 17L15 12L10 7"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M15 12H3"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          {!collapsed && (
+            <span className="text-[14px] font-medium" style={{ color: "var(--text)" }}>
+              Sign in
+            </span>
+          )}
+        </button>
+      </div>
+    );
+  }
+
+  // Signed in state - show account menu
   return (
     <div className="relative" ref={menuRef}>
       {/* Account Icon Button */}
