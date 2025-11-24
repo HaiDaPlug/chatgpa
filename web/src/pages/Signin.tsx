@@ -1,6 +1,115 @@
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { track } from "@/lib/telemetry";
 
 export default function SignInPage() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        navigate("/dashboard", { replace: true });
+      }
+    };
+    checkSession();
+  }, [navigate]);
+
+  // Handle OAuth callback errors
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    const errorDescription = params.get("error_description");
+
+    if (error) {
+      const friendlyMessage = errorDescription || "Unable to sign in with Google. Please try again.";
+      setErrorMessage(friendlyMessage);
+      track("auth_google_signin_failed", { method: "google", code: error });
+
+      // Clean up URL
+      navigate("/signin", { replace: true });
+    }
+  }, [navigate]);
+
+  const mapErrorToMessage = (code: string | undefined): string => {
+    switch (code) {
+      case "invalid_credentials":
+        return "Invalid email or password.";
+      case "email_not_confirmed":
+        return "Please verify your email before signing in.";
+      case "too_many_requests":
+        return "Too many attempts. Please try again later.";
+      default:
+        return "Unable to sign in. Please try again.";
+    }
+  };
+
+  const handlePasswordSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (!email.trim() || !password.trim()) {
+      setErrorMessage("Please enter both email and password.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsLoading(true);
+    track("auth_signin_started", { method: "password" });
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) throw error;
+
+      track("auth_signin_success", { method: "password" });
+      navigate("/dashboard", { replace: true });
+    } catch (error: any) {
+      const friendlyMessage = mapErrorToMessage(error?.code);
+      setErrorMessage(friendlyMessage);
+      track("auth_signin_failed", {
+        method: "password",
+        code: error?.code ?? "unknown",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setErrorMessage(null);
+    setIsGoogleLoading(true);
+    track("auth_google_signin_started", { method: "google" });
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin + "/signin",
+        },
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      setErrorMessage("Unable to connect to Google. Please try again.");
+      track("auth_google_signin_failed", {
+        method: "google",
+        code: error?.code ?? "unknown",
+      });
+      setIsGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex w-full bg-[#0a0a0a]">
       {/* LEFT COLUMN - FORM */}
@@ -24,7 +133,20 @@ export default function SignInPage() {
               </p>
             </div>
 
-            <form className="flex flex-col gap-5">
+            <form onSubmit={handlePasswordSignIn} className="flex flex-col gap-5">
+              {/* Error Banner */}
+              {errorMessage && (
+                <div
+                  role="alert"
+                  aria-live="polite"
+                  className="bg-[#262626] border border-[#525252] rounded-md px-3 py-2"
+                >
+                  <p className="text-sm text-[#ef4444]">
+                    {errorMessage}
+                  </p>
+                </div>
+              )}
+
               <div className="flex flex-col gap-[0.4rem]">
                 <label htmlFor="email" className="text-[0.85rem] font-medium text-[#e5e5e5]">
                   Email address
@@ -32,9 +154,13 @@ export default function SignInPage() {
                 <input
                   id="email"
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading || isGoogleLoading}
+                  aria-invalid={!!errorMessage}
                   placeholder="student@university.edu"
                   autoComplete="email"
-                  className="w-full h-11 rounded-[10px] border border-[#404040] bg-[#262626] px-[0.9rem] text-[0.9rem] text-[#e5e5e5] outline-none transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] placeholder:text-[#737373] focus:border-[#3b82f6] focus:shadow-[0_0_0_1px_#3b82f6]"
+                  className="w-full h-11 rounded-[10px] border border-[#404040] bg-[#262626] px-[0.9rem] text-[0.9rem] text-[#e5e5e5] outline-none transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] placeholder:text-[#737373] focus:border-[#3b82f6] focus:shadow-[0_0_0_1px_#3b82f6] disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -45,9 +171,13 @@ export default function SignInPage() {
                 <input
                   id="password"
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading || isGoogleLoading}
+                  aria-invalid={!!errorMessage}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  className="w-full h-11 rounded-[10px] border border-[#404040] bg-[#262626] px-[0.9rem] text-[0.9rem] text-[#e5e5e5] outline-none transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] placeholder:text-[#737373] focus:border-[#3b82f6] focus:shadow-[0_0_0_1px_#3b82f6]"
+                  className="w-full h-11 rounded-[10px] border border-[#404040] bg-[#262626] px-[0.9rem] text-[0.9rem] text-[#e5e5e5] outline-none transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] placeholder:text-[#737373] focus:border-[#3b82f6] focus:shadow-[0_0_0_1px_#3b82f6] disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -62,9 +192,11 @@ export default function SignInPage() {
 
               <button
                 type="submit"
+                disabled={isLoading || isGoogleLoading}
+                aria-busy={isLoading}
                 className="inline-flex items-center justify-center w-full h-11 rounded-full text-[0.95rem] font-medium bg-white text-black shadow-[0_4px_12px_rgba(255,255,255,0.1)] transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] hover:-translate-y-px hover:shadow-[0_6px_16px_rgba(255,255,255,0.15)] active:scale-[0.98] active:shadow-[0_2px_8px_rgba(255,255,255,0.1)] disabled:opacity-60 disabled:cursor-default disabled:shadow-none disabled:transform-none"
               >
-                Sign in
+                {isLoading ? "Signing in..." : "Sign in"}
               </button>
 
               <div className="flex items-center gap-3 text-[0.75rem] uppercase tracking-[0.14em] text-[#737373]">
@@ -75,6 +207,9 @@ export default function SignInPage() {
 
               <button
                 type="button"
+                onClick={handleGoogleSignIn}
+                disabled={isLoading || isGoogleLoading}
+                aria-busy={isGoogleLoading}
                 className="inline-flex items-center justify-center w-full h-11 rounded-full text-[0.95rem] font-medium bg-[#262626] text-[#e5e5e5] border border-[#404040] transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] hover:-translate-y-px hover:bg-[#171717] active:translate-y-0 disabled:opacity-60 disabled:cursor-default disabled:shadow-none disabled:transform-none"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '0.5rem' }}>
@@ -83,7 +218,7 @@ export default function SignInPage() {
                   <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
                   <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L14.9891 2.37682C13.4632 0.953182 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"/>
                 </svg>
-                Continue with Google
+                {isGoogleLoading ? "Connecting to Google..." : "Continue with Google"}
               </button>
 
               <div className="flex flex-col gap-2 mt-2 text-[0.85rem] text-[#a3a3a3]">
