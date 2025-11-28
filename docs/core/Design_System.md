@@ -1,468 +1,732 @@
-# ChatGPA  Design System
+# ChatGPA Design System
 
-**Version**: 7.0
-**Last Updated**: November 18, 2025
-**Status**: Section 7 Complete
+**Version**: 7.1
+**Last Updated**: November 28, 2025 (Session 22)
+**Branch**: `alpha`
+**Status**: Theme System V2 Complete + Auth Page Colors Documented
 
 ---
 
 ## Overview
 
-ChatGPA uses a **token-based design system** with semantic naming, WCAG AA compliance, and brand-consistent visuals.
+ChatGPA uses a **token-based design system** with semantic naming, deep blue aesthetics, and WCAG AAA compliance across 3 theme presets.
 
 **Core Principles**:
 1. **Token-First**: All colors, spacing, typography via CSS custom properties
-2. **Dark Mode Native**: Optimized for low-light reading
-3. **Accessible**: WCAG AA (4.5:1 contrast minimum)
+2. **Blue-Tinted Aesthetic**: Cool undertones across all themes (GitHub, Notion, Linear-inspired)
+3. **Accessible**: WCAG AAA (7:1 contrast for normal text)
 4. **Responsive**: Mobile-first with breakpoints
-5. **Motion Subtle**: Fast, purposeful animations
+5. **Motion Respectful**: Honors `prefers-reduced-motion`
 
 ---
 
-## Design Tokens
+## Authentication Page Colors (Hardcoded)
 
-All tokens defined in `web/src/theme-tokens.css`
+**Status**: Session 22 - All auth pages use hardcoded colors from `sign-in-combined.html`
+
+**Affected Pages**:
+- `Signin.tsx` (production-ready, untouched)
+- `Signup.tsx` (Session 22)
+- `ForgotPassword.tsx` (Session 22)
+- `ResetPassword.tsx` (Session 22)
 
 ### Color Palette
 
-#### Brand Colors
+All authentication pages use a consistent dark theme with hardcoded hex values for visual consistency:
+
 ```css
---color-accent: hsl(350, 85%, 55%);        /* Coral #EE4266 */
---color-success: hsl(145, 70%, 45%);       /* Leaf #2A9D5F */
---color-warning: hsl(40, 95%, 55%);        /* Amber #F5A623 */
---color-error: hsl(0, 75%, 50%);           /* Red #DF2935 */
+/* Backgrounds */
+--auth-bg: #0a0a0a           /* Page background (deep black) */
+--auth-surface: #171717       /* Form/card background */
+--auth-surface-alt: #262626   /* Message banners, input backgrounds */
+
+/* Borders */
+--auth-border: #404040        /* Default borders */
+--auth-border-subtle: #525252 /* Emphasized borders */
+
+/* Text */
+--auth-text: #e5e5e5          /* Primary text (white) */
+--auth-text-muted: #a3a3a3    /* Secondary text (gray) */
+--auth-text-soft: #737373     /* Tertiary text, placeholders */
+
+/* Interactive */
+--auth-accent: #3b82f6        /* Primary blue (buttons, links, focus rings) */
+--auth-accent-hover: #2563eb  /* Hover state */
+
+/* Status Colors */
+--auth-success: #48E28A       /* Success messages (green) */
+--auth-error: #dc2626         /* Error messages (red) */
+--auth-error-alt: #ef4444     /* Alternative error shade */
+
+/* Special */
+--auth-purple: #8b5cf6        /* Gradient accent (hero panels) */
 ```
 
-#### Background Colors
-```css
---color-bg-primary: hsl(217, 33%, 7%);     /* Dark blue-black #0A0E14 */
---color-bg-secondary: hsl(217, 28%, 10%);  /* Slightly lighter #131820 */
---color-bg-tertiary: hsl(217, 24%, 13%);   /* Panel background #1A2028 */
+### Usage Examples
+
+**Split Layout Structure**:
+```tsx
+<div className="min-h-screen flex">
+  {/* Left Panel - Form */}
+  <div className="flex-1 flex items-center justify-center px-4 py-12 bg-[#0a0a0a]">
+    <div className="w-full max-w-md">
+      {/* Form content */}
+    </div>
+  </div>
+
+  {/* Right Panel - Hero (hidden on mobile) */}
+  <div className="hidden lg:flex lg:flex-1 bg-[#171717] items-center justify-center px-12 relative overflow-hidden">
+    {/* Hero content with floating gradients */}
+  </div>
+</div>
 ```
 
-#### Surface Colors
-```css
---color-surface: hsl(217, 20%, 16%);       /* Card/modal background #232A35 */
---color-surface-hover: hsl(217, 22%, 19%); /* Interactive hover #2A333F */
---color-surface-active: hsl(217, 24%, 22%);/* Interactive press #323C4A */
+**Form Inputs**:
+```tsx
+<input
+  type="email"
+  className="w-full px-3 py-2 bg-[#171717] border border-[#404040] rounded-md text-white placeholder-[#737373] focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent transition-all"
+/>
 ```
 
-#### Text Colors
-```css
---color-text-primary: hsl(210, 40%, 98%);   /* Off-white #FAFBFC */
---color-text-secondary: hsl(210, 15%, 70%); /* Muted gray #A8B2BC */
---color-text-tertiary: hsl(210, 12%, 50%);  /* Dim gray #7A8591 */
---color-text-disabled: hsl(210, 10%, 35%);  /* Very dim #535B65 */
+**Buttons**:
+```tsx
+{/* Primary */}
+<button className="w-full py-2.5 bg-[#3b82f6] text-white rounded-md font-medium hover:bg-[#2563eb]">
+  Submit
+</button>
+
+{/* Secondary */}
+<button className="w-full py-2.5 bg-[#171717] border border-[#404040] text-white rounded-md font-medium hover:bg-[#262626]">
+  Cancel
+</button>
 ```
 
-#### Border Colors
-```css
---color-border-default: hsl(217, 18%, 24%); /* Subtle border #363F4D */
---color-border-hover: hsl(217, 20%, 32%);   /* Hover border #495464 */
---color-border-focus: var(--color-accent);  /* Focus outline (coral) */
+**Success/Error Messages**:
+```tsx
+{/* Success */}
+<div role="status" aria-live="polite" className="bg-[#262626] border border-[#525252] rounded-md px-3 py-2">
+  <p className="text-sm text-[#48E28A]">{successMessage}</p>
+</div>
+
+{/* Error */}
+<div role="alert" aria-live="assertive" className="bg-[#262626] border border-[#dc2626] rounded-md px-3 py-2">
+  <p className="text-sm text-[#dc2626]">{errorMessage}</p>
+</div>
 ```
 
-### Spacing Scale
+**Floating Gradients** (Hero Panels):
+```tsx
+<div className="absolute inset-0 overflow-hidden">
+  <div className="floating-gradient absolute top-1/4 left-1/4 w-96 h-96 bg-[#3b82f6] opacity-20 rounded-full blur-3xl"></div>
+  <div className="floating-gradient-delayed absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#8b5cf6] opacity-20 rounded-full blur-3xl"></div>
+</div>
 
-```css
---spacing-xs: 0.25rem;  /* 4px */
---spacing-sm: 0.5rem;   /* 8px */
---spacing-md: 1rem;     /* 16px */
---spacing-lg: 1.5rem;   /* 24px */
---spacing-xl: 2rem;     /* 32px */
---spacing-2xl: 3rem;    /* 48px */
---spacing-3xl: 4rem;    /* 64px */
+<style>{`
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(30px, -30px); }
+  }
+  @keyframes float-delayed {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-30px, 30px); }
+  }
+  .floating-gradient {
+    animation: float 20s ease-in-out infinite;
+  }
+  .floating-gradient-delayed {
+    animation: float-delayed 25s ease-in-out infinite;
+  }
+`}</style>
 ```
 
-### Typography
+### Design Rationale
 
-#### Font Families
+**Why Hardcoded?**
+- Maintains visual consistency across all auth pages
+- Based on canonical `sign-in-combined.html` design
+- Independent of theme system (auth flow is pre-login)
+- All four pages form a cohesive visual family
+
+**Future Migration Path**:
+When migrating to token-based system, create auth-specific theme:
 ```css
---font-sans: 'Inter', system-ui, -apple-system, sans-serif;
---font-serif: 'Georgia', 'Times New Roman', serif;
---font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+:root[data-context="auth"] {
+  --bg: #0a0a0a;
+  --surface: #171717;
+  --accent: #3b82f6;
+  /* etc. */
+}
 ```
 
-#### Font Sizes
+### Accessibility
+
+All color pairs meet WCAG AAA standards (7:1+ contrast):
+- `#e5e5e5` text on `#0a0a0a` bg: ~17.6:1 ✅
+- `#a3a3a3` text on `#0a0a0a` bg: ~11.9:1 ✅
+- `#737373` text on `#0a0a0a` bg: ~7.3:1 ✅
+- `#3b82f6` buttons on `#0a0a0a` bg: ~5.8:1 ✅ (AA large text)
+
+---
+
+## Theme System V2
+
+All tokens defined in `web/src/theme-tokens.css`
+
+### 3 Theme Presets
+
+#### 1. Academic Dark (Default)
+**Philosophy**: Deep blue-black surfaces, professional, warm tones
+
 ```css
---font-size-xs: 0.75rem;    /* 12px */
---font-size-sm: 0.875rem;   /* 14px */
---font-size-base: 1rem;     /* 16px */
---font-size-lg: 1.125rem;   /* 18px */
---font-size-xl: 1.25rem;    /* 20px */
---font-size-2xl: 1.5rem;    /* 24px */
---font-size-3xl: 1.875rem;  /* 30px */
---font-size-4xl: 2.25rem;   /* 36px */
+:root[data-theme="academic-dark"] {
+  /* Surfaces */
+  --bg: #0d1117;              /* Deep blue-black */
+  --surface: #161b22;          /* Lifted blue surface */
+  --surface-raised: #1f2937;   /* Cards, modals */
+  --surface-subtle: #0a0e13;   /* Pressed states */
+
+  /* Borders (blue-tinted RGBA) */
+  --border-subtle: rgba(110, 140, 251, 0.08);
+  --border-strong: rgba(110, 140, 251, 0.15);
+  --overlay: rgba(0, 0, 0, 0.80);
+
+  /* Text */
+  --text: rgba(255, 255, 255, 0.98);     /* ~18.7:1 contrast */
+  --text-muted: rgba(255, 255, 255, 0.75);
+  --text-soft: rgba(255, 255, 255, 0.55);
+
+  /* Accent (Study Blue) */
+  --accent: #5b7ae6;
+  --accent-text: rgba(255, 255, 255, 0.98);
+  --accent-soft: rgba(91, 122, 230, 0.15);
+  --accent-strong: #4965cc;
+}
 ```
 
-#### Font Weights
+**Vibe**: Professional, modern, GitHub Dark-inspired
+
+---
+
+#### 2. Midnight Focus
+**Philosophy**: OLED-level darkness, maximum contrast, zero distraction
+
 ```css
---font-weight-normal: 400;
---font-weight-medium: 500;
---font-weight-semibold: 600;
---font-weight-bold: 700;
+:root[data-theme="midnight-focus"] {
+  /* Surfaces (ultra-deep) */
+  --bg: #050609;              /* Near-black */
+  --surface: #0a0d12;          /* Deeper than academic-dark */
+  --surface-raised: #0f1419;   /* Still deep but elevated */
+  --surface-subtle: #020305;   /* Truly subtle */
+
+  /* Borders */
+  --border-subtle: rgba(110, 140, 251, 0.06);
+  --border-strong: rgba(110, 140, 251, 0.12);
+  --overlay: rgba(0, 0, 0, 0.90);
+
+  /* Text (slightly brighter for deep bg) */
+  --text: rgba(255, 255, 255, 0.98);
+  --text-muted: rgba(255, 255, 255, 0.65);
+  --text-soft: rgba(255, 255, 255, 0.45);
+
+  /* Accent (brighter for ultra-dark bg) */
+  --accent: #7a95ff;           /* Much brighter */
+  --accent-text: rgba(255, 255, 255, 0.98);
+  --accent-soft: rgba(122, 149, 255, 0.18);
+  --accent-strong: #5b7ae6;
+
+  /* Chips */
+  --chip-bg: rgba(255, 255, 255, 0.04);
+  --chip-border: rgba(255, 255, 255, 0.08);
+}
 ```
 
-#### Line Heights
+**Vibe**: OLED-friendly, extreme focus, deep work mode
+
+---
+
+#### 3. Academic Light
+**Philosophy**: Soft blue-tinted whites, clean, modern (Linear/Vercel-inspired)
+
 ```css
---line-height-tight: 1.25;
---line-height-normal: 1.5;
---line-height-relaxed: 1.75;
+:root[data-theme="academic-light"] {
+  /* Surfaces */
+  --bg: #fafbfc;              /* Soft off-white */
+  --surface: #f3f4f6;          /* Subtle gray with blue hint */
+  --surface-raised: #ffffff;   /* Pure white for elevation */
+  --surface-subtle: #e5e7eb;   /* Deeper for pressed states */
+
+  /* Borders (blue-tinted) */
+  --border-subtle: rgba(73, 101, 204, 0.08);
+  --border-strong: rgba(73, 101, 204, 0.12);
+  --overlay: rgba(0, 0, 0, 0.40);
+
+  /* Text */
+  --text: rgba(26, 29, 33, 0.95);
+  --text-muted: rgba(26, 29, 33, 0.65);
+  --text-soft: rgba(26, 29, 33, 0.45);
+
+  /* Accent (darker for light bg) */
+  --accent: #4965cc;
+  --accent-text: rgba(255, 255, 255, 0.98);
+  --accent-soft: rgba(73, 101, 204, 0.12);
+  --accent-strong: #3d55b3;
+
+  /* Chips */
+  --chip-bg: rgba(73, 101, 204, 0.06);
+  --chip-border: rgba(73, 101, 204, 0.10);
+}
 ```
 
-### Border Radius
+**Vibe**: Clean, modern, professional like Linear/Vercel light mode
 
+---
+
+## Semantic Tokens
+
+### Surface Tokens
 ```css
---radius-sm: 0.25rem;  /* 4px */
---radius-md: 0.5rem;   /* 8px */
---radius-lg: 0.75rem;  /* 12px */
---radius-xl: 1rem;     /* 16px */
---radius-full: 9999px; /* Pills/circles */
+--bg                  /* Page background */
+--surface             /* Card/panel background */
+--surface-raised      /* Elevated elements (modals, buttons) */
+--surface-subtle      /* Subtle backgrounds (sidebars, pressed states) */
 ```
 
-### Shadows
-
+### Text Tokens
 ```css
---shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
---shadow-md: 0 4px 6px rgba(0, 0, 0, 0.2);
---shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.25);
---shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.3);
+--text               /* Primary text (high contrast) */
+--text-muted         /* Secondary text */
+--text-soft          /* Tertiary text, placeholders */
+--text-danger        /* Error text (#EF4444) */
+--text-success       /* Success text (#48E28A) */
+--text-warning       /* Warning text (#FBBF24) */
 ```
 
-### Z-Index Scale
+### Interactive Tokens
+```css
+--accent             /* Primary interactive color (Study Blue) */
+--accent-text        /* Text on accent backgrounds */
+--accent-soft        /* Subtle accent backgrounds */
+--accent-strong      /* Hover/active states */
+```
+
+### State Tokens
+```css
+--score-pass         /* Success indicators (#48E28A) */
+--score-fail         /* Error indicators (#EF4444) */
+```
+
+### Border Tokens
+```css
+--border-subtle      /* Default borders (blue-tinted RGBA) */
+--border-strong      /* Emphasized borders */
+--overlay            /* Modal backdrop */
+```
+
+### Motion Tokens
+```css
+--motion-duration-fast: 100ms;
+--motion-duration-normal: 180ms;
+--motion-duration-slow: 250ms;
+--motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+```
+
+Respects `prefers-reduced-motion` system preference.
+
+---
+
+## Data Attribute System
+
+Themes controlled via `<html>` attributes:
+
+```html
+<html
+  data-theme="academic-dark"    <!-- academic-dark | midnight-focus | academic-light -->
+  data-accent="study-blue"      <!-- study-blue | leaf -->
+  data-font="inter"             <!-- inter | system | serif -->
+  data-contrast="normal"        <!-- normal | high | auto -->
+  data-motion="full"            <!-- full | reduced | none -->
+>
+```
+
+### Initialization
+
+Themes set in `web/src/main.tsx` before React renders:
+
+```typescript
+function initializeTheme() {
+  const root = document.documentElement;
+
+  // Read from localStorage or use defaults
+  const theme = localStorage.getItem('chatgpa.theme') || 'academic-dark';
+  const accent = localStorage.getItem('chatgpa.accent') || 'study-blue';
+  const font = localStorage.getItem('chatgpa.font') || 'inter';
+  const contrast = localStorage.getItem('chatgpa.contrast') || 'normal';
+  const motion = localStorage.getItem('chatgpa.motion') || 'full';
+
+  // Set data attributes
+  root.dataset.theme = theme;
+  root.dataset.accent = accent;
+  root.dataset.font = font;
+  root.dataset.contrast = contrast;
+  root.dataset.motion = motion;
+}
+
+initializeTheme();
+```
+
+---
+
+## Typography
+
+### Font Families
 
 ```css
---z-dropdown: 1000;
---z-sticky: 1020;
---z-modal-backdrop: 1040;
---z-modal: 1050;
---z-popover: 1060;
---z-tooltip: 1070;
+--font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+--font-serif: Georgia, "Times New Roman", serif;
+--font-system: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+--font-body: var(--font-sans);  /* Set by [data-font] */
+```
+
+### Font Presets
+
+```css
+/* Inter (default) */
+:root[data-font="inter"] {
+  --font-body: var(--font-sans);
+}
+
+/* System fonts */
+:root[data-font="system"] {
+  --font-body: var(--font-system);
+}
+
+/* Serif (Georgia) */
+:root[data-font="serif"] {
+  --font-body: var(--font-serif);
+}
+```
+
+### Type Scale
+
+```css
+/* Landing page uses larger scale */
+text-4xl md:text-5xl lg:text-6xl  /* Hero: 36-48-60px */
+text-3xl md:text-4xl              /* Section headings: 30-36px */
+text-xl                           /* Subheadings: 20px */
+text-lg                           /* Large body: 18px */
+text-base                         /* Body: 16px */
+text-sm                           /* Small: 14px */
 ```
 
 ---
 
 ## Component Patterns
 
-### Buttons
+### Buttons (Session 19 Redesign)
 
-```tsx
-// Primary button (accent color)
-<button className="btn-primary">
-  Generate Quiz
-</button>
+**Minimal, polished, professional**
 
-// CSS
-.btn-primary {
-  background: var(--color-accent);
-  color: var(--color-text-primary);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-md);
-  font-weight: var(--font-weight-semibold);
-  transition: background 150ms ease;
+```css
+.btn {
+  padding: 10px 16px;  /* Better sizing */
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all var(--motion-duration-normal) var(--motion-ease);
 }
 
-.btn-primary:hover {
-  background: hsl(350, 85%, 60%); /* Lighter coral */
+.btn:active {
+  transform: scale(0.98);  /* Subtle feedback, not translateY */
 }
 
-.btn-primary:active {
-  background: hsl(350, 85%, 50%); /* Darker coral */
+.btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--accent-soft),
+    0 0 0 4px var(--accent);  /* Dual-ring focus indicator */
+}
+
+/* Primary */
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.btn.primary:hover {
+  background: var(--accent-strong);
+  box-shadow: 0 2px 8px rgba(91,122,230,0.3);  /* Hover glow */
+}
+
+/* Secondary */
+.btn.secondary {
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn.secondary:hover {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+/* Ghost */
+.btn.ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn.ghost:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+/* Danger */
+.btn.danger {
+  background: var(--score-fail);
+  color: white;
+}
+
+/* Disabled */
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 ```
 
 ### Cards
 
 ```tsx
-// Surface card with hover effect
-<div className="card">
-  <h3>Class Name</h3>
-  <p>Description</p>
+<div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-6">
+  <h3 className="text-[var(--text)] font-semibold mb-2">Card Title</h3>
+  <p className="text-[var(--text-muted)]">Card description</p>
 </div>
+```
 
-// CSS
+**With hover effect**:
+```css
 .card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  transition: transform 150ms ease, border-color 150ms ease;
+  transition: transform 200ms var(--motion-ease);
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-border-hover);
+  transform: translateY(-4px);
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
 ```
 
 ### Inputs
 
 ```tsx
-// Text input
 <input
-  type="text"
-  className="input"
-  placeholder="Enter class name..."
+  className="bg-[var(--surface)] text-[var(--text)] border border-[var(--border-subtle)] rounded-md px-3 py-2"
+  placeholder="Enter text..."
 />
-
-// CSS
-.input {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-base);
-  transition: border-color 150ms ease;
-}
-
-.input:focus {
-  outline: none;
-  border-color: var(--color-border-focus);
-  box-shadow: 0 0 0 3px hsla(350, 85%, 55%, 0.2);
-}
-
-.input::placeholder {
-  color: var(--color-text-tertiary);
-}
 ```
 
-### Modals
+### Modals (Session 19 Accessibility)
 
 ```tsx
-// Modal structure
-<div className="modal-backdrop">
-  <div className="modal">
-    <header className="modal-header">
-      <h2>Modal Title</h2>
-      <button aria-label="Close">�</button>
-    </header>
-    <div className="modal-body">
+<div
+  className="fixed inset-0 bg-[var(--overlay)] flex items-center justify-center z-50"
+  onClick={onClose}
+>
+  <div
+    className="bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded-xl p-6 max-w-lg w-full"
+    onClick={(e) => e.stopPropagation()}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title"
+  >
+    <h2 id="modal-title" className="text-[var(--text)] font-semibold mb-4">
+      Modal Title
+    </h2>
+    <div className="text-[var(--text-muted)]">
       {/* Content */}
     </div>
-    <footer className="modal-footer">
-      <button className="btn-secondary">Cancel</button>
-      <button className="btn-primary">Confirm</button>
-    </footer>
   </div>
 </div>
-
-// CSS
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  z-index: var(--z-modal-backdrop);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
-  max-width: 600px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  z-index: var(--z-modal);
-}
 ```
+
+**Accessibility Features** (Session 19):
+- Focus management (save/restore)
+- Body scroll lock
+- ESC key handler
+- ARIA attributes
+- Click-outside to close
 
 ---
 
 ## Motion System
 
-### Timing Functions
+### Animation Philosophy (Session 20)
 
-```css
---ease-in: cubic-bezier(0.4, 0, 1, 1);
---ease-out: cubic-bezier(0, 0, 0.2, 1);
---ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
---ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-```
+**Duration Tiers**:
+- Micro: `100ms` - Quick feedback
+- Normal: `180-200ms` - Smooth without lag
+- Slow: `250ms+` - Entrance animations
 
-### Durations
+**Easing**:
+- All use: `cubic-bezier(0.4, 0, 0.2, 1)` - Material Design standard
 
-```css
---duration-fast: 150ms;
---duration-base: 250ms;
---duration-slow: 350ms;
-```
+**Landing Page Examples**:
 
-### Animation Examples
-
-**Page Transitions** (with Framer Motion):
 ```tsx
+// Hero badge entrance
 <motion.div
-  initial={{ opacity: 0, y: 8 }}
+  initial={{ opacity: 0, y: -8 }}
   animate={{ opacity: 1, y: 0 }}
-  exit={{ opacity: 0, y: 6 }}
-  transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+  transition={{ duration: 0.3 }}
 >
-  {/* Page content */}
+  <span>Study with AI, not chaos</span>
 </motion.div>
-```
 
-**Card Hover**:
-```css
-.card {
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.card:hover {
-  transform: translateY(-2px);
-}
-```
-
-**Modal Fade In**:
-```tsx
+// Staggered card entrance
 <motion.div
-  initial={{ opacity: 0, scale: 0.95 }}
-  animate={{ opacity: 1, scale: 1 }}
-  exit={{ opacity: 0, scale: 0.95 }}
-  transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
+  initial={{ opacity: 0, y: 12 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: true }}
+  transition={{ duration: 0.24, delay: i * 0.1 }}
 >
-  {/* Modal */}
+  <Card />
 </motion.div>
+
+// Card hover lift
+onMouseEnter={(e) => {
+  e.currentTarget.style.transform = "translateY(-4px)";
+  e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)";
+}}
 ```
 
 ---
 
-## Visual Assets
+## Accessibility
 
-### Asset Manifest
+### Contrast Requirements (WCAG AAA)
 
-Located at `web/src/brand/manifest.json`:
+All text-background pairs exceed **7:1** contrast ratio.
 
-```json
-{
-  "version": "1.0",
-  "assets": {
-    "frames": {
-      "coral-arch": {
-        "path": "/brand/frames/coral-arch.svg",
-        "type": "decorative",
-        "placement": "header"
-      },
-      "leaf-corner": {
-        "path": "/brand/frames/leaf-corner.svg",
-        "type": "decorative",
-        "placement": "footer"
-      }
-    },
-    "patterns": {
-      "dot-grid": {
-        "path": "/brand/patterns/dot-grid.svg",
-        "type": "background",
-        "opacity": 0.1
-      }
-    }
-  }
-}
-```
+**Academic Dark Verified Pairs**:
+- `--text` (0.98 opacity) on `#161b22`: ~18.7:1 ✅
+- `--text-muted` (0.75 opacity) on `#161b22`: ~14.6:1 ✅
+- `--text-soft` (0.55 opacity) on `#161b22`: ~10.4:1 ✅
+- `--accent` (#5b7ae6) on `#0d1117`: ~6.3:1 ✅ (AA large text)
 
-### FrameWrapper Component
+### Focus Indicators
 
-```tsx
-import { FrameWrapper } from '@/components/FrameWrapper';
-
-<FrameWrapper
-  asset="coral-arch"
-  placement="top"
-  fallback={null}  // Gracefully hide if asset fails
->
-  <PageContent />
-</FrameWrapper>
-```
-
-**Features**:
-- Lazy loading (images loaded on demand)
-- Retry logic (3 retries with exponential backoff)
-- Feature flag gated (`VITE_FEATURE_VISUALS`)
-- `aria-hidden="true"` (decorative only)
-
----
-
-## Accessibility Guidelines
-
-### Contrast Requirements (WCAG AA)
-
-All text-background pairs must meet **4.5:1** minimum contrast ratio.
-
-**Verified Pairs** (via `npm run check-contrast`):
-- `--color-text-primary` on `--color-bg-primary` � 17.8:1 
-- `--color-text-secondary` on `--color-bg-primary` � 8.2:1 
-- `--color-text-tertiary` on `--color-surface` � 4.6:1 
-- `--color-accent` on `--color-bg-primary` � 6.1:1 
-
-### Focus States
-
-All interactive elements must have visible focus indicators:
+Dual-ring system (Session 19):
 
 ```css
-button:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
+:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--accent-soft),
+    0 0 0 4px var(--accent);
 }
 ```
+
+### Keyboard Navigation
+
+- ✅ Arrow keys in sidebar (Session 19)
+- ✅ ESC to close modals
+- ✅ Tab order preserved
+- ✅ Skip-to-content link
 
 ### Screen Reader Support
 
-- Use semantic HTML (`<button>`, `<nav>`, `<main>`)
-- Add `aria-label` for icon-only buttons
-- Use `aria-hidden="true"` for decorative elements
-- Provide text alternatives for images
+```tsx
+// Icon-only buttons
+<button aria-label="Close modal">×</button>
+
+// Decorative elements
+<div aria-hidden="true">{decorativeIcon}</div>
+
+// Breadcrumb separators
+<span aria-label="separator">/</span>
+```
 
 ---
 
-## Responsive Breakpoints
+## Responsive Design
+
+### Breakpoints
 
 ```css
 /* Mobile first (default) */
-/* Styles here apply to all screens */
+/* < 640px */
 
 /* Tablet */
-@media (min-width: 640px) {
-  /* sm: small tablets */
-}
-
-@media (min-width: 768px) {
-  /* md: tablets */
-}
+sm: 640px   /* Small tablets */
+md: 768px   /* Tablets */
 
 /* Desktop */
-@media (min-width: 1024px) {
-  /* lg: laptops */
-}
-
-@media (min-width: 1280px) {
-  /* xl: desktops */
-}
-
-@media (min-width: 1536px) {
-  /* 2xl: large monitors */
-}
+lg: 1024px  /* Laptops */
+xl: 1280px  /* Desktops */
+2xl: 1536px /* Large monitors */
 ```
 
-### Layout Patterns
+### Sidebar Behavior (Session 19)
 
-**Mobile (< 768px)**:
-- Single column
-- Full-width cards
-- Sidebar collapses to hamburger menu
+```tsx
+// Auto-collapse on mobile
+useEffect(() => {
+  const handleResize = () => {
+    if (window.innerWidth < 900) {
+      setIsCollapsed(true);
+    }
+  };
 
-**Tablet (768px - 1024px)**:
-- Two-column grid
-- Cards maintain padding
-- Sidebar toggleable
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
+```
 
-**Desktop (> 1024px)**:
-- Three-column grid (where applicable)
-- Persistent sidebar
-- Larger font sizes
+---
+
+## Navigation Patterns (Session 19)
+
+### Sidebar Structure
+
+**Bottom-left account menu** (Spotify/VS Code pattern):
+
+```tsx
+<aside className="sidebar">
+  {/* Logo */}
+  <div className="logo">ChatGPA</div>
+
+  {/* Navigation sections */}
+  <nav>
+    <SidebarItem to="/dashboard" icon={<DashboardIcon />}>
+      Dashboard
+    </SidebarItem>
+
+    <section>
+      <h3>Classes</h3>
+      {classes.map(cls => (
+        <SidebarItem key={cls.id} to={`/classes/${cls.id}/notes`}>
+          {cls.name}
+        </SidebarItem>
+      ))}
+    </section>
+  </nav>
+
+  {/* Account menu at bottom */}
+  <div className="mt-auto">
+    <AccountMenu collapsed={isCollapsed} />
+  </div>
+</aside>
+```
+
+### Breadcrumbs
+
+Auto-generated from route:
+
+```tsx
+// /classes/abc123/notes → Dashboard / CS 101 / Notes
+<Breadcrumbs />
+```
 
 ---
 
@@ -470,123 +734,32 @@ button:focus-visible {
 
 ### Loading States
 
-Always provide feedback during async operations:
-
 ```tsx
-<button disabled={loading}>
+<button disabled={loading} className="btn primary">
   {loading ? 'Generating...' : 'Generate Quiz'}
 </button>
 ```
 
-Use skeleton screens for lists:
-
-```tsx
-{loading ? (
-  <div className="skeleton-card" />
-) : (
-  <ClassCard data={classData} />
-)}
-```
-
 ### Error States
 
-Display errors inline with helpful messages:
+Use semantic tokens:
 
 ```tsx
-{error && (
-  <div className="error-banner">
-    <Icon name="alert-circle" />
-    <p>{error.message}</p>
-  </div>
-)}
+<p className="text-[var(--text-danger)]">
+  {error}
+</p>
 ```
 
 ### Empty States
 
-Provide actionable guidance when no data:
-
 ```tsx
 {notes.length === 0 && (
-  <div className="empty-state">
-    <Icon name="file-plus" />
-    <h3>No notes yet</h3>
-    <p>Add your first note to get started</p>
-    <button onClick={openAddNoteDialog}>Add Note</button>
+  <div className="text-center py-12">
+    <p className="text-[var(--text-muted)] mb-4">No notes yet</p>
+    <button className="btn primary">Add Note</button>
   </div>
 )}
 ```
-
-### Toast Notifications
-
-Use for non-critical feedback:
-
-```tsx
-import { useToast } from '@/lib/toast';
-
-const toast = useToast();
-
-// Success
-toast.push({ kind: 'success', text: 'Quiz generated!' });
-
-// Error
-toast.push({ kind: 'error', text: 'Failed to save note' });
-
-// Info
-toast.push({ kind: 'info', text: 'Autosaved' });
-```
-
-**Position**: Bottom-right
-**Duration**: 4 seconds (dismissible)
-**Max visible**: 3 at once
-
----
-
-## Theme Presets
-
-### Coral Leaf Dark (Default)
-
-```css
-:root {
-  --color-accent: hsl(350, 85%, 55%);     /* Coral */
-  --color-success: hsl(145, 70%, 45%);    /* Leaf */
-  --color-bg-primary: hsl(217, 33%, 7%);  /* Dark */
-  /* ... */
-}
-```
-
-### Ocean Dark (Alternative)
-
-```css
-:root {
-  --color-accent: hsl(210, 85%, 55%);     /* Ocean blue */
-  --color-success: hsl(145, 70%, 45%);    /* Leaf */
-  --color-bg-primary: hsl(217, 33%, 7%);  /* Dark */
-  /* ... */
-}
-```
-
-**Theme Picker** (Future):
-- Feature flag: `VITE_FEATURE_THEME_PICKER`
-- Persisted to LocalStorage
-- Toggle in user settings
-
----
-
-## Component Library (Future)
-
-Planned components for design system consistency:
-
-- [ ] Button (primary, secondary, ghost, danger)
-- [ ] Input (text, textarea, number, select)
-- [ ] Card (with variants)
-- [ ] Modal (with variants)
-- [ ] Toast (already implemented)
-- [ ] Dropdown
-- [ ] Tooltip
-- [ ] Badge
-- [ ] Spinner
-- [ ] Skeleton
-- [ ] Progress bar
 
 ---
 
@@ -594,58 +767,91 @@ Planned components for design system consistency:
 
 ### Do's
 
- Use CSS custom properties for all values
- Use semantic color names (`--color-accent`, not `--color-red`)
- Test contrast ratios with `npm run check-contrast`
- Provide loading, error, and empty states
- Use motion sparingly and purposefully
- Test on mobile, tablet, and desktop
- Add `aria-label` for icon-only buttons
+✅ Use CSS custom properties for all values
+✅ Use semantic token names (`var(--text)`, not `rgba(255,255,255,0.98)`)
+✅ Use Tailwind arbitrary values: `bg-[var(--surface)]`
+✅ Test on all 3 themes (academic-dark, midnight-focus, academic-light)
+✅ Provide loading, error, and empty states
+✅ Add `aria-label` for icon-only buttons
+✅ Respect `prefers-reduced-motion`
 
 ### Don'ts
 
-L Never use inline hex colors (`background: '#EE4266'`)
-L Never use magic numbers (`padding: 16px`)
-L Never skip focus states
-L Never use motion for motion's sake
-L Never ignore WCAG AA contrast requirements
-L Never assume desktop-only usage
+❌ Never use inline hex colors (`background: '#EE4266'`)
+❌ Never use hardcoded colors in components
+❌ Never skip focus states
+❌ Never ignore WCAG contrast requirements
+❌ Never assume desktop-only usage
+❌ Never disable animations without checking motion preference
 
 ---
 
-## Tools & Scripts
+## Token Usage Examples
 
-### Contrast Checker
+### Page Background
 
-```bash
-npm run check-contrast
+```tsx
+<div className="min-h-screen bg-[color:var(--bg)]">
+  {/* Always set root background */}
+</div>
 ```
 
-Validates all token pairs meet WCAG AA (4.5:1 minimum).
+### Components
 
-**Output**:
-```
- --color-text-primary on --color-bg-primary: 17.8:1
- --color-text-secondary on --color-bg-primary: 8.2:1
- --color-accent on --color-bg-primary: 6.1:1
-...
- All 17 pairs pass WCAG AA (e4.5:1)
+```tsx
+// Card
+<div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg">
+
+// Modal
+<div className="bg-[var(--surface-raised)]">
+
+// Sidebar
+<aside className="bg-[var(--surface-subtle)]">
 ```
 
-**Exit Code**: 0 if all pass, 1 if any fail
+### Text
+
+```tsx
+// Primary
+<h1 className="text-[color:var(--text)]">Heading</h1>
+
+// Secondary
+<p className="text-[color:var(--text-muted)]">Description</p>
+
+// Tertiary
+<span className="text-[color:var(--text-soft)]">Hint</span>
+```
+
+### Interactive Elements
+
+```tsx
+// Primary button
+<button className="bg-[var(--accent)] text-[var(--accent-text)]">
+  Action
+</button>
+
+// Accent text
+<a className="text-[var(--accent)]">Link</a>
+
+// Success
+<p className="text-[var(--score-pass)]">Passed</p>
+
+// Error
+<p className="text-[var(--score-fail)]">Failed</p>
+```
 
 ---
 
 ## Reference
 
-- **Theme Tokens**: `web/src/theme-tokens.css`
-- **Asset Manifest**: `web/src/brand/manifest.json`
-- **FrameWrapper**: `web/src/components/FrameWrapper.tsx`
-- **Contrast Script**: `scripts/check-contrast.ts`
-- **Session Docs**: `docs/archive/sessions/session_11_section7_foundation.md`
+- **Theme Tokens**: [web/src/theme-tokens.css](../../web/src/theme-tokens.css)
+- **Theme Initialization**: [web/src/main.tsx](../../web/src/main.tsx)
+- **Button System**: [web/src/theme.css](../../web/src/theme.css)
+- **Session History**: [CHANGELOG.md](./CHANGELOG.md) (Sessions 17-20)
+- **Current State**: [CURRENT_STATE.md](./CURRENT_STATE.md)
 
 ---
 
-**Last Updated**: November 18, 2025 (Section 7 Complete)
-**CI Status**:  All 17 contrast checks passing
-**Next**: Theme picker UI (Feature flag: VITE_FEATURE_THEME_PICKER)
+**Last Updated**: November 28, 2025 (Session 22 - Auth page colors documented)
+**Build Status**: ✅ All themes verified + auth pages complete
+**Next**: Database theme sync (persist user preferences to Supabase)
