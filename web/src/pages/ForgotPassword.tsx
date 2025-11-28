@@ -48,7 +48,7 @@ export default function ForgotPassword() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
       // ✅ Security: Always show success message, never leak account existence
