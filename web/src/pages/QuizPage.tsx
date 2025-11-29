@@ -1,7 +1,8 @@
 // Purpose: Quiz taking page - fetch questions, collect answers, submit for grading
-// Connects to: /api/grade, quiz_attempts table, Results page
+// Refactored: One-question-at-a-time pagination UI with progress tracking
+// Connects to: /api/v1/ai?action=grade, quiz_attempts table, Results page
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/toast";
@@ -31,92 +32,227 @@ type QuizRow = {
 
 type AnswersMap = Record<string, string>; // questionId -> user answer
 
-// ---- Small UI bits (token-only styling) ----
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// ---- UI Components ----
+
+function QuizHeader({ onBack, title }: { onBack: () => void; title: string }) {
   return (
-    <div className="surface bdr radius p-4 mb-4">
-      <div className="text-sm text-muted mb-2">{title}</div>
-      {children}
+    <header className="sticky top-0 z-50 bg-[var(--bg)] bg-opacity-80 backdrop-blur-xl border-b border-[var(--border-subtle)]">
+      <div className="max-w-[900px] mx-auto px-6 md:px-8 py-4 md:py-6 flex justify-between items-center">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-[var(--text-muted)] text-sm font-medium px-2 py-1 rounded-md hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all duration-[var(--motion-duration-fast)]"
+          aria-label="Go back to results"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back
+        </button>
+        <div className="text-[var(--text)] text-[15px] font-semibold tracking-tight">
+          {title}
+        </div>
+        <div className="w-[80px]" aria-hidden="true">{/* Spacer for symmetry */}</div>
+      </div>
+    </header>
+  );
+}
+
+function ProgressIndicator({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="text-center mb-8 animate-slideDown" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+      <span
+        className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-soft)] bg-[var(--surface)] px-4 py-1.5 rounded-full border border-[var(--border-subtle)]"
+        aria-live="polite"
+        aria-label={`Question ${current} of ${total}`}
+      >
+        <span className="w-1.5 h-1.5 bg-[var(--accent)] rounded-full animate-pulse" aria-hidden="true"></span>
+        Question {current} of {total}
+      </span>
     </div>
   );
 }
 
-function Btn({
-  children,
-  onClick,
-  disabled,
-  kind = "primary",
-  type,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  kind?: "primary" | "ghost";
-  type?: "button" | "submit";
-}) {
-  const cls = kind === "primary" ? "btn primary" : "btn ghost";
+function QuestionCard({ question }: { question: string }) {
   return (
-    <button className={cls} onClick={onClick} disabled={disabled} type={type ?? "button"}>
-      {children}
-    </button>
+    <section
+      className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-2xl p-8 md:p-12 mb-8 shadow-lg relative overflow-hidden animate-slideUp"
+      style={{ animationDelay: '0.2s', animationFillMode: 'both' }}
+    >
+      {/* Top accent border */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] opacity-60" aria-hidden="true"></div>
+
+      <h1 className="text-[26px] md:text-[28px] font-semibold text-[var(--text)] text-center leading-[1.4] tracking-tight">
+        {question}
+      </h1>
+    </section>
   );
 }
 
-// ---- Question renderers ----
-function MCQQuestion({
-  q,
+function McqOptions({
+  options,
   value,
   onChange,
+  disabled
 }: {
-  q: MCQ;
+  options: string[];
   value?: string;
   onChange: (v: string) => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="mb-4">
-      <div className="mb-2">{q.prompt}</div>
-      <div className="grid gap-2">
-        {q.options.map((opt) => (
-          <label key={opt} className="surface-2 bdr radius p-2 cursor-pointer">
+    <div className="grid gap-4 mb-8 animate-slideUp" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
+      {options.map((opt) => {
+        const isSelected = value === opt;
+        return (
+          <label
+            key={opt}
+            className={`
+              flex items-center gap-4 p-5 md:p-6 rounded-xl border-[1.5px] cursor-pointer transition-all duration-[var(--motion-duration-slow)]
+              ${isSelected
+                ? 'bg-[var(--accent-soft)] border-[var(--accent)] shadow-[0_0_0_2px_var(--accent-soft)]'
+                : 'bg-[var(--surface)] border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:border-[var(--accent)] hover:-translate-y-0.5 hover:shadow-sm'
+              }
+              ${disabled ? 'opacity-60 pointer-events-none' : ''}
+            `}
+          >
+            {/* Radio button visual */}
+            <div
+              className={`
+                w-[22px] h-[22px] rounded-full border-2 flex-shrink-0 transition-all duration-[var(--motion-duration-normal)]
+                ${isSelected
+                  ? 'border-[var(--accent)] bg-[var(--accent)] shadow-[inset_0_0_0_4px_var(--surface)]'
+                  : 'border-[var(--text-soft)]'
+                }
+              `}
+              aria-hidden="true"
+            ></div>
+
+            {/* Hidden native radio for accessibility */}
             <input
-              className="mr-2"
               type="radio"
-              name={q.id}
+              name="mcq-option"
               value={opt}
-              checked={value === opt}
+              checked={isSelected}
               onChange={() => onChange(opt)}
+              disabled={disabled}
+              className="sr-only"
             />
-            {opt}
+
+            <span className="text-base font-medium text-[var(--text)] flex-1">
+              {opt}
+            </span>
           </label>
-        ))}
+        );
+      })}
+    </div>
+  );
+}
+
+function TypingAnswer({
+  value,
+  onChange
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const charCount = value.length;
+
+  return (
+    <div className="relative mb-8 animate-slideUp" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
+      <textarea
+        className="w-full min-h-[180px] bg-[var(--surface)] text-[var(--text)] border-[1.5px] border-[var(--border-strong)] rounded-xl px-4 md:px-6 py-4 md:py-5 font-[inherit] text-base leading-[1.6] resize-vertical transition-all duration-[var(--motion-duration-normal)] focus:outline-none focus:border-[var(--accent)] focus:bg-[var(--surface-raised)] focus:ring-4 focus:ring-[var(--accent-soft)] placeholder:text-[var(--text-soft)]"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Type your answer here and explain your reasoning..."
+      />
+      <div
+        className="absolute bottom-3 right-4 text-xs text-[var(--text-soft)] pointer-events-none"
+        aria-live="polite"
+        aria-label={`${charCount} characters entered`}
+      >
+        {charCount} characters
       </div>
     </div>
   );
 }
 
-function ShortQuestion({
-  q,
-  value,
-  onChange,
+function QuizFooter({
+  onPrevious,
+  onNext,
+  onSubmit,
+  canGoPrevious,
+  isLastQuestion,
+  submitting
 }: {
-  q: ShortQ;
-  value?: string;
-  onChange: (v: string) => void;
+  onPrevious: () => void;
+  onNext: () => void;
+  onSubmit: () => void;
+  canGoPrevious: boolean;
+  isLastQuestion: boolean;
+  submitting: boolean;
 }) {
   return (
-    <div className="mb-4">
-      <div className="mb-2">{q.prompt}</div>
-      <textarea
-        rows={3}
-        className="w-full surface-2 bdr radius p-2"
-        style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Type your answer…"
-      />
+    <footer className="flex justify-between items-center gap-4 pt-8 animate-slideUp" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
+      {canGoPrevious ? (
+        <button
+          onClick={onPrevious}
+          disabled={submitting}
+          className="btn secondary inline-flex items-center gap-2"
+          aria-label="Go to previous question"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+          Previous
+        </button>
+      ) : (
+        <div></div> // Empty div for flex spacing
+      )}
+
+      {isLastQuestion ? (
+        <button
+          onClick={onSubmit}
+          disabled={submitting}
+          className="btn primary inline-flex items-center gap-2"
+          aria-label="Submit quiz for grading"
+        >
+          {submitting ? 'Submitting…' : 'Submit Quiz'}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      ) : (
+        <button
+          onClick={onNext}
+          disabled={submitting}
+          className="btn primary inline-flex items-center gap-2"
+          aria-label="Go to next question"
+        >
+          Next
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      )}
+    </footer>
+  );
+}
+
+function BottomProgressBar({ percent }: { percent: number }) {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 h-1 bg-[var(--surface)] z-50" aria-hidden="true">
+      <div
+        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] transition-all duration-[600ms] ease-[var(--motion-ease)] relative overflow-hidden"
+        style={{ width: `${percent}%` }}
+      >
+        {/* Shimmer effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+      </div>
     </div>
   );
 }
+
+// ---- Main Component ----
 
 export default function QuizPage() {
   const { id: quizId } = useParams<{ id: string }>();
@@ -126,9 +262,10 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [quiz, setQuiz] = useState<QuizRow | null>(null);
-  const [answers, setAnswers] = useState<AnswersMap>({});
+  const [answers, setAnswers] = useState<AnswersMap>({}); // Single source of truth for all answers
+  const [currentIndex, setCurrentIndex] = useState(0); // Track which question is displayed (0-based)
 
-  // Fetch quiz
+  // Fetch quiz (PRESERVED - lines 132-163)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -162,15 +299,35 @@ export default function QuizPage() {
     };
   }, [quizId, navigate, push]);
 
-  const unanswered = useMemo(() => {
-    if (!quiz) return 0;
-    return quiz.questions.filter((q) => !answers[q.id]?.trim()).length;
-  }, [quiz, answers]);
+  // Computed values
+  const currentQuestion = quiz?.questions[currentIndex];
+  const totalQuestions = quiz?.questions.length ?? 0;
+  const canGoPrevious = currentIndex > 0;
+  const isLastQuestion = currentIndex === totalQuestions - 1;
+  // Progress: avoid off-by-one (Question 1 of 10 = 10%, not 0%)
+  const progressPercent = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
 
+  // Answer persistence: answers state is single source of truth, never reset on navigation
   function setAnswer(id: string, value: string) {
     setAnswers((prev) => ({ ...prev, [id]: value }));
   }
 
+  // Navigation handlers
+  function goToPrevious() {
+    if (canGoPrevious) {
+      setCurrentIndex((prev) => prev - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function goToNext() {
+    if (!isLastQuestion) {
+      setCurrentIndex((prev) => prev + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  // Submit handler (PRESERVED EXACTLY - lines 174-220)
   async function handleSubmit() {
     if (!quiz || !quizId) return;
     setSubmitting(true);
@@ -194,7 +351,7 @@ export default function QuizPage() {
         },
         body: JSON.stringify({
           quiz_id: quizId,
-          responses: answers,
+          responses: answers, // answers shape unchanged: Record<string, string>
         }),
       });
 
@@ -219,71 +376,160 @@ export default function QuizPage() {
     }
   }
 
+  // Loading state
   if (loading) {
     return (
       <PageShell>
-        <div className="surface bdr radius p-4">Loading quiz…</div>
+        <div className="max-w-3xl mx-auto p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-6 text-center text-[var(--text-muted)]">
+            Loading quiz…
+          </div>
+        </div>
       </PageShell>
     );
   }
 
-  if (!quiz) {
+  // Not found state
+  if (!quiz || quiz.questions.length === 0) {
     return (
       <PageShell>
-        <div className="surface bdr radius p-4">Quiz not found.</div>
+        <div className="max-w-3xl mx-auto p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-6 text-center text-[var(--text-muted)]">
+            Quiz not found.
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
+
+  // Ensure currentIndex is valid (defensive)
+  if (!currentQuestion) {
+    return (
+      <PageShell>
+        <div className="max-w-3xl mx-auto p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-6 text-center text-[var(--text-danger)]">
+            Invalid question index.
+          </div>
+        </div>
       </PageShell>
     );
   }
 
   return (
     <PageShell>
-      <form
-        className="max-w-3xl mx-auto"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!submitting) handleSubmit();
-        }}
-      >
-        <Section title="Quiz">
-          <div className="text-xl mb-1">Answer the questions</div>
-          <div className="text-muted">
-            {quiz.questions.length} question{quiz.questions.length !== 1 ? "s" : ""} ·{" "}
-            {unanswered} unanswered
-          </div>
-        </Section>
+      <div className="min-h-screen flex flex-col">
+        <QuizHeader
+          onBack={() => navigate("/results")}
+          title={`Quiz · ${quizId?.slice(0, 8) || 'Unknown'}`}
+        />
 
-        <Section title="Questions">
-          {quiz.questions.map((q) => {
-            if (q.type === "mcq") {
-              return (
-                <MCQQuestion
-                  key={q.id}
-                  q={q as MCQ}
-                  value={answers[q.id]}
-                  onChange={(v) => setAnswer(q.id, v)}
-                />
-              );
-            }
-            return (
-              <ShortQuestion
-                key={q.id}
-                q={q as ShortQ}
-                value={answers[q.id]}
-                onChange={(v) => setAnswer(q.id, v)}
-              />
-            );
-          })}
-        </Section>
+        <main className="flex-1 w-full max-w-[840px] mx-auto px-6 md:px-8 py-8 md:py-12 flex flex-col justify-center min-h-[70vh]">
+          <ProgressIndicator
+            current={currentIndex + 1} // Display 1-indexed (Question 1 of 10, not 0 of 10)
+            total={totalQuestions}
+          />
 
-        <div className="flex items-center gap-4">
-          <Btn type="submit" kind="primary" disabled={submitting}>
-            {submitting ? "Submitting…" : "Submit for grading"}
-          </Btn>
-          <Btn kind="ghost" onClick={() => navigate("/results")} disabled={submitting}>
-            View results
-          </Btn>
-        </div>
-      </form>
+          <QuestionCard question={currentQuestion.prompt} />
+
+          {/* Answer section - switches based on question type */}
+          {currentQuestion.type === "mcq" ? (
+            <McqOptions
+              options={(currentQuestion as MCQ).options}
+              value={answers[currentQuestion.id]}
+              onChange={(v) => setAnswer(currentQuestion.id, v)}
+              disabled={submitting}
+            />
+          ) : (
+            <TypingAnswer
+              value={answers[currentQuestion.id] ?? ""}
+              onChange={(v) => setAnswer(currentQuestion.id, v)}
+            />
+          )}
+
+          <QuizFooter
+            onPrevious={goToPrevious}
+            onNext={goToNext}
+            onSubmit={handleSubmit}
+            canGoPrevious={canGoPrevious}
+            isLastQuestion={isLastQuestion}
+            submitting={submitting}
+          />
+        </main>
+
+        <BottomProgressBar percent={progressPercent} />
+      </div>
+
+      <style>{`
+        /* Animations - respect prefers-reduced-motion */
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+
+        .animate-slideDown {
+          animation: slideDown 0.5s ease-out;
+        }
+
+        .animate-slideUp {
+          animation: slideUp 0.6s ease-out;
+        }
+
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+
+        /* Respect reduced motion preference */
+        @media (prefers-reduced-motion: reduce) {
+          .animate-slideDown,
+          .animate-slideUp,
+          .animate-pulse,
+          .animate-shimmer {
+            animation: none !important;
+          }
+
+          * {
+            transition-duration: 0.01ms !important;
+          }
+        }
+
+        /* Also respect data-motion="reduced" attribute */
+        :root[data-motion="reduced"] .animate-slideDown,
+        :root[data-motion="reduced"] .animate-slideUp,
+        :root[data-motion="reduced"] .animate-pulse,
+        :root[data-motion="reduced"] .animate-shimmer {
+          animation: none !important;
+        }
+
+        :root[data-motion="reduced"] * {
+          transition-duration: 0.01ms !important;
+        }
+      `}</style>
     </PageShell>
   );
 }
