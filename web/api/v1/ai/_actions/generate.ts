@@ -132,7 +132,24 @@ export async function generateQuiz(
   // 6. Enforce free tier limits (protect OpenAI costs)
   const LIMITS_ENABLED =
     (process.env.ENABLE_USAGE_LIMITS || 'true').toLowerCase() === 'true';
-  const FREE_QUIZ_LIMIT = Number(process.env.FREE_QUIZ_LIMIT || 5);
+
+  // ✅ Dev override: APP_MODE=test allows 100 quizzes for testing
+  const FREE_QUIZ_LIMIT =
+    process.env.APP_MODE === 'test'
+      ? 100
+      : Number(process.env.FREE_QUIZ_LIMIT || 5);
+
+  // Optional: Log when dev override is active
+  if (process.env.APP_MODE === 'test') {
+    console.log(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'info',
+        context: 'usage_limits',
+        message: 'Dev override active: FREE_QUIZ_LIMIT=100 (APP_MODE=test)'
+      })
+    );
+  }
 
   if (LIMITS_ENABLED && user_id) {
     const plan = await getUserPlan(supabase, user_id);

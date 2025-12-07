@@ -37,9 +37,10 @@ interface FollowUpFeedbackProps {
 **Features**:
 - Filters weak questions (`correct === false`)
 - Displays improvement tips from grading data (`improvement` field)
-- Shows "Retake This Quiz" and "Create New Quiz" CTAs
+- Shows "Generate New Quiz" and "Start Fresh" CTAs
 - Special case for perfect scores (encouragement message)
-- Tracks telemetry: `retake_quiz_clicked`, `create_new_quiz_clicked`
+- Tracks telemetry: `generate_from_same_notes_clicked`, `create_new_quiz_clicked`
+- **UX Clarity**: Labels accurately reflect behavior (generates new quiz, not retake)
 
 **Data Structure** (confirmed from `web/api/_lib/grader.ts:27-36`):
 ```typescript
@@ -79,7 +80,7 @@ type BreakdownItem = {
 - Only shows for submitted quizzes with grading data
 - Positioned to show feedback before "Back to Results" button
 
-### 3. Retake Flow Implementation
+### 3. Generate From Same Notes Flow Implementation
 **File**: `web/src/pages/tools/Generate.tsx`
 
 **Changes**:
@@ -88,7 +89,7 @@ type BreakdownItem = {
 - New useEffect at lines 178-233 to handle `?retake=quiz_id` parameter
 
 **Logic Flow**:
-1. Check URL for `?retake=quiz_id` parameter
+1. Check URL for `?retake=quiz_id` parameter (naming kept for backward compatibility)
 2. Fetch quiz from database (note_content, class_id, config)
 3. Pre-fill form:
    - `directText` with quiz note content
@@ -96,6 +97,8 @@ type BreakdownItem = {
    - Config fields (question_type, question_count, coverage, difficulty)
 4. Track `retake_quiz_loaded` telemetry
 5. Show success toast: "Quiz loaded for retake. Make any changes and generate!"
+
+**Note**: The URL parameter is still called `?retake=` for backward compatibility, but the UX labels now correctly communicate "Generate New Quiz" (different questions from same notes).
 
 **Database Query**:
 ```typescript
@@ -126,15 +129,15 @@ const { data: quiz, error } = await supabase
    - Review each question with feedback
    - **NEW**: FollowUpFeedback section shows:
      - Weak questions with improvement tips
-     - "Retake This Quiz" button
-     - "Create New Quiz" button
+     - "Generate New Quiz" button (same notes, new questions)
+     - "Start Fresh" button (clear form, new notes)
 
-4. **Retake Flow** (NEW - This Session)
-   - Click "Retake This Quiz"
+4. **Generate From Same Notes Flow** (NEW - This Session)
+   - Click "Generate New Quiz"
    - Navigate to `/tools/generate?retake={quiz_id}`
-   - Form pre-filled with original quiz data
+   - Form pre-filled with original quiz notes and config
    - User can modify or generate as-is
-   - Creates new attempt (fresh start)
+   - Creates new quiz with different questions (not a retake)
 
 ## Technical Details
 
@@ -155,12 +158,12 @@ const { data: quiz, error } = await supabase
 4. Passed to `FollowUpFeedback` component as `breakdown` prop
 5. Component filters and displays weak questions
 
-**Retake Data Path**:
-1. User clicks "Retake This Quiz" → navigate with `?retake={quiz_id}`
+**Generate From Same Notes Path**:
+1. User clicks "Generate New Quiz" → navigate with `?retake={quiz_id}`
 2. `Generate.tsx:180-233` detects URL param
-3. Fetches quiz data from `quizzes` table
-4. Pre-fills form state
-5. User generates new quiz (creates new attempt)
+3. Fetches quiz data from `quizzes` table (note_content, config)
+4. Pre-fills form state with original notes and settings
+5. User generates new quiz with different questions (creates new attempt)
 
 ### TypeScript Safety
 - All components fully typed
@@ -170,19 +173,32 @@ const { data: quiz, error } = await supabase
 
 ## Files Modified
 
-1. **NEW**: `web/src/components/FollowUpFeedback.tsx` (118 lines)
-2. **MODIFIED**: `web/src/pages/AttemptDetail.tsx` (+2 lines: import, component integration)
-3. **MODIFIED**: `web/src/pages/tools/Generate.tsx` (+58 lines: retake flow)
+1. **NEW**: `web/src/components/FollowUpFeedback.tsx` (117 lines)
+2. **MODIFIED**: `web/src/pages/AttemptDetail.tsx` (+10 lines: import, component integration)
+3. **MODIFIED**: `web/src/pages/tools/Generate.tsx` (+56 lines: retake flow)
+4. **MODIFIED**: `README.md` (extensive changes: mission statement, product philosophy, v1.12 pivot context, version history)
+
+### Post-Session Patch: UX Label Clarity
+
+**Issue**: "Retake This Quiz" was misleading - the system generates a NEW quiz from the same notes, not a retake of identical questions.
+
+**Changes** (applied after initial commit):
+- Button label: "Retake This Quiz" → "Generate New Quiz"
+- Secondary button: "Create New Quiz" → "Start Fresh"
+- Description text updated to clarify: "Review them below, or generate a fresh quiz using the same notes"
+- Telemetry event: `retake_quiz_clicked` → `generate_from_same_notes_clicked`
+
+**Why**: Strengthens UX honesty by matching labels to actual behavior (new questions, not same quiz).
 
 ## Testing Checklist
 
 - [ ] Submit quiz and verify FollowUpFeedback appears
 - [ ] Check perfect score shows encouragement (no weak questions)
 - [ ] Verify improvement tips display for incorrect answers
-- [ ] Click "Retake This Quiz" and confirm form pre-fills
-- [ ] Generate retake and verify new attempt created
-- [ ] Check "Create New Quiz" navigates to empty form
-- [ ] Verify telemetry events fire correctly
+- [ ] Click "Generate New Quiz" and confirm form pre-fills with same notes
+- [ ] Generate new quiz and verify new attempt created (different questions)
+- [ ] Check "Start Fresh" navigates to empty form
+- [ ] Verify telemetry events fire correctly (`generate_from_same_notes_clicked`, `create_new_quiz_clicked`)
 - [ ] Test with no grading data (edge case)
 
 ## Guardrails Followed
@@ -223,7 +239,11 @@ const { data: quiz, error } = await supabase
 
 ## Code Quality
 
-- **Lines Added**: ~180 (1 new component, 2 integrations)
+- **Lines Added**: ~183 (1 new component + 3 file modifications)
+  - FollowUpFeedback.tsx: 117 lines (new)
+  - AttemptDetail.tsx: +10 lines
+  - Generate.tsx: +56 lines
+  - README.md: extensive restructuring
 - **TypeScript Errors**: 0 (environment issues excluded)
 - **Test Coverage**: Manual testing required
 - **Performance**: No regressions expected
@@ -237,9 +257,10 @@ const { data: quiz, error } = await supabase
 - Reduced friction from feedback to action
 
 **Expected Impact**:
-- Retake rate: Baseline → Target 15-20%
+- Generate-from-same-notes rate: Baseline → Target 15-20%
 - Quiz completion rate: Should remain stable
 - User engagement: More quizzes per session
+- Reduced friction: Clear labels → higher conversion on "Generate New Quiz"
 
 ## Notes
 

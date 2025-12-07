@@ -546,7 +546,7 @@ export default function Generate() {
         if (payload?.code === "USAGE_LIMIT_REACHED" || payload?.code === "LIMIT_EXCEEDED") {
           push({
             kind: "error",
-            text: "Free plan limit (5 quizzes). Upgrade to continue or wait 24h."
+            text: payload?.message || "Free plan limit reached. Upgrade to continue or wait 24h."
           });
         } else if (payload?.code === "SCHEMA_INVALID") {
           push({ kind: "error", text: `Validation error: ${payload.message || "Invalid input"}` });

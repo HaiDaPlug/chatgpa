@@ -51,6 +51,12 @@
 - ✅ **Feature Flags**: 4 active flags for gradual rollout
 - ✅ **Build Status**: 0 TypeScript errors in active code
 
+### Usage Limits
+- **Free Tier**: 5 quizzes maximum (enforced in `generate.ts`)
+- **Dev Override**: When `APP_MODE=test`, limit is raised to 100 quizzes for local testing
+- **Backend**: Dynamic error messages reflect current limit (`${FREE_QUIZ_LIMIT}`)
+- **Frontend**: Error handling uses backend message (not hard-coded)
+
 ---
 
 ## 🎯 Immediate Priorities

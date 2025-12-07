@@ -62,8 +62,8 @@ export function FollowUpFeedback({ breakdown, attemptId, quizId, classId }: Foll
       <h2 className="text-lg font-semibold mb-3">What to Focus On Next</h2>
       <p className="text-muted mb-4">
         {weakQuestions.length === 1
-          ? "You missed 1 question. Here's how to improve:"
-          : `You missed ${weakQuestions.length} questions. Here's how to improve:`}
+          ? "You missed 1 question. Review it below, or generate a fresh quiz using the same notes:"
+          : `You missed ${weakQuestions.length} questions. Review them below, or generate a fresh quiz using the same notes:`}
       </p>
 
       {/* Weak questions list */}
@@ -90,14 +90,14 @@ export function FollowUpFeedback({ breakdown, attemptId, quizId, classId }: Foll
         <button
           className="btn flex-1"
           onClick={() => {
-            track("retake_quiz_clicked", {
+            track("generate_from_same_notes_clicked", {
               attempt_id: attemptId,
               quiz_id: quizId
             });
             navigate(`/tools/generate?retake=${quizId}`);
           }}
         >
-          Retake This Quiz
+          Generate New Quiz
         </button>
         <button
           className="btn btn-ghost flex-1"
@@ -109,7 +109,7 @@ export function FollowUpFeedback({ breakdown, attemptId, quizId, classId }: Foll
             navigate("/tools/generate");
           }}
         >
-          Create New Quiz
+          Start Fresh
         </button>
       </div>
     </div>
