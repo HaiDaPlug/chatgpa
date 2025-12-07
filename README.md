@@ -2,7 +2,7 @@
 
 **"Turn your messy notes into a study session that actually works."**
 
-An AI-powered study system that transforms student notes into adaptive quizzes with context-aware grading.
+A world-class quiz generator that helps procrastinators and overwhelmed students start studying immediately — with zero friction and instant adaptive feedback.
 
 [![Status](https://img.shields.io/badge/status-production-success)]()
 [![Build](https://img.shields.io/badge/build-passing-success)]()
@@ -12,26 +12,46 @@ An AI-powered study system that transforms student notes into adaptive quizzes w
 
 ## Overview
 
-ChatGPA helps students prepare for exams by turning their notes into personalized, AI-generated quizzes with detailed feedback.
+**ChatGPA v1.12 Mission**: Become the smartest, cleanest, most reliable quiz generator for students — a tool that turns messy notes into adaptive quizzes and clear feedback in seconds.
 
-**Core Flow**: Upload Notes → Configure Quiz → Generate Questions → Take Quiz → Submit → Receive Grade + Feedback → Review Results
+Not an Academic OS. Not a workspace. Not a calendar app. Just a **world-class quiz engine** + clean academic UI.
 
-### Key Features
+### The Core Promise
 
-- **Smart Quiz Generation** — AI router with automatic fallback (gpt-4o-mini → gpt-5-mini)
-- **Rubric-Based Grading** — Length-agnostic scoring with weighted criteria
-- **Folder Organization** — Hierarchical note management with nested folders
-- **Autosave System** — Real-time answer saving with conflict resolution
-- **Quiz Configuration** — Customize question types, difficulty, and coverage
-- **Theme System** — WCAG AA compliant design tokens with dark mode
-- **Usage Tracking** — Comprehensive analytics for generation and grading
+Students open ChatGPA → paste notes → get a polished quiz in **<10 seconds**.
 
-### Status (November 2025)
+**The Irresistible Loop**: Notes → Quiz → Feedback → Try Again → Progress Overview
 
-- ✅ **Sections 1-7 Complete**: AI Router, Grading System, Results Page, Quiz Config, Folders, API Gateway, Visuals
-- ✅ **Production Ready**: 0 TypeScript errors, all tests passing
-- ✅ **23 API Endpoints**: Across 6 gateways (ai, attempts, billing, marketing, util, workspace)
-- ✅ **11 Database Tables**: With Row-Level Security (RLS) enforced
+This loop is the product. Everything else (summaries, flashcards, scheduling) comes later as "study tools" beside quiz generation.
+
+### What Makes This the Best Quiz Generator
+
+1. **Zero-Friction Studying** — No setup, no cognitive tax. Paste notes → quiz in 10 seconds.
+
+2. **Adaptive Feedback That Actually Teaches** — Every question gets immediate, context-aware feedback. Results show mistake patterns, mastery indicators, and actionable insights.
+
+3. **Calm, Professional Academic Environment** — "Claude × Notion" aesthetic. Minimal, structured, serious-friendly. Not playful or loud.
+
+4. **Reliability > Everything** — No hallucinations. Correct JSON. RLS-safe. Stable quiz generation, grading, and UI state.
+
+5. **Smart AI Integration** — Automatic model fallback (gpt-4o-mini → gpt-5-mini). Length-agnostic rubric grading (not keyword matching).
+
+### North Star Metric
+
+**Daily quizzes started.**
+
+Not notes uploaded. Not classes created. Not time in the dashboard.
+
+It's all about engagement with the quiz loop.
+
+### Status (December 2025 - v1.12 Pivot)
+
+- 🎯 **Mission**: World-class quiz generator (not Academic OS)
+- ✅ **Core Loop Working**: Notes → Quiz → Feedback → Results (production-ready)
+- ✅ **0 TypeScript Errors**: Clean build
+- ✅ **23 API Endpoints**: AI generation, grading, attempts, billing
+- ✅ **Solid Infrastructure**: RLS-enforced database, OpenAI integration, auth system
+- 🔄 **In Progress**: Simplifying UX to remove friction, focusing on quiz-first experience
 
 ---
 
@@ -215,47 +235,55 @@ chatgpa/
 
 ---
 
-## Features by Section
+## Product Philosophy (v1.12)
 
-### ✅ Section 1: AI Router & Generation Analytics
-- Automatic model selection (gpt-4o-mini → gpt-5-mini fallback)
-- Dynamic parameter building (reasoning models omit temperature)
-- Quality metrics tracking (concept coverage, diversity, duplicates)
+### What ChatGPA IS
 
-### ✅ Section 2: Grading Router & Rubric Engine
-- Length-agnostic rubric grading (coverage 40%, accuracy 35%, clarity 15%, conciseness 10%)
-- Model selection by question type (MCQ: exact match, Short: gpt-4o-mini, Long: gpt-5-mini)
-- Fire-and-forget analytics
+✅ **World-class quiz generator** — The best tool for turning notes into quizzes
+✅ **Zero-friction study starter** — Helps procrastinators start studying immediately
+✅ **Adaptive feedback engine** — Teaches through context-aware grading
+✅ **Calm academic environment** — Professional, minimal, "Claude × Notion" aesthetic
+✅ **Reliable AI tool** — No hallucinations, stable generation, predictable results
 
-### ✅ Section 3: Results Page with Autosave
-- Real-time answer autosave with conflict resolution
-- Incremental version tracking for concurrent editing
-- Request size limit (500KB max)
+### What ChatGPA is NOT (yet)
 
-### ✅ Section 4: Quiz Configuration System
-- Question type configuration (MCQ, typing, hybrid)
-- Coverage strategies (broad, focused, random)
-- Difficulty levels (easy, medium, hard, adaptive)
-- Per-class config hierarchy (LocalStorage)
+❌ Not a Notion competitor
+❌ Not a full Academic OS
+❌ Not a collaborative suite
+❌ Not an all-purpose AI tool
+❌ Not trying to replace Google Classroom yet
 
-### ✅ Section 5: Class Workspace with Folders
-- Hierarchical folder organization (unlimited depth)
-- Drag-and-drop note management
-- Circular reference prevention (database triggers)
-- Folder-based quiz filtering (recursive queries)
-- 10 RESTful endpoints
+### Strategic Path
 
-### ✅ Section 6b: API Gateway Consolidation
-- Unified `/api/v1/*` structure
-- Consistent middleware pattern
-- 6 gateways: ai, attempts, billing, marketing, util, workspace
+1. **Perfect the quiz system first** (← we are here)
+2. Build trust with students
+3. Add study tools one at a time (flashcards, summaries, etc.)
+4. THEN evolve into Academic OS
 
-### ✅ Section 7: Visual & Theming System
-- 25 semantic design tokens (WCAG AA compliant)
-- Theme presets (coral-leaf-dark, ocean-dark)
-- Asset manifest with type-safe loading
-- FrameWrapper component with graceful fallbacks
-- CI contrast validation (`npm run check-contrast`)
+This narrow focus prevents death by complexity.
+
+## Technical Features (Production-Ready)
+
+### Core Quiz Engine
+- **AI Router**: Automatic model fallback (gpt-4o-mini → gpt-5-mini)
+- **Rubric Grading**: Length-agnostic scoring (coverage 40%, accuracy 35%, clarity 15%, conciseness 10%)
+- **Question Types**: MCQ, typing, hybrid
+- **Difficulty Levels**: Easy, medium, hard, adaptive
+- **Quality Metrics**: Concept coverage, diversity, duplicate detection
+
+### User Experience
+- **One-Question-at-a-Time UI**: Focused studying with progress tracking
+- **Autosave System**: Real-time answer saving with conflict resolution
+- **Theme System**: 3 presets (academic-dark, midnight-focus, academic-light)
+- **Instant Feedback**: Context-aware explanations for every answer
+- **Progress Overview**: Mistake patterns, mastery indicators
+
+### Infrastructure
+- **23 API Endpoints**: Across 6 gateways (ai, attempts, billing, marketing, util, workspace)
+- **Row-Level Security**: All database tables RLS-enforced
+- **Auth System**: Email/password + Google OAuth
+- **ESM Compliant**: Node.js ES Modules with proper resolution
+- **Feature Flags**: Gradual rollout capability
 
 ---
 
@@ -381,9 +409,10 @@ Proprietary - All rights reserved
 
 | Version | Date | Milestone |
 |---------|------|-----------|
-| **v7.0** | Nov 18, 2025 | Modular documentation system, all sections complete |
-| **v6.0** | Nov 11, 2025 | Section 7 complete (visuals), ESM fixes |
-| **v5.0** | Nov 11, 2025 | Sections 1-5 complete, doc cleanup |
+| **v1.12** | Dec 7, 2025 | 🎯 **Strategic Pivot**: World-class quiz generator focus (not Academic OS) |
+| **v7.0** | Nov 29, 2025 | Quiz page refactor (one-question-at-a-time UI), modular docs |
+| **v6.0** | Nov 18, 2025 | Theme System V2, navigation, all sections complete |
+| **v5.0** | Nov 11, 2025 | Sections 1-5 complete, ESM compliance |
 | **v4.0** | Oct 26, 2024 | Production-ready, alpha testing |
 | **v3.0** | Oct 23, 2024 | Usage limits, live counts |
 | **v2.0** | Oct 22, 2024 | API contracts, RLS patterns |
@@ -391,6 +420,6 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated**: November 18, 2025
+**Last Updated**: December 7, 2025 (v1.12 - Quiz-First Pivot)
 **Documentation**: [/docs/core/ChatGPA_Spec_Hub.md](/docs/core/ChatGPA_Spec_Hub.md)
-**Status**: Production-Ready
+**Status**: Production-Ready (Core Loop) — Pivoting to Zero-Friction UX

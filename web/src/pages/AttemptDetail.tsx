@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { track } from "@/lib/telemetry";
 import { useToast } from "@/lib/toast";
 import { PageShell } from "@/components/PageShell";
+import { FollowUpFeedback } from "@/components/FollowUpFeedback";
 
 interface Attempt {
   id: string;
@@ -368,6 +369,16 @@ export default function AttemptDetailPage() {
             </div>
           ))}
         </div>
+
+        {/* ChatGPA v1.12: Follow-up Feedback Section */}
+        {isSubmitted && attempt.grading && Array.isArray(attempt.grading) && (
+          <FollowUpFeedback
+            breakdown={attempt.grading}
+            attemptId={attempt.id}
+            quizId={attempt.quiz_id}
+            classId={attempt.class_id}
+          />
+        )}
 
         {/* Footer Actions */}
         <div className="mt-8 flex gap-3">
