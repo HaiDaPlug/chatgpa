@@ -4,13 +4,14 @@
  * Features: Resume in_progress, view submitted, autosave, conflict resolution
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { track } from "@/lib/telemetry";
 import { useToast } from "@/lib/toast";
 import { PageShell } from "@/components/PageShell";
 import { FollowUpFeedback } from "@/components/FollowUpFeedback";
+import type { BreakdownItem } from "@/lib/grader";
 
 interface Attempt {
   id: string;
@@ -48,6 +49,49 @@ export default function AttemptDetailPage() {
 
   const autosaveTimer = useRef<number | null>(null);
   const lastAutosaveVersion = useRef<number>(0);
+
+  // TODO: centralize grade logic in shared util to prevent client/server drift
+
+  // Calculate letter grade (matches backend logic from grade.ts:248-258)
+  function calculateLetterGrade(percent: number): string {
+    if (percent >= 90) return 'A';
+    if (percent >= 80) return 'B';
+    if (percent >= 70) return 'C';
+    if (percent >= 60) return 'D';
+    return 'F';
+  }
+
+  // Generate summary message (aligned with FollowUpFeedback tone)
+  function generateSummaryMessage(percent: number): string {
+    if (percent >= 90) return "Excellent mastery of this material — you're basically exam-ready.";
+    if (percent >= 70) return "Good understanding with a few weak spots — focus on the questions below.";
+    if (percent >= 50) return "Decent start, but you'll benefit from another pass using the tips below.";
+    return "This topic needs more review — use the weak questions section as your study guide.";
+  }
+
+  // Generate status badge text
+  function getStatusBadgeText(percent: number): string {
+    if (percent >= 90) return "Great job";
+    if (percent >= 70) return "Keep going";
+    return "Needs review";
+  }
+
+  // Normalize percent ONCE to ensure display + letter grade + summary are always in sync
+  const percent = useMemo(() => {
+    if (attempt?.score == null) return null;
+    return Math.round(attempt.score * 100);
+  }, [attempt?.score]);
+
+  // Calculate correct count from grading array (typed properly)
+  const correctCount = useMemo(() => {
+    if (!attempt?.grading || !Array.isArray(attempt.grading)) return 0;
+    return (attempt.grading as BreakdownItem[]).filter(item => item.correct).length;
+  }, [attempt?.grading]);
+
+  // Total questions (memoized for consistency)
+  const totalQuestions = useMemo(() => {
+    return attempt?.grading?.length ?? 0;
+  }, [attempt?.grading]);
 
   // ✅ Removed useBlocker - incompatible with non-data router (BrowserRouter)
   // Navigation blocking now handled only by beforeunload handler for full page unloads
@@ -403,6 +447,44 @@ export default function AttemptDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Summary Card (Session 28) */}
+        {isSubmitted && percent !== null && (
+          <section
+            className="surface bdr radius p-6 mb-6"
+            aria-labelledby="quiz-summary-heading"
+          >
+            <div className="flex items-center mb-2">
+              <h2 id="quiz-summary-heading" className="text-lg font-semibold">
+                Quiz Summary
+              </h2>
+              <span className="badge badge-soft ml-2">
+                {getStatusBadgeText(percent)}
+              </span>
+            </div>
+
+            {/* Score and percentage */}
+            <div className="mb-2">
+              <span className="text-2xl font-bold">
+                {percent}%
+              </span>
+              <span className="text-muted ml-2">
+                ({correctCount} out of {totalQuestions} correct)
+              </span>
+            </div>
+
+            {/* Letter grade */}
+            <div className="mb-3">
+              <span className="font-semibold">Grade: </span>
+              <span className="text-xl font-bold">{calculateLetterGrade(percent)}</span>
+            </div>
+
+            {/* Overall feedback */}
+            <div className="text-muted">
+              {generateSummaryMessage(percent)}
+            </div>
+          </section>
+        )}
 
         {/* Questions */}
         <div className="space-y-6">

@@ -1,7 +1,7 @@
 # ChatGPA  Current State
 
-**Last Updated**: November 29, 2025 (Session 24 Complete)
-**Branch**: `alpha`
+**Last Updated**: December 8, 2025 (Session 27 Complete)
+**Branch**: `main`
 **Build Status**: ✅ Passing (0 TypeScript errors)
 
 ---
@@ -27,21 +27,28 @@
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Session 24)
-- ✅ **Quiz Page Refactor** - One-question-at-a-time pagination UI
-  - Visual progress bar with percentage + "Question X of Y" badge
-  - Large centered question cards with gradient accent borders
-  - Previous/Next/Submit navigation with smooth transitions
-  - Character counter for typing questions
-  - Full accessibility (ARIA labels, semantic HTML, motion preferences)
-  - 100% backward compatibility (zero breaking changes)
+### Latest Updates (Sessions 25-27)
+- ✅ **Session 27: True Retake Quiz** - Mastery loop implementation
+  - "Retake This Quiz" creates new attempt on same quiz (same questions)
+  - Fixed QuizPage to prevent dangling in_progress attempts
+  - Fixed schema mismatch (both flows now use `responses: Record<string, string>`)
+  - 3-button action hierarchy: Retake / Generate New / Start Fresh
+  - Comprehensive telemetry and error handling
 
-### Previous Updates (Sessions 20-23)
-- ✅ **Landing Page** - Complete marketing site with animations
-- ✅ **Full Authentication** - Email/password + Google OAuth (Sign in/up, forgot/reset)
-- ✅ **Navigation System** - Sidebar with breadcrumbs, account menu
-- ✅ **Theme System V2** - Deep blue palette across 3 themes
-- ✅ **Landing Copy Refinement** - Honest feature framing, professional tone
+- ✅ **Session 26: Dev Override** - Improved local testing
+  - `APP_MODE=test` raises quiz limit to 100 (from 5)
+  - Dynamic error messages reflect actual limit
+  - Backend logs dev override activation
+
+- ✅ **Session 25: UX Pivot Phase 1** - ChatGPA v1.12 mission
+  - FollowUpFeedback component with improvement tips
+  - "Generate New Quiz" flow (same notes, different questions)
+  - Clear UX labels distinguishing retake vs regenerate
+  - README restructured around "world-class quiz generator" focus
+
+### Previous Updates (Sessions 20-24)
+- ✅ **Session 24: Quiz Page Refactor** - One-question-at-a-time pagination UI
+- ✅ **Sessions 20-23** - Landing page, full authentication, navigation system, Theme System V2
 
 ### Infrastructure
 - ✅ **Database**: 11 tables with RLS policies enforced
@@ -66,17 +73,20 @@
    - Store `answers` map and `currentIndex` keyed by `quizId`
    - Clear on successful submit
    - High value, low effort (1-2 hours)
+   - **Note**: Session 27 added `?attempt=` URL param for future work
 
-2. **Auto-Question Count** - Smart defaults based on note analysis
-   - Small notes (< 500 chars) → 3-5 questions
-   - Normal notes (500-2000 chars) → 6-8 questions
-   - Dense notes (2000+ chars) → 10-12+ questions
+2. **Retake Analytics Dashboard** - Monitor mastery loop adoption
+   - Track retake → completion rate
+   - Average score improvement on retakes
+   - Perfect score rate on 2nd+ attempts
+   - Session 27 added comprehensive telemetry events
 
 ### Value-Add Features
-3. **Follow-Up Insights** - Post-grade revision suggestions
-   - Show "What to revise" based on poor scores
-   - Map incorrect answers to note sections
-   - Suggest specific study areas
+3. **Score Comparison Chart** - Visual progress tracking
+   - Show attempt 1 vs attempt 2 vs attempt 3 scores
+   - Retake count badge on quiz cards
+   - "Study Suggestions" based on weak questions
+   - **Foundation**: Session 27 true retake enables this
 
 4. **Missing Material Analysis** - Pre-quiz gap detection
    - Identify gaps in user's notes before testing
@@ -139,10 +149,15 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ### Known Limitations
 - **Quiz Progress Persistence**: Page refresh resets quiz progress (high priority fix - localStorage)
+  - Session 27 added infrastructure: QuizPage receives `?attempt=` URL param
 - **Navigation Blocking**: No warning when leaving quiz with unsaved answers (requires data router)
 - **Rich Text Editor**: ClassNotes uses plain textarea (could upgrade to TipTap/Lexical)
 - **Real-time Updates**: Results page doesn't subscribe to new attempts
 - **E2E Testing**: No Playwright/Cypress specs yet
+
+### Fixed in Session 27
+- ✅ **Dangling Attempts**: QuizPage now detects in_progress attempts (prevents database pollution)
+- ✅ **Schema Mismatch**: Both flows use `responses: Record<string, string>` per schema
 
 ---
 
@@ -158,6 +173,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: November 29, 2025 (Session 24 - Quiz page refactor complete)
-**Next Review**: After localStorage persistence implementation
+**Last Verified**: December 8, 2025 (Session 27 - True retake quiz complete)
+**Next Review**: After retake analytics and localStorage persistence
 **Build Status**: ✅ Passing (0 TypeScript errors)
+**Recent Sessions**: [Session 25](/docs/archive/sessions/session_25.md), [Session 26](/docs/archive/sessions/session_26.md), [Session 27](/docs/archive/sessions/session_27.md)
