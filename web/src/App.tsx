@@ -11,7 +11,7 @@ import DashboardPage from './pages/dashboard';
 import GeneratePage from './pages/generate';
 import ResultsPage from './pages/ResultsNew'; // Section 3: Updated Results page
 import AttemptDetailPage from './pages/AttemptDetail'; // Section 3: Attempt detail page
-import ClassNotes from './pages/ClassNotes';
+import ClassNotes from './pages/ClassNotesRefactored';
 import { RequireAuth } from '../lib/authGuard';
 
 // Study Tools
