@@ -44,6 +44,7 @@ export default function AttemptDetailPage() {
   const [isDirty, setIsDirty] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRetaking, setIsRetaking] = useState(false); // ✅ Safe - Loading state for retake button
 
   const autosaveTimer = useRef<number | null>(null);
   const lastAutosaveVersion = useRef<number>(0);
@@ -272,6 +273,91 @@ export default function AttemptDetailPage() {
     }
   }
 
+  // ✅ Safe - Reuses existing /api/v1/attempts?action=start endpoint
+  async function handleRetakeSameQuiz() {
+    if (!attempt) return;
+
+    setIsRetaking(true); // Disable button
+    try {
+      // Get auth token
+      // ✅ Safe - matches existing pattern from handleSubmit (line 245)
+      const session = (await supabase.auth.getSession()).data.session;
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        push({ kind: "error", text: "You are signed out. Please sign in again." });
+        return;
+      }
+
+      // Track attempt
+      track("retake_same_quiz_start", { quiz_id: attempt.quiz_id });
+
+      // Call start endpoint with quiz_id
+      // ✅ Safe - matches backend contract from start.ts line 8-11
+      const res = await fetch('/api/v1/attempts?action=start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ quiz_id: attempt.quiz_id }), // ✅ Safe - matches StartInput schema
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        const message = payload?.message || 'Failed to start a new attempt.';
+
+        push({ kind: "error", text: message });
+        track("retake_same_quiz_failed", {
+          quiz_id: attempt.quiz_id,
+          error: payload?.code
+        });
+        return;
+      }
+
+      // ⚠️ Verify - Gateway may wrap response in {ok, data, request_id} format
+      // Need to handle both direct response and wrapped response
+      const payload = await res.json();
+      const attemptData = payload.data || payload; // Handle gateway wrapper
+
+      track("retake_same_quiz_success", {
+        quiz_id: attempt.quiz_id,
+        attempt_id: attemptData.attempt_id,
+        resumed: attemptData.resumed
+      });
+
+      // Show appropriate toast message
+      if (attemptData.resumed) {
+        push({
+          kind: "info",
+          text: "Resuming your in-progress attempt. Previous answers restored."
+        });
+      } else {
+        push({
+          kind: "success",
+          text: "Starting fresh attempt on the same quiz!"
+        });
+      }
+
+      // Navigate to quiz page with attempt_id for future localStorage/autosave work
+      // ⚠️ Verify - Reserved for Phase 2, but having URL shape ready is useful
+      navigate(`/quiz/${attempt.quiz_id}?attempt=${attemptData.attempt_id}`);
+
+    } catch (err) {
+      console.error('Failed to start new attempt', err);
+      push({
+        kind: 'error',
+        text: 'Could not start a new attempt. Please try again.',
+      });
+      track("retake_same_quiz_exception", {
+        quiz_id: attempt.quiz_id,
+        error: String(err)
+      });
+    } finally {
+      setIsRetaking(false); // Re-enable button (won't matter if navigated away)
+    }
+  }
+
   function handleAnswerChange(questionId: string, value: string) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
     setIsDirty(true);
@@ -377,6 +463,8 @@ export default function AttemptDetailPage() {
             attemptId={attempt.id}
             quizId={attempt.quiz_id}
             classId={attempt.class_id}
+            onRetakeSameQuiz={handleRetakeSameQuiz} // ✅ NEW: Pass retake handler
+            isRetaking={isRetaking} // ✅ NEW: Pass loading state
           />
         )}
 

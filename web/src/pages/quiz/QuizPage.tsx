@@ -15,6 +15,7 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [attemptId, setAttemptId] = useState<string | null>(null); // ✅ Safe - For retake flow
 
   useEffect(() => {
     if (!id) return;
@@ -34,6 +35,39 @@ export default function QuizPage() {
       setLoading(false);
     })();
   }, [id, nav, push]);
+
+  // ✅ Safe - Check for existing in_progress attempt (for retake flow)
+  // This prevents dangling attempts when user clicks "Retake This Quiz"
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        // Check for existing in_progress attempt
+        const { data: existingAttempt } = await supabase
+          .from('quiz_attempts')
+          .select('id')
+          .eq('quiz_id', id)
+          .eq('status', 'in_progress')
+          .maybeSingle();
+
+        if (existingAttempt) {
+          // Use existing attempt (created by retake flow)
+          setAttemptId(existingAttempt.id);
+          console.log('Using existing attempt:', existingAttempt.id);
+        } else {
+          // No existing attempt - demo mode (grade will create one)
+          setAttemptId(null);
+          console.log('No existing attempt - grade will create new one');
+        }
+      } catch (err) {
+        console.error('Failed to check for existing attempt:', err);
+        // Fail gracefully - proceed without attempt_id (demo mode)
+      }
+    })();
+  }, [id]);
 
   const canSubmit = useMemo(() => {
     if (!quiz) return false;
@@ -56,10 +90,21 @@ export default function QuizPage() {
         return;
       }
       const token = session.access_token;
-      const payload = {
-        quiz_id: quiz.id,
-        answers: Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })),
-      };
+
+      // ✅ CRITICAL: Both flows must use 'responses: Record<string, string>' per schema
+      // Verified from ai/_schemas.ts line 62: responses: z.record(z.string(), z.string())
+      const responses = Object.entries(answers).reduce((acc, [qid, ans]) => ({ ...acc, [qid]: ans }), {});
+
+      const payload = attemptId
+        ? {
+            attempt_id: attemptId, // ✅ Flow 1: update existing in_progress
+            responses,
+          }
+        : {
+            quiz_id: quiz.id, // ✅ Flow 2: create new attempt (demo mode)
+            responses, // ✅ FIXED: was using 'answers: Answer[]' - now uses 'responses'
+          };
+
       const res = await fetch("/api/v1/ai?action=grade", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

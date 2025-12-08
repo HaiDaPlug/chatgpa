@@ -23,9 +23,11 @@ interface FollowUpFeedbackProps {
   attemptId: string;
   quizId: string;
   classId?: string;
+  onRetakeSameQuiz: () => void; // ✅ NEW: True retake handler
+  isRetaking?: boolean; // ✅ NEW: Loading state
 }
 
-export function FollowUpFeedback({ breakdown, attemptId, quizId, classId }: FollowUpFeedbackProps) {
+export function FollowUpFeedback({ breakdown, attemptId, quizId, classId, onRetakeSameQuiz, isRetaking }: FollowUpFeedbackProps) {
   const navigate = useNavigate();
 
   // Filter weak questions (incorrect answers only)
@@ -37,20 +39,50 @@ export function FollowUpFeedback({ breakdown, attemptId, quizId, classId }: Foll
       <div className="surface bdr radius p-6 mt-6">
         <h2 className="text-lg font-semibold mb-3">Perfect Score!</h2>
         <p className="text-muted mb-4">
-          You got everything right. Ready for the next challenge?
+          You got everything right! Retake the same quiz to reinforce your mastery, or generate a fresh quiz from the same notes.
         </p>
         <div className="flex gap-3">
+          {/* ✅ Safe - Retake same quiz button */}
+          <button
+            className="btn flex-1"
+            disabled={isRetaking}
+            onClick={() => {
+              track("retake_same_quiz_clicked", {
+                context: "perfect_score",
+                attempt_id: attemptId,
+                quiz_id: quizId
+              });
+              onRetakeSameQuiz();
+            }}
+          >
+            {isRetaking ? "Starting Quiz..." : "Retake This Quiz"}
+          </button>
+          {/* ✅ Safe - Generate new quiz from same notes */}
           <button
             className="btn flex-1"
             onClick={() => {
+              track("generate_from_same_notes_clicked", {
+                context: "perfect_score",
+                attempt_id: attemptId,
+                quiz_id: quizId
+              });
+              navigate(`/tools/generate?retake=${quizId}`);
+            }}
+          >
+            Generate New Quiz
+          </button>
+          {/* ✅ Safe - Start fresh */}
+          <button
+            className="btn btn-ghost flex-1"
+            onClick={() => {
               track("create_new_quiz_clicked", {
-                context: "follow_up_feedback",
+                context: "perfect_score",
                 attempt_id: attemptId
               });
               navigate("/tools/generate");
             }}
           >
-            Create New Quiz
+            Start Fresh
           </button>
         </div>
       </div>
@@ -62,8 +94,8 @@ export function FollowUpFeedback({ breakdown, attemptId, quizId, classId }: Foll
       <h2 className="text-lg font-semibold mb-3">What to Focus On Next</h2>
       <p className="text-muted mb-4">
         {weakQuestions.length === 1
-          ? "You missed 1 question. Review it below, or generate a fresh quiz using the same notes:"
-          : `You missed ${weakQuestions.length} questions. Review them below, or generate a fresh quiz using the same notes:`}
+          ? "You missed 1 question. You can retake the same quiz to check your improvement, or generate a fresh quiz from the same notes."
+          : `You missed ${weakQuestions.length} questions. You can retake the same quiz to check your improvement, or generate a fresh quiz from the same notes.`}
       </p>
 
       {/* Weak questions list */}
@@ -87,6 +119,21 @@ export function FollowUpFeedback({ breakdown, attemptId, quizId, classId }: Foll
 
       {/* CTAs */}
       <div className="flex gap-3">
+        {/* ✅ Safe - Retake same quiz button */}
+        <button
+          className="btn flex-1"
+          disabled={isRetaking}
+          onClick={() => {
+            track("retake_same_quiz_clicked", {
+              attempt_id: attemptId,
+              quiz_id: quizId
+            });
+            onRetakeSameQuiz();
+          }}
+        >
+          {isRetaking ? "Starting Quiz..." : "Retake This Quiz"}
+        </button>
+        {/* ✅ Safe - Generate new quiz from same notes */}
         <button
           className="btn flex-1"
           onClick={() => {
@@ -99,6 +146,7 @@ export function FollowUpFeedback({ breakdown, attemptId, quizId, classId }: Foll
         >
           Generate New Quiz
         </button>
+        {/* ✅ Safe - Start fresh */}
         <button
           className="btn btn-ghost flex-1"
           onClick={() => {
