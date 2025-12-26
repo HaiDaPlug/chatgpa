@@ -1,6 +1,6 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 8, 2025 (Session 27 Complete)
+**Last Updated**: December 8, 2025 (Session 28 Complete)
 **Branch**: `main`
 **Build Status**: ✅ Passing (0 TypeScript errors)
 
@@ -27,7 +27,16 @@
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 25-27)
+### Latest Updates (Sessions 25-28)
+- ✅ **Session 28: Persistent Quiz Summary Card** - Enhanced results visibility
+  - Added persistent summary card to AttemptDetail page (replaces toast-only)
+  - Shows score (85%), correct count (7 out of 10), letter grade (B), and feedback
+  - Client-side grade calculation with memoization for performance
+  - Imported shared BreakdownItem type from @/lib/grader
+  - Semantic HTML with aria-labelledby for accessibility
+  - Status badge ("Great job" / "Keep going" / "Needs review")
+  - Frontend-only changes, 0 new TypeScript errors
+
 - ✅ **Session 27: True Retake Quiz** - Mastery loop implementation
   - "Retake This Quiz" creates new attempt on same quiz (same questions)
   - Fixed QuizPage to prevent dangling in_progress attempts
@@ -173,7 +182,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: December 8, 2025 (Session 27 - True retake quiz complete)
+**Last Verified**: December 8, 2025 (Session 28 - Persistent quiz summary card complete)
 **Next Review**: After retake analytics and localStorage persistence
 **Build Status**: ✅ Passing (0 TypeScript errors)
-**Recent Sessions**: [Session 25](/docs/archive/sessions/session_25.md), [Session 26](/docs/archive/sessions/session_26.md), [Session 27](/docs/archive/sessions/session_27.md)
+**Recent Sessions**: [Session 25](/docs/archive/sessions/session_25.md), [Session 26](/docs/archive/sessions/session_26.md), [Session 27](/docs/archive/sessions/session_27.md), [Session 28](./session_28.md)
