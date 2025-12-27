@@ -2,8 +2,8 @@
 // Refactored: One-question-at-a-time pagination UI with progress tracking
 // Connects to: /api/v1/ai?action=grade, quiz_attempts table, Results page
 
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/toast";
 import { PageShell } from "@/components/PageShell";
@@ -31,6 +31,23 @@ type QuizRow = {
 };
 
 type AnswersMap = Record<string, string>; // questionId -> user answer
+
+// ---- localStorage Persistence Types (Session 29) ----
+interface QuizProgressData {
+  version: number;
+  quizId: string;
+  attemptId?: string;
+  questionIds: string[];
+  answers: Record<string, string>;
+  currentIndex: number;
+  updatedAt: string;
+}
+
+const QUIZ_PROGRESS_VERSION = 1;
+const getQuizProgressKey = (quizId: string, attemptId?: string) => {
+  if (attemptId) return `quiz_progress_attempt_${attemptId}`;
+  return `quiz_progress_quiz_${quizId}`;
+};
 
 // ---- UI Components ----
 
@@ -252,12 +269,182 @@ function BottomProgressBar({ percent }: { percent: number }) {
   );
 }
 
+// ---- localStorage Persistence Helpers (Session 29) ----
+
+/**
+ * Load and validate quiz progress from localStorage
+ * Returns null if data is invalid, corrupted, or stale
+ */
+function loadQuizProgress(
+  storageKey: string,
+  quizId: string,
+  questions: (MCQ | ShortQ)[]
+): QuizProgressData | null {
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) return null;
+
+    const parsed = JSON.parse(stored);
+
+    // Validate schema
+    if (!parsed || typeof parsed !== 'object') {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+    if (typeof parsed.version !== 'number') {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+    if (typeof parsed.quizId !== 'string') {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+    if (!Array.isArray(parsed.questionIds)) {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+    if (!parsed.answers || typeof parsed.answers !== 'object') {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+    if (typeof parsed.currentIndex !== 'number') {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+    if (typeof parsed.updatedAt !== 'string') {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+
+    // Validate version
+    if (parsed.version !== QUIZ_PROGRESS_VERSION) {
+      if (import.meta.env.DEV) {
+        console.warn('QUIZ_STORAGE_VERSION_MISMATCH', {
+          expected: QUIZ_PROGRESS_VERSION,
+          actual: parsed.version,
+        });
+      }
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+
+    // Validate quizId matches
+    if (parsed.quizId !== quizId) {
+      if (import.meta.env.DEV) {
+        console.warn('QUIZ_STORAGE_QUIZ_ID_MISMATCH', {
+          expected: quizId,
+          actual: parsed.quizId,
+        });
+      }
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+
+    // Defensive check: if no questions, treat as invalid
+    if (questions.length === 0) {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+
+    // Check questionIds match EXACTLY (same IDs in same order)
+    // This prevents currentIndex from pointing to wrong question if backend reorders
+    const currentQuestionIds = questions.map((q) => q.id);
+
+    // Length check first (fast fail)
+    if (parsed.questionIds.length !== currentQuestionIds.length) {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+
+    // Check exact array equality (same order)
+    const hasStaleData = parsed.questionIds.some(
+      (id: string, idx: number) => id !== currentQuestionIds[idx]
+    );
+    if (hasStaleData) {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+
+    // Clamp currentIndex to valid range [0..questions.length-1]
+    if (parsed.currentIndex < 0) {
+      parsed.currentIndex = 0;
+    } else if (parsed.currentIndex >= questions.length) {
+      parsed.currentIndex = questions.length - 1;
+    }
+
+    return parsed as QuizProgressData;
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error('QUIZ_STORAGE_LOAD_ERROR', { storageKey, error });
+    }
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {}
+    return null;
+  }
+}
+
+/**
+ * Save quiz progress to localStorage
+ * Silent failure on errors (non-critical feature)
+ */
+function saveQuizProgress(
+  storageKey: string,
+  quizId: string,
+  attemptId: string | undefined,
+  questionIds: string[],
+  answers: Record<string, string>,
+  currentIndex: number
+): void {
+  try {
+    const data: QuizProgressData = {
+      version: QUIZ_PROGRESS_VERSION,
+      quizId,
+      attemptId,
+      questionIds,
+      answers,
+      currentIndex,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(storageKey, JSON.stringify(data));
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error('QUIZ_STORAGE_SAVE_ERROR', { storageKey, error });
+    }
+    // Fail silently - quiz still works without persistence
+  }
+}
+
+/**
+ * Clear quiz progress from localStorage
+ * Silent failure on errors
+ */
+function clearQuizProgress(storageKey: string): void {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error('QUIZ_STORAGE_CLEAR_ERROR', { storageKey, error });
+    }
+  }
+}
+
 // ---- Main Component ----
 
 export default function QuizPage() {
   const { id: quizId } = useParams<{ id: string }>();
   const { push } = useToast();
   const navigate = useNavigate();
+
+  // localStorage persistence (Session 29)
+  const [searchParams] = useSearchParams();
+  const attemptId = searchParams.get('attempt') || undefined;
+  const storageKey = quizId ? getQuizProgressKey(quizId, attemptId) : null;
+
+  // Hydration guards
+  const didHydrateRef = useRef(false);   // Track if we've already restored from localStorage
+  const isHydratingRef = useRef(false);  // Track if we're currently hydrating
+  const hasEverSavedRef = useRef(false); // Track if we've saved at least once
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -292,12 +479,70 @@ export default function QuizPage() {
       // Defensive parse: ensure array of objects
       const qs = Array.isArray(data.questions) ? (data.questions as (MCQ | ShortQ)[]) : [];
       setQuiz({ id: data.id, class_id: data.class_id, questions: qs });
+
+      // Try to restore progress from localStorage (only once per page load)
+      if (!didHydrateRef.current) {
+        // Use fetched data.id as source of truth (not route quizId)
+        const key = getQuizProgressKey(data.id, attemptId);
+
+        // Assert route quizId matches fetched id in DEV
+        if (import.meta.env.DEV && quizId !== data.id) {
+          console.warn('QUIZ_STORAGE_ID_MISMATCH', { routeId: quizId, fetchedId: data.id });
+        }
+
+        const stored = loadQuizProgress(key, data.id, qs);
+        if (stored) {
+          isHydratingRef.current = true; // Keep true through first save-effect pass
+          setAnswers(stored.answers);
+          setCurrentIndex(stored.currentIndex);
+          if (import.meta.env.DEV) {
+            console.debug('QUIZ_PROGRESS_RESTORED', {
+              quiz_id: data.id,
+              attempt_id: stored.attemptId,
+              restored_answer_count: Object.keys(stored.answers).length,
+              restored_index: stored.currentIndex,
+            });
+          }
+          // Don't flip isHydratingRef to false here - let save effect handle it
+        }
+
+        // Cleanup: if using attempt-key, remove orphaned quiz-key (polish)
+        if (attemptId) {
+          try {
+            const orphanedKey = `quiz_progress_quiz_${data.id}`;
+            localStorage.removeItem(orphanedKey);
+          } catch {}
+        }
+
+        didHydrateRef.current = true;
+      }
+
       setLoading(false);
     })();
     return () => {
       alive = false;
     };
-  }, [quizId, navigate, push]);
+  }, [quizId, navigate, push, attemptId]);
+
+  // Save progress to localStorage whenever answers or currentIndex change
+  useEffect(() => {
+    if (!quiz || !quizId || !storageKey) return;
+
+    // Skip first save-effect pass after hydration (state updates haven't applied yet)
+    if (isHydratingRef.current) {
+      isHydratingRef.current = false;
+      return;
+    }
+
+    // Don't save empty state on FIRST render only (prevents perpetual skip if user deletes all answers)
+    if (!hasEverSavedRef.current && Object.keys(answers).length === 0 && currentIndex === 0) {
+      return;
+    }
+
+    const questionIds = quiz.questions.map((q) => q.id);
+    saveQuizProgress(storageKey, quizId, attemptId, questionIds, answers, currentIndex);
+    hasEverSavedRef.current = true; // Mark that we've saved at least once
+  }, [answers, currentIndex, quiz, quizId, attemptId, storageKey]);
 
   // Computed values
   const currentQuestion = quiz?.questions[currentIndex];
@@ -368,6 +613,12 @@ export default function QuizPage() {
       // Success - API created the attempt (gateway wraps as {ok, data, request_id})
       const result = payload.data || payload;
       push({ kind: "success", text: result?.summary || "Graded!" });
+
+      // Clear localStorage after successful submission
+      if (storageKey) {
+        clearQuizProgress(storageKey);
+      }
+
       navigate("/results");
     } catch (error) {
       console.error("SUBMIT_ERROR", { error });
