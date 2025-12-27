@@ -439,7 +439,6 @@ export default function QuizPage() {
   // localStorage persistence (Session 29)
   const [searchParams] = useSearchParams();
   const attemptId = searchParams.get('attempt') || undefined;
-  const storageKey = quizId ? getQuizProgressKey(quizId, attemptId) : null;
 
   // Hydration guards
   const didHydrateRef = useRef(false);   // Track if we've already restored from localStorage
@@ -507,9 +506,9 @@ export default function QuizPage() {
         }
 
         // Cleanup: if using attempt-key, remove orphaned quiz-key (polish)
-        if (attemptId) {
+        if (attemptId && quizId) {
           try {
-            const orphanedKey = `quiz_progress_quiz_${data.id}`;
+            const orphanedKey = `quiz_progress_quiz_${quizId}`;
             localStorage.removeItem(orphanedKey);
           } catch {}
         }
@@ -524,9 +523,12 @@ export default function QuizPage() {
     };
   }, [quizId, navigate, push, attemptId]);
 
+  // Compute resolved storage key from fetched quiz.id (source of truth)
+  const resolvedKey = quiz ? getQuizProgressKey(quiz.id, attemptId) : null;
+
   // Save progress to localStorage whenever answers or currentIndex change
   useEffect(() => {
-    if (!quiz || !quizId || !storageKey) return;
+    if (!quiz || !resolvedKey) return;
 
     // Skip first save-effect pass after hydration (state updates haven't applied yet)
     if (isHydratingRef.current) {
@@ -540,9 +542,9 @@ export default function QuizPage() {
     }
 
     const questionIds = quiz.questions.map((q) => q.id);
-    saveQuizProgress(storageKey, quizId, attemptId, questionIds, answers, currentIndex);
+    saveQuizProgress(resolvedKey, quiz.id, attemptId, questionIds, answers, currentIndex);
     hasEverSavedRef.current = true; // Mark that we've saved at least once
-  }, [answers, currentIndex, quiz, quizId, attemptId, storageKey]);
+  }, [answers, currentIndex, quiz, attemptId, resolvedKey]);
 
   // Computed values
   const currentQuestion = quiz?.questions[currentIndex];
@@ -615,8 +617,9 @@ export default function QuizPage() {
       push({ kind: "success", text: result?.summary || "Graded!" });
 
       // Clear localStorage after successful submission
-      if (storageKey) {
-        clearQuizProgress(storageKey);
+      const key = getQuizProgressKey(quiz.id, attemptId);
+      if (key) {
+        clearQuizProgress(key);
       }
 
       navigate("/results");
