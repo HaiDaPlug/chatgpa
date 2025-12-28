@@ -1,6 +1,6 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 26, 2025 (Session 29 Complete)
+**Last Updated**: December 28, 2025 (Session 30 Complete)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors)
 
@@ -27,7 +27,15 @@
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 25-29)
+### Latest Updates (Sessions 25-30)
+- ✅ **Session 30: Fixed Sidebar Stretching Bug** - UI polish
+  - Locked app shell to viewport (sidebar + header fixed, main scrolls)
+  - 4 minimal className changes in PageShell.tsx (Lines 115, 128, 143, 154)
+  - Used `h-screen` for universal browser compatibility
+  - Matches modern app patterns (Linear, Notion, VSCode, Figma)
+  - Frontend-only changes, 0 new TypeScript errors
+  - Ready for testing in browser
+
 - ✅ **Session 29: localStorage Persistence for Quiz Progress** - Solves #1 UX gap
   - Prevents data loss on page refresh (answers + currentIndex preserved)
   - Order-aware questionIds validation (detects if backend reorders questions)
@@ -191,7 +199,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: December 26, 2025 (Session 29 - localStorage persistence complete)
+**Last Verified**: December 28, 2025 (Session 30 - Sidebar stretching fixed)
 **Next Review**: After retake analytics dashboard and navigation blocking
 **Build Status**: ✅ Passing (0 TypeScript errors)
-**Recent Sessions**: [Session 26](/docs/archive/sessions/session_26.md), [Session 27](/docs/archive/sessions/session_27.md), [Session 28](./session_28.md), [Session 29](./session_29.md)
+**Recent Sessions**: [Session 27](/docs/archive/sessions/session_27.md), [Session 28](./session_28.md), [Session 29](./session_29.md), [Session 30](/docs/archive/sessions/session_30.md)
