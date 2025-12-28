@@ -11,6 +11,7 @@ import { PageShell } from "@/components/PageShell";
 
 interface Attempt {
   id: string;
+  quiz_id: string;
   title: string;
   subject: string;
   status: string;
@@ -36,7 +37,7 @@ export default function ResultsPage() {
       const [ongoingRes, resultsRes] = await Promise.all([
         supabase
           .from("quiz_attempts")
-          .select("id, title, subject, status, updated_at, class:classes(name)")
+          .select("id, quiz_id, title, subject, status, updated_at, class:classes(name)")
           .eq("status", "in_progress")
           .order("updated_at", { ascending: false })
           .limit(20),
@@ -112,7 +113,7 @@ export default function ResultsPage() {
                       className="btn btn-sm w-full"
                       onClick={() => {
                         track("attempt_resume_clicked", { attempt_id: a.id });
-                        navigate(`/attempts/${a.id}`);
+                        navigate(`/quiz/${a.quiz_id}?attempt=${a.id}`);
                       }}
                     >
                       Resume

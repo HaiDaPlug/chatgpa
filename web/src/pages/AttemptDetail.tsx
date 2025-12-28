@@ -183,6 +183,12 @@ export default function AttemptDetailPage() {
       setAttempt(attemptData);
       lastAutosaveVersion.current = attemptData.autosave_version;
 
+      // Redirect in_progress attempts to QuizPage (one-question-at-a-time UI)
+      if (attemptData.status === "in_progress" && attemptData.quiz_id) {
+        navigate(`/quiz/${attemptData.quiz_id}?attempt=${attemptData.id}`, { replace: true });
+        return; // Early return prevents further processing
+      }
+
       // Check for local backup (conflict resolution)
       const lsKey = LS_KEY_PREFIX + id;
       const localBackup = localStorage.getItem(lsKey);
