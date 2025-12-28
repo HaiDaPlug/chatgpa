@@ -49,6 +49,21 @@ const getQuizProgressKey = (quizId: string, attemptId?: string) => {
   return `quiz_progress_quiz_${quizId}`;
 };
 
+// Helper: Check if value is truly missing (not just falsy)
+const isMissing = (v: unknown) => v === undefined || v === null;
+
+// Helper: Read localStorage snapshot explicitly (for deterministic merging)
+function readLocalSnapshot(storageKey: string): Record<string, string> | null {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.answers ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ---- UI Components ----
 
 function QuizHeader({ onBack, title }: { onBack: () => void; title: string }) {
@@ -451,6 +466,12 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<AnswersMap>({}); // Single source of truth for all answers
   const [currentIndex, setCurrentIndex] = useState(0); // Track which question is displayed (0-based)
 
+  // Server-side autosave state (Session 31)
+  const [autosaveVersion, setAutosaveVersion] = useState(0);
+  const autosaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveRetryRef = useRef(false);
+  const lastAutosavedAnswersRef = useRef<Record<string, string>>({});
+
   // Fetch quiz (PRESERVED - lines 132-163)
   useEffect(() => {
     let alive = true;
@@ -523,6 +544,102 @@ export default function QuizPage() {
     };
   }, [quizId, navigate, push, attemptId]);
 
+  // B1: Load attempt data from server when attemptId exists (Session 31)
+  useEffect(() => {
+    if (!attemptId || !quiz) return; // Wait for quiz to load first
+
+    async function loadAttempt() {
+      if (!quiz) return; // TypeScript null guard
+
+      try {
+        const { data, error } = await supabase
+          .from('quiz_attempts')
+          .select('responses, autosave_version, quiz_id')
+          .eq('id', attemptId)
+          .eq('status', 'in_progress')
+          .single();
+
+        if (error) throw error;
+
+        // Verify attempt belongs to this quiz (use resolved quiz.id, not route param)
+        if (data.quiz_id !== quiz.id) {
+          throw new Error('Attempt does not belong to this quiz');
+        }
+
+        // Explicitly read localStorage snapshot (deterministic)
+        const storageKey = getQuizProgressKey(quiz.id, attemptId);
+        const localSnapshot = readLocalSnapshot(storageKey);
+
+        // Merge server baseline + localStorage overlay
+        const serverAnswers = data.responses || {};
+        const localAnswers = localSnapshot || {};
+
+        // Server as baseline, overlay local answers if server doesn't have them
+        const mergedAnswers = { ...serverAnswers };
+        for (const [qid, localAnswer] of Object.entries(localAnswers)) {
+          // Only treat undefined/null as "missing" (not falsy like "", 0, false)
+          if (isMissing(mergedAnswers[qid]) && !isMissing(localAnswer)) {
+            mergedAnswers[qid] = localAnswer as string;
+          }
+        }
+
+        // Update state
+        setAnswers(mergedAnswers);
+        setAutosaveVersion(data.autosave_version || 0);
+
+        // Calculate currentIndex (first unanswered question)
+        const firstUnanswered = quiz.questions.findIndex(q => isMissing(mergedAnswers[q.id]));
+        setCurrentIndex(firstUnanswered === -1 ? 0 : firstUnanswered);
+
+      } catch (err) {
+        console.error('Failed to load attempt:', err);
+        push({ kind: 'error', text: 'Failed to load quiz progress' });
+      }
+    }
+
+    loadAttempt();
+  }, [attemptId, quiz, push]);
+
+  // B2: Ensure in-progress attempt exists (Session 31)
+  useEffect(() => {
+    if (attemptId || !quiz) return; // Skip if attemptId already exists or quiz not loaded
+
+    async function ensureAttempt() {
+      if (!quiz) return; // TypeScript null guard
+
+      try {
+        const session = (await supabase.auth.getSession()).data.session;
+        if (!session?.access_token) return;
+
+        const res = await fetch(`/api/v1/attempts?action=start`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ quiz_id: quiz.id })
+        });
+
+        if (!res.ok) {
+          const { message } = await res.json();
+          throw new Error(message);
+        }
+
+        const { attempt_id } = await res.json();
+
+        // Update URL with resolved quiz ID + attempt ID
+        const newUrl = `/quiz/${quiz.id}?attempt=${attempt_id}`;
+        navigate(newUrl, { replace: true });
+
+      } catch (err) {
+        console.error('Failed to create attempt:', err);
+        push({ kind: 'error', text: 'Failed to start quiz attempt' });
+      }
+    }
+
+    ensureAttempt();
+  }, [attemptId, quiz, navigate, push]);
+
   // Compute resolved storage key from fetched quiz.id (source of truth)
   const resolvedKey = quiz ? getQuizProgressKey(quiz.id, attemptId) : null;
 
@@ -545,6 +662,99 @@ export default function QuizPage() {
     saveQuizProgress(resolvedKey, quiz.id, attemptId, questionIds, answers, currentIndex);
     hasEverSavedRef.current = true; // Mark that we've saved at least once
   }, [answers, currentIndex, quiz, attemptId, resolvedKey]);
+
+  // B3: Server-side autosave with conflict resolution (Session 31)
+  useEffect(() => {
+    if (!attemptId || Object.keys(answers).length === 0) return;
+
+    // Clear previous timeout
+    if (autosaveTimeout.current) {
+      clearTimeout(autosaveTimeout.current);
+    }
+
+    // Debounce: wait 800ms after last change
+    autosaveTimeout.current = setTimeout(async () => {
+      try {
+        // Only autosave if answers actually changed (prevent retry loops)
+        const answersChanged = JSON.stringify(answers) !== JSON.stringify(lastAutosavedAnswersRef.current);
+        if (!answersChanged) return;
+
+        // Get fresh session
+        const session = (await supabase.auth.getSession()).data.session;
+        if (!session?.access_token) return;
+
+        const res = await fetch(`/api/v1/attempts?action=autosave`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            attempt_id: attemptId,
+            responses: answers,
+            autosave_version: autosaveVersion
+          })
+        });
+
+        if (!res.ok) {
+          // Handle conflict (409) - retry once per conflict event
+          if (res.status === 409 && !autosaveRetryRef.current) {
+            // Set retry flag BEFORE refetch (prevent loop)
+            autosaveRetryRef.current = true;
+
+            const { data } = await supabase
+              .from('quiz_attempts')
+              .select('responses, autosave_version')
+              .eq('id', attemptId)
+              .single();
+
+            if (data) {
+              // Merge server data with local answers (local overlay)
+              const merged = { ...data.responses, ...answers };
+
+              // Only update if merged actually differs
+              const mergedChanged = JSON.stringify(merged) !== JSON.stringify(answers);
+              if (mergedChanged) {
+                setAnswers(merged);
+                setAutosaveVersion(data.autosave_version);
+                // Retry autosave will trigger via answers update
+              } else {
+                // Answers are the same, just update version
+                setAutosaveVersion(data.autosave_version);
+                autosaveRetryRef.current = false;
+              }
+            }
+
+            return; // Don't reset retry flag yet - let next autosave handle it
+          }
+
+          throw new Error('Autosave failed');
+        }
+
+        const { autosave_version } = await res.json();
+        setAutosaveVersion(autosave_version);
+        lastAutosavedAnswersRef.current = answers; // Track last successful save
+        autosaveRetryRef.current = false; // Reset retry flag after success
+
+        // Optional: Show subtle indicator (non-intrusive)
+        if (import.meta.env.DEV) {
+          console.log('Autosaved to server:', autosave_version);
+        }
+
+      } catch (err) {
+        console.error('Server autosave failed (non-blocking):', err);
+        autosaveRetryRef.current = false;
+        // Don't show toast - this is non-blocking
+        // localStorage is still the safety net
+      }
+    }, 800);
+
+    return () => {
+      if (autosaveTimeout.current) {
+        clearTimeout(autosaveTimeout.current);
+      }
+    };
+  }, [answers, attemptId, autosaveVersion]);
 
   // Computed values
   const currentQuestion = quiz?.questions[currentIndex];
@@ -589,7 +799,7 @@ export default function QuizPage() {
         return;
       }
 
-      // Submit to grading API (creates attempt via RLS)
+      // Submit to grading API (updates existing attempt when attempt_id provided)
       const res = await fetch("/api/v1/ai?action=grade", {
         method: "POST",
         headers: {
@@ -598,6 +808,7 @@ export default function QuizPage() {
         },
         body: JSON.stringify({
           quiz_id: quizId,
+          attempt_id: attemptId, // Pass attempt_id to update existing attempt (Session 31)
           responses: answers, // answers shape unchanged: Record<string, string>
         }),
       });
