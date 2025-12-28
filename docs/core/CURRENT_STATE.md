@@ -1,7 +1,7 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 8, 2025 (Session 28 Complete)
-**Branch**: `main`
+**Last Updated**: December 28, 2025 (Session 30 Complete)
+**Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors)
 
 ---
@@ -27,7 +27,25 @@
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 25-28)
+### Latest Updates (Sessions 25-30)
+- ✅ **Session 30: Fixed Sidebar Stretching Bug** - UI polish
+  - Locked app shell to viewport (sidebar + header fixed, main scrolls)
+  - 4 minimal className changes in PageShell.tsx (Lines 115, 128, 143, 154)
+  - Used `h-screen` for universal browser compatibility
+  - Matches modern app patterns (Linear, Notion, VSCode, Figma)
+  - Frontend-only changes, 0 new TypeScript errors
+  - Ready for testing in browser
+
+- ✅ **Session 29: localStorage Persistence for Quiz Progress** - Solves #1 UX gap
+  - Prevents data loss on page refresh (answers + currentIndex preserved)
+  - Order-aware questionIds validation (detects if backend reorders questions)
+  - Hydration guards prevent double-restore and save-loop on React StrictMode
+  - Support for future `?attempt=` query param (retake flow compatibility)
+  - Comprehensive validation: schema, version, bounds checking, stale data detection
+  - DEV-only logging (no prod console.log)
+  - Frontend-only changes, 0 new TypeScript errors
+  - ~182 lines added to QuizPage.tsx
+
 - ✅ **Session 28: Persistent Quiz Summary Card** - Enhanced results visibility
   - Added persistent summary card to AttemptDetail page (replaces toast-only)
   - Shows score (85%), correct count (7 out of 10), letter grade (B), and feedback
@@ -78,11 +96,11 @@
 ## 🎯 Immediate Priorities
 
 ### High-Value UX (Top Priority)
-1. **localStorage Persistence** - Save quiz progress to survive page refresh
-   - Store `answers` map and `currentIndex` keyed by `quizId`
-   - Clear on successful submit
-   - High value, low effort (1-2 hours)
-   - **Note**: Session 27 added `?attempt=` URL param for future work
+1. ~~**localStorage Persistence**~~ ✅ **DONE (Session 29)**
+   - ✅ Saves quiz progress to survive page refresh
+   - ✅ Stores `answers` + `currentIndex` keyed by `quizId` (or `attemptId`)
+   - ✅ Clears on successful submit
+   - ✅ Order-aware validation, hydration guards, comprehensive error handling
 
 2. **Retake Analytics Dashboard** - Monitor mastery loop adoption
    - Track retake → completion rate
@@ -157,9 +175,8 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 - **Bundle Size**: No lazy loading or code splitting optimization
 
 ### Known Limitations
-- **Quiz Progress Persistence**: Page refresh resets quiz progress (high priority fix - localStorage)
-  - Session 27 added infrastructure: QuizPage receives `?attempt=` URL param
-- **Navigation Blocking**: No warning when leaving quiz with unsaved answers (requires data router)
+- ~~**Quiz Progress Persistence**~~: ✅ **FIXED (Session 29)** - Page refresh now restores progress
+- **Navigation Blocking**: No warning when leaving quiz with unsaved answers (requires data router migration)
 - **Rich Text Editor**: ClassNotes uses plain textarea (could upgrade to TipTap/Lexical)
 - **Real-time Updates**: Results page doesn't subscribe to new attempts
 - **E2E Testing**: No Playwright/Cypress specs yet
@@ -182,7 +199,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: December 8, 2025 (Session 28 - Persistent quiz summary card complete)
-**Next Review**: After retake analytics and localStorage persistence
+**Last Verified**: December 28, 2025 (Session 30 - Sidebar stretching fixed)
+**Next Review**: After retake analytics dashboard and navigation blocking
 **Build Status**: ✅ Passing (0 TypeScript errors)
-**Recent Sessions**: [Session 25](/docs/archive/sessions/session_25.md), [Session 26](/docs/archive/sessions/session_26.md), [Session 27](/docs/archive/sessions/session_27.md), [Session 28](./session_28.md)
+**Recent Sessions**: [Session 27](/docs/archive/sessions/session_27.md), [Session 28](./session_28.md), [Session 29](./session_29.md), [Session 30](/docs/archive/sessions/session_30.md)

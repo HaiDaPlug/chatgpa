@@ -112,7 +112,7 @@ export function PageShell({ children }: { children: ReactNode }) {
       </a>
 
       <div
-        className="grid min-h-screen"
+        className="grid h-screen overflow-hidden"
         style={{
           gridTemplateColumns: `${sidebarWidth} 1fr`,
           gridTemplateRows: "56px 1fr",
@@ -125,7 +125,7 @@ export function PageShell({ children }: { children: ReactNode }) {
         {/* Sidebar */}
         <aside
           style={{ gridArea: "sidebar" }}
-          className="surface bdr overflow-hidden"
+          className="surface bdr overflow-hidden min-h-0"
         >
           <Sidebar
             collapsed={collapsed}
@@ -140,7 +140,7 @@ export function PageShell({ children }: { children: ReactNode }) {
             gridArea: "header",
             backdropFilter: "saturate(120%) blur(6px)",
           }}
-          className="surface/70 bdr sticky top-0 z-10"
+          className="surface/70 bdr z-10"
         >
           <div className="h-full flex items-center px-6">
             <Breadcrumbs />
@@ -151,7 +151,7 @@ export function PageShell({ children }: { children: ReactNode }) {
         <main
           id="main-content"
           style={{ gridArea: "main" }}
-          className="p-8"
+          className="p-8 min-h-0 overflow-y-auto"
           tabIndex={-1}
         >
           <AnimatePresence mode="wait">
