@@ -36,6 +36,7 @@ interface AttemptReviewProps {
   };
   mode?: 'full' | 'compact';
   onRetake?: () => void;
+  onPracticeIncorrect?: () => void;
   onGenerateNew?: () => void;
   onBack?: () => void;
   isRetaking?: boolean;
@@ -153,15 +154,18 @@ function ScoreHero({
   insights,
   mode,
   onRetake,
+  onPracticeIncorrect,
   onGenerateNew,
   isRetaking,
 }: {
   insights: AttemptInsights;
   mode: 'full' | 'compact';
   onRetake?: () => void;
+  onPracticeIncorrect?: () => void;
   onGenerateNew?: () => void;
   isRetaking?: boolean;
 }) {
+  const incorrectCount = insights.totalCount - insights.correctCount;
   return (
     <section
       className="rounded-3xl p-8 md:p-12 shadow-sm"
@@ -249,17 +253,42 @@ function ScoreHero({
           </div>
 
           {/* Actions (only in full mode) */}
-          {mode === 'full' && (onRetake || onGenerateNew) && (
+          {mode === 'full' && (onRetake || onPracticeIncorrect || onGenerateNew) && (
             <div className="flex flex-col sm:flex-row gap-4">
-              {onRetake && (
+              {/* P1: Practice Incorrect is primary CTA when incorrectCount > 0 */}
+              {onPracticeIncorrect && incorrectCount > 0 && (
                 <button
-                  onClick={onRetake}
+                  onClick={onPracticeIncorrect}
                   disabled={isRetaking}
                   className="flex-1 h-14 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
                   style={{
                     background: 'var(--accent)',
                     color: 'var(--accent-text)',
                   }}
+                >
+                  <Target className="w-5 h-5" />
+                  {isRetaking ? 'Loading...' : `Practice Incorrect (${incorrectCount})`}
+                </button>
+              )}
+              {onRetake && (
+                <button
+                  onClick={onRetake}
+                  disabled={isRetaking}
+                  className={`flex-1 h-14 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 ${
+                    incorrectCount > 0 ? '' : 'shadow-lg'
+                  }`}
+                  style={
+                    incorrectCount > 0
+                      ? {
+                          background: 'var(--surface-raised)',
+                          color: 'var(--text)',
+                          border: '2px solid var(--border-strong)',
+                        }
+                      : {
+                          background: 'var(--accent)',
+                          color: 'var(--accent-text)',
+                        }
+                  }
                 >
                   <RotateCcw className="w-5 h-5" />
                   {isRetaking ? 'Loading...' : 'Retake Quiz'}
@@ -686,6 +715,7 @@ export function AttemptReview({
   attempt,
   mode = 'full',
   onRetake,
+  onPracticeIncorrect,
   onGenerateNew,
   onBack,
   isRetaking = false,
@@ -755,7 +785,9 @@ export function AttemptReview({
         insights={insights}
         mode={mode}
         onRetake={onRetake}
+        onPracticeIncorrect={onPracticeIncorrect}
         onGenerateNew={onGenerateNew}
+        incorrectCount={incorrectCount}
         isRetaking={isRetaking}
       />
 
