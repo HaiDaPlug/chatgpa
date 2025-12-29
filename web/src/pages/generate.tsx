@@ -33,6 +33,15 @@ export default function GeneratePage() {
     return Math.round((0.7 * lenScore + 0.3 * headingScore) * 100);
   }, [notes]);
 
+  // P3: Word count validation
+  const wordCount = useMemo(() => {
+    return notes.trim().split(/\s+/).filter(Boolean).length;
+  }, [notes]);
+
+  const isTooShort = wordCount < 100;
+  const isVeryShort = wordCount < 50;
+  const hasHeadings = /^#{1,6}\s+/m.test(notes) || /^[A-Z][^a-z\n]{3,}$/m.test(notes);
+
   async function onGenerate() {
     try {
       setBusy(true);
@@ -91,10 +100,39 @@ export default function GeneratePage() {
         onChange={(e) => setNotes(e.target.value)}
       />
 
+      {/* P3: Warning banners */}
+      {isTooShort && notes.trim().length >= 20 && (
+        <div
+          className="mt-4 px-4 py-3 rounded-lg text-sm border"
+          style={{
+            background: isVeryShort ? 'rgba(239, 68, 68, 0.08)' : 'rgba(251, 191, 36, 0.08)',
+            color: isVeryShort ? 'var(--text-danger)' : 'var(--text-warning)',
+            borderColor: isVeryShort ? 'rgba(239, 68, 68, 0.2)' : 'rgba(251, 191, 36, 0.2)',
+          }}
+        >
+          ⚠️ {isVeryShort
+            ? 'Very short notes may produce low-quality questions. Consider adding more detail.'
+            : 'Notes are shorter than typical. Quiz quality may vary.'}
+        </div>
+      )}
+
+      {!hasHeadings && wordCount > 100 && (
+        <div
+          className="mt-4 px-4 py-3 rounded-lg text-sm"
+          style={{
+            background: 'rgba(110, 140, 251, 0.08)',
+            color: 'var(--text-muted)',
+            border: '1px solid rgba(110, 140, 251, 0.15)',
+          }}
+        >
+          💡 Tip: Use headings to help the AI structure better questions
+        </div>
+      )}
+
       <div className="mt-3 flex items-center justify-between">
         <RelevanceMeter value={relevance} />
         <button
-          disabled={!classId || notes.trim().length < 20 || notes.length > 50000 || busy}
+          disabled={!classId || !notes.trim() || notes.length > 50000 || busy}
           onClick={onGenerate}
           className="rounded-xl bg-coral-500 px-4 py-2 font-medium text-white disabled:opacity-60 hover:bg-coral-400 transition"
         >
