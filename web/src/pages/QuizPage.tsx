@@ -833,7 +833,15 @@ export default function QuizPage() {
         clearQuizProgress(key);
       }
 
-      navigate("/results");
+      // P0: Direct to attempt detail for immediate feedback (bulletproofed with fallback)
+      if (attemptId) {
+        navigate(`/attempts/${attemptId}`);
+        push({ kind: "success", text: "Saved to Results" });
+      } else {
+        // Fallback if attemptId is missing (shouldn't happen but prevents blank route crash)
+        navigate("/results");
+        push({ kind: "success", text: "Saved. Open latest attempt." });
+      }
     } catch (error) {
       console.error("SUBMIT_ERROR", { error });
       push({ kind: "error", text: "Network error. Please try again." });
