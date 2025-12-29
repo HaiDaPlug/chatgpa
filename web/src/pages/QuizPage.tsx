@@ -64,6 +64,30 @@ function readLocalSnapshot(storageKey: string): Record<string, string> | null {
   }
 }
 
+// P2: Format timestamp for autosave indicator
+function formatRelativeTime(date: Date): string {
+  try {
+    const now = Date.now();
+    const diff = now - date.getTime();
+
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 10) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  } catch (err) {
+    console.warn('Failed to format timestamp', err);
+    return '';
+  }
+}
+
 // ---- UI Components ----
 
 function QuizHeader({
@@ -232,7 +256,8 @@ function QuizFooter({
   onSubmit,
   canGoPrevious,
   isLastQuestion,
-  submitting
+  submitting,
+  lastSavedAt,
 }: {
   onPrevious: () => void;
   onNext: () => void;
@@ -240,9 +265,21 @@ function QuizFooter({
   canGoPrevious: boolean;
   isLastQuestion: boolean;
   submitting: boolean;
+  lastSavedAt?: Date | null;
 }) {
   return (
-    <footer className="flex justify-between items-center gap-4 pt-8 animate-slideUp" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
+    <footer className="pt-8 animate-slideUp" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
+      {/* P2: Autosave indicator */}
+      {lastSavedAt && (
+        <div
+          className="text-xs text-center mb-3"
+          style={{ color: 'var(--text-soft)' }}
+        >
+          ✓ Saved {formatRelativeTime(lastSavedAt)}
+        </div>
+      )}
+
+      <div className="flex justify-between items-center gap-4">
       {canGoPrevious ? (
         <button
           onClick={onPrevious}
@@ -284,6 +321,7 @@ function QuizFooter({
           </svg>
         </button>
       )}
+      </div>
     </footer>
   );
 }
@@ -489,6 +527,9 @@ export default function QuizPage() {
   const autosaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveRetryRef = useRef(false);
   const lastAutosavedAnswersRef = useRef<Record<string, string>>({});
+
+  // P2: Last saved timestamp for autosave indicator
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   // P1 Bonus: Shuffle toggle (stable per attempt)
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
@@ -831,6 +872,7 @@ export default function QuizPage() {
         setAutosaveVersion(autosave_version);
         lastAutosavedAnswersRef.current = answers; // Track last successful save
         autosaveRetryRef.current = false; // Reset retry flag after success
+        setLastSavedAt(new Date()); // P2: Update last saved timestamp
 
         // Optional: Show subtle indicator (non-intrusive)
         if (import.meta.env.DEV) {
@@ -1037,6 +1079,7 @@ export default function QuizPage() {
             canGoPrevious={canGoPrevious}
             isLastQuestion={isLastQuestion}
             submitting={submitting}
+            lastSavedAt={lastSavedAt}
           />
         </main>
 
