@@ -30,6 +30,7 @@ interface AttemptReviewProps {
     score: number; // 0-1 decimal
     grading: BreakdownItem[];
     submitted_at?: string;
+    completed_at?: string; // P2: Schema fallback for timestamp
     started_at: string;
     class_name?: string;
     questions: Question[];
@@ -95,7 +96,46 @@ function calculateTimeElapsed(startedAt: string, submittedAt?: string): string |
   }
 }
 
-function computeInsights(attempt: AttemptReviewProps['attempt']): AttemptInsights {
+function formatRelativeTime(isoString: string): string {
+  if (!isoString) return '';
+
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';  // Invalid date
+
+    const now = Date.now();
+    const diff = now - date.getTime();
+
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  } catch (err) {
+    console.warn('Failed to format timestamp', err);
+    return '';
+  }
+}
+
+function computeInsights(attempt: AttemptReviewProps['attempt']): AttemptInsights | null {
+  // P2: Defensive checks for graceful degradation
+  if (!attempt?.grading || !Array.isArray(attempt.grading)) {
+    console.warn('Missing grading data in attempt', attempt?.id);
+    return null;
+  }
+  if (attempt.score == null || isNaN(attempt.score)) {
+    console.warn('Missing or invalid score in attempt', attempt.id);
+    return null;
+  }
+  if (!attempt.started_at) {
+    console.warn('Missing started_at timestamp in attempt', attempt.id);
+    return null;
+  }
+
   const percentScore = Math.round(attempt.score * 100);
   const letterGrade = calculateLetterGrade(percentScore);
 
@@ -157,6 +197,8 @@ function ScoreHero({
   onPracticeIncorrect,
   onGenerateNew,
   isRetaking,
+  submittedAt,
+  completedAt,
 }: {
   insights: AttemptInsights;
   mode: 'full' | 'compact';
@@ -164,6 +206,8 @@ function ScoreHero({
   onPracticeIncorrect?: () => void;
   onGenerateNew?: () => void;
   isRetaking?: boolean;
+  submittedAt?: string;
+  completedAt?: string;
 }) {
   const incorrectCount = insights.totalCount - insights.correctCount;
   return (
@@ -307,6 +351,20 @@ function ScoreHero({
                   Generate New Quiz
                 </button>
               )}
+            </div>
+          )}
+
+          {/* P2: Submission timestamp */}
+          {(submittedAt || completedAt) && (
+            <div
+              className="text-xs text-center mt-4"
+              style={{ color: 'var(--text-soft)' }}
+            >
+              {submittedAt
+                ? `Submitted ${formatRelativeTime(submittedAt)}`
+                : completedAt
+                ? `Completed ${formatRelativeTime(completedAt)}`
+                : null}
             </div>
           )}
         </div>
@@ -726,6 +784,97 @@ export function AttemptReview({
   // Computed insights
   const insights = useMemo(() => computeInsights(attempt), [attempt]);
 
+  // P2: Graceful fallback if insights fail to compute
+  if (!insights) {
+    return (
+      <div className="max-w-3xl mx-auto p-6 space-y-6">
+        <div
+          className="rounded-2xl p-8 border"
+          style={{
+            background: 'var(--surface-raised)',
+            borderColor: 'var(--border-subtle)',
+          }}
+        >
+          <h2
+            className="text-2xl font-bold mb-4"
+            style={{ color: 'var(--text)' }}
+          >
+            Results Summary
+          </h2>
+          {attempt.score != null && (
+            <p
+              className="text-4xl font-semibold mb-6"
+              style={{ color: 'var(--text)' }}
+            >
+              {Math.round(attempt.score * 100)}%
+            </p>
+          )}
+          <p
+            className="mb-6"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Unable to compute detailed insights. Your results are saved.
+          </p>
+          <div className="flex gap-4">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="px-4 py-2 rounded-lg font-medium transition-colors"
+                style={{
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border-strong)',
+                }}
+              >
+                ← Back to Results
+              </button>
+            )}
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-lg font-medium transition-colors"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--accent-text)',
+              }}
+            >
+              Retry Loading
+            </button>
+          </div>
+          {/* Show raw question list if grading exists */}
+          {attempt.grading && attempt.grading.length > 0 && (
+            <div className="mt-8 pt-8 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+              <h3
+                className="text-lg font-semibold mb-4"
+                style={{ color: 'var(--text)' }}
+              >
+                Questions
+              </h3>
+              <div className="space-y-2">
+                {attempt.grading.map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 p-3 rounded-lg"
+                    style={{
+                      background: 'var(--surface)',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <span style={{ color: item.correct ? 'var(--text-success)' : 'var(--text-danger)' }}>
+                      {item.correct ? '✓' : '✗'}
+                    </span>
+                    <span>
+                      {i + 1}. {item.prompt || 'Question'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Filter questions
   const visibleQuestions = useMemo(() => {
     return attempt.questions.filter((q) => {
@@ -789,6 +938,8 @@ export function AttemptReview({
         onGenerateNew={onGenerateNew}
         incorrectCount={incorrectCount}
         isRetaking={isRetaking}
+        submittedAt={attempt.submitted_at}
+        completedAt={attempt.completed_at}
       />
 
       {/* Insights strip */}
