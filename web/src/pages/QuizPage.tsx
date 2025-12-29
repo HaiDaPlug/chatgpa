@@ -2,7 +2,7 @@
 // Refactored: One-question-at-a-time pagination UI with progress tracking
 // Connects to: /api/v1/ai?action=grade, quiz_attempts table, Results page
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/toast";
@@ -66,10 +66,20 @@ function readLocalSnapshot(storageKey: string): Record<string, string> | null {
 
 // ---- UI Components ----
 
-function QuizHeader({ onBack, title }: { onBack: () => void; title: string }) {
+function QuizHeader({
+  onBack,
+  title,
+  shuffleEnabled,
+  onShuffleToggle,
+}: {
+  onBack: () => void;
+  title: string;
+  shuffleEnabled: boolean;
+  onShuffleToggle: (enabled: boolean) => void;
+}) {
   return (
     <header className="sticky top-0 z-50 bg-[var(--bg)] bg-opacity-80 backdrop-blur-xl border-b border-[var(--border-subtle)]">
-      <div className="max-w-[900px] mx-auto px-6 md:px-8 py-4 md:py-6 flex justify-between items-center">
+      <div className="max-w-[900px] mx-auto px-6 md:px-8 py-4 md:py-6 flex justify-between items-center gap-4">
         <button
           onClick={onBack}
           className="inline-flex items-center gap-2 text-[var(--text-muted)] text-sm font-medium px-2 py-1 rounded-md hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all duration-[var(--motion-duration-fast)]"
@@ -83,7 +93,15 @@ function QuizHeader({ onBack, title }: { onBack: () => void; title: string }) {
         <div className="text-[var(--text)] text-[15px] font-semibold tracking-tight">
           {title}
         </div>
-        <div className="w-[80px]" aria-hidden="true">{/* Spacer for symmetry */}</div>
+        <label className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={shuffleEnabled}
+            onChange={(e) => onShuffleToggle(e.target.checked)}
+            className="w-4 h-4 rounded border-[var(--border-strong)] bg-[var(--surface)] checked:bg-[var(--accent)] checked:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] transition-colors"
+          />
+          <span>Shuffle</span>
+        </label>
       </div>
     </header>
   );
@@ -472,6 +490,84 @@ export default function QuizPage() {
   const autosaveRetryRef = useRef(false);
   const lastAutosavedAnswersRef = useRef<Record<string, string>>({});
 
+  // P1 Bonus: Shuffle toggle (stable per attempt)
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  const [shuffledOrder, setShuffledOrder] = useState<string[] | null>(null);
+
+  // P1: Practice mode filter (reads scoped localStorage)
+  const practiceFilter = useMemo(() => {
+    const isPracticeMode = searchParams.get('practice') === 'true';
+    if (!isPracticeMode) return null;
+    if (!attemptId) return null;
+
+    // Read from scoped key: practice_filter:{attemptId}
+    const stored = localStorage.getItem(`practice_filter:${attemptId}`);
+    if (!stored) return null;
+
+    try {
+      const filter = JSON.parse(stored);
+      // Validate: must match current quiz and be recent (< 5 min)
+      if (filter.quiz_id !== quizId) return null;
+      if (Date.now() - filter.created_at > 5 * 60 * 1000) return null;
+
+      // CLEANUP: Remove from localStorage after consuming (prevents replays)
+      localStorage.removeItem(`practice_filter:${attemptId}`);
+
+      return filter.question_ids as string[];
+    } catch (err) {
+      console.warn('Failed to parse practice filter', err);
+      return null;
+    }
+  }, [quizId, searchParams, attemptId]);
+
+  // P1: Filter questions if in practice mode (with fallback) + shuffle if enabled
+  const displayQuestions = useMemo(() => {
+    if (!quiz?.questions) return [];
+
+    // Step 1: Apply practice filter if active
+    let questions = practiceFilter
+      ? quiz.questions.filter(q => practiceFilter.includes(q.id))
+      : quiz.questions;
+
+    // BULLETPROOF: If filter results in 0 questions, fall back to full quiz
+    if (practiceFilter && questions.length === 0) {
+      console.warn('Practice filter resulted in 0 questions, using full quiz');
+      push({ kind: 'info', text: 'No questions matched filter. Showing full quiz.' });
+      questions = quiz.questions;
+    }
+
+    // Step 2: Apply shuffle if enabled (stable order per attempt)
+    if (shuffleEnabled) {
+      // If we don't have a stable order yet, create one
+      if (!shuffledOrder) {
+        const questionIds = questions.map(q => q.id);
+        const shuffled = [...questionIds];  // Clone
+
+        // Fisher-Yates shuffle
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+
+        setShuffledOrder(shuffled);  // Store stable order
+        return questions;  // First render returns unshuffled (will re-render with shuffled)
+      }
+
+      // Apply stable shuffled order
+      const questionMap = new Map(questions.map(q => [q.id, q]));
+      return shuffledOrder.map(id => questionMap.get(id)).filter(Boolean) as typeof questions;
+    }
+
+    return questions;
+  }, [quiz?.questions, practiceFilter, push, shuffleEnabled, shuffledOrder]);
+
+  // Reset shuffled order when shuffle is disabled
+  useEffect(() => {
+    if (!shuffleEnabled) {
+      setShuffledOrder(null);
+    }
+  }, [shuffleEnabled]);
+
   // Fetch quiz (PRESERVED - lines 132-163)
   useEffect(() => {
     let alive = true;
@@ -587,8 +683,8 @@ export default function QuizPage() {
         setAnswers(mergedAnswers);
         setAutosaveVersion(data.autosave_version || 0);
 
-        // Calculate currentIndex (first unanswered question)
-        const firstUnanswered = quiz.questions.findIndex(q => isMissing(mergedAnswers[q.id]));
+        // Calculate currentIndex (first unanswered question in displayQuestions)
+        const firstUnanswered = displayQuestions.findIndex(q => isMissing(mergedAnswers[q.id]));
         setCurrentIndex(firstUnanswered === -1 ? 0 : firstUnanswered);
 
       } catch (err) {
@@ -756,9 +852,9 @@ export default function QuizPage() {
     };
   }, [answers, attemptId, autosaveVersion]);
 
-  // Computed values
-  const currentQuestion = quiz?.questions[currentIndex];
-  const totalQuestions = quiz?.questions.length ?? 0;
+  // Computed values (use displayQuestions for UI display)
+  const currentQuestion = displayQuestions[currentIndex];
+  const totalQuestions = displayQuestions.length;
   const canGoPrevious = currentIndex > 0;
   const isLastQuestion = currentIndex === totalQuestions - 1;
   // Progress: avoid off-by-one (Question 1 of 10 = 10%, not 0%)
@@ -833,7 +929,15 @@ export default function QuizPage() {
         clearQuizProgress(key);
       }
 
-      navigate("/results");
+      // P0: Direct to attempt detail for immediate feedback (bulletproofed with fallback)
+      if (attemptId) {
+        navigate(`/attempts/${attemptId}`);
+        push({ kind: "success", text: "Saved to Results" });
+      } else {
+        // Fallback if attemptId is missing (shouldn't happen but prevents blank route crash)
+        navigate("/results");
+        push({ kind: "success", text: "Saved. Open latest attempt." });
+      }
     } catch (error) {
       console.error("SUBMIT_ERROR", { error });
       push({ kind: "error", text: "Network error. Please try again." });
@@ -855,7 +959,7 @@ export default function QuizPage() {
   }
 
   // Not found state
-  if (!quiz || quiz.questions.length === 0) {
+  if (!quiz || displayQuestions.length === 0) {
     return (
       <PageShell>
         <div className="max-w-3xl mx-auto p-4">
@@ -886,9 +990,24 @@ export default function QuizPage() {
         <QuizHeader
           onBack={() => navigate("/results")}
           title={`Quiz · ${quizId?.slice(0, 8) || 'Unknown'}`}
+          shuffleEnabled={shuffleEnabled}
+          onShuffleToggle={setShuffleEnabled}
         />
 
         <main className="flex-1 w-full max-w-[840px] mx-auto px-6 md:px-8 py-8 md:py-12 flex flex-col justify-center min-h-[70vh]">
+          {practiceFilter && (
+            <div
+              className="mb-6 px-4 py-3 rounded-lg text-sm text-center"
+              style={{
+                background: 'var(--accent-soft)',
+                color: 'var(--text)',
+                border: '1px solid var(--accent)',
+              }}
+            >
+              📝 Practice Mode: Reviewing {displayQuestions.length} incorrect question{displayQuestions.length !== 1 ? 's' : ''}
+            </div>
+          )}
+
           <ProgressIndicator
             current={currentIndex + 1} // Display 1-indexed (Question 1 of 10, not 0 of 10)
             total={totalQuestions}

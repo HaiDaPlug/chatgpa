@@ -409,6 +409,75 @@ export default function AttemptDetailPage() {
     }
   }
 
+  // P1: Practice incorrect questions only
+  async function handlePracticeIncorrect() {
+    if (!attempt || !attempt.grading) return;
+
+    // GUARD #3: Extract incorrect question IDs (verified: BreakdownItem.id exists in grader.ts line 28)
+    const incorrectQuestionIds = attempt.grading
+      .filter((item: BreakdownItem) => !item.correct)
+      .map((item: BreakdownItem) => item.id);
+
+    // BULLETPROOF: If no incorrect questions, show message and return
+    if (incorrectQuestionIds.length === 0) {
+      push({ kind: 'info', text: 'No incorrect questions to practice!' });
+      return;
+    }
+
+    setIsRetaking(true); // Reuse same loading state
+    try {
+      // Get auth token
+      const session = (await supabase.auth.getSession()).data.session;
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        push({ kind: 'error', text: 'You are signed out. Please sign in again.' });
+        return;
+      }
+
+      // Create new attempt first to get attempt_id
+      const res = await fetch('/api/v1/attempts?action=start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ quiz_id: attempt.quiz_id }),
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        const message = payload?.message || 'Failed to start practice mode.';
+        push({ kind: 'error', text: message });
+        return;
+      }
+
+      const payload = await res.json();
+      const attemptData = payload.data || payload;
+
+      // Store in localStorage scoped to THIS specific attempt_id (prevents stale filters)
+      localStorage.setItem(`practice_filter:${attemptData.attempt_id}`, JSON.stringify({
+        quiz_id: attempt.quiz_id,
+        question_ids: incorrectQuestionIds,
+        created_at: Date.now()
+      }));
+
+      push({
+        kind: 'success',
+        text: `Practicing ${incorrectQuestionIds.length} incorrect question${incorrectQuestionIds.length > 1 ? 's' : ''}!`
+      });
+
+      // Navigate to QuizPage with practice mode flag
+      navigate(`/quiz/${attempt.quiz_id}?attempt=${attemptData.attempt_id}&practice=true`);
+
+    } catch (err) {
+      console.error('Failed to start practice mode', err);
+      push({ kind: 'error', text: 'Could not start practice mode. Please try again.' });
+    } finally {
+      setIsRetaking(false);
+    }
+  }
+
   function handleAnswerChange(questionId: string, value: string) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
     setIsDirty(true);
@@ -472,6 +541,7 @@ export default function AttemptDetailPage() {
             }}
             mode="full"
             onRetake={handleRetakeSameQuiz}
+            onPracticeIncorrect={handlePracticeIncorrect}
             onGenerateNew={() => navigate(`/tools/generate?retake=${attempt.quiz_id}`)}
             onBack={() => navigate("/results")}
             isRetaking={isRetaking}
