@@ -11,6 +11,7 @@ import { track } from "@/lib/telemetry";
 import { useToast } from "@/lib/toast";
 import { PageShell } from "@/components/PageShell";
 import { FollowUpFeedback } from "@/components/FollowUpFeedback";
+import { AttemptReview } from "@/components/attempt/AttemptReview";
 import type { BreakdownItem } from "@/lib/grader";
 
 interface Attempt {
@@ -454,95 +455,69 @@ export default function AttemptDetailPage() {
           </div>
         </div>
 
-        {/* Summary Card (Session 28) */}
-        {isSubmitted && percent !== null && (
-          <section
-            className="surface bdr radius p-6 mb-6"
-            aria-labelledby="quiz-summary-heading"
-          >
-            <div className="flex items-center mb-2">
-              <h2 id="quiz-summary-heading" className="text-lg font-semibold">
-                Quiz Summary
-              </h2>
-              <span className="badge badge-soft ml-2">
-                {getStatusBadgeText(percent)}
-              </span>
-            </div>
-
-            {/* Score and percentage */}
-            <div className="mb-2">
-              <span className="text-2xl font-bold">
-                {percent}%
-              </span>
-              <span className="text-muted ml-2">
-                ({correctCount} out of {totalQuestions} correct)
-              </span>
-            </div>
-
-            {/* Letter grade */}
-            <div className="mb-3">
-              <span className="font-semibold">Grade: </span>
-              <span className="text-xl font-bold">{calculateLetterGrade(percent)}</span>
-            </div>
-
-            {/* Overall feedback */}
-            <div className="text-muted">
-              {generateSummaryMessage(percent)}
-            </div>
-          </section>
+        {/* Modern Results UI (Session 32) */}
+        {isSubmitted && attempt.score !== undefined && attempt.grading && (
+          <AttemptReview
+            attempt={{
+              id: attempt.id,
+              quiz_id: attempt.quiz_id,
+              title: attempt.title,
+              subject: attempt.subject,
+              score: attempt.score,
+              grading: attempt.grading as BreakdownItem[],
+              submitted_at: attempt.submitted_at,
+              started_at: attempt.started_at,
+              class_name: attempt.class_name,
+              questions: attempt.questions,
+            }}
+            mode="full"
+            onRetake={handleRetakeSameQuiz}
+            onGenerateNew={() => navigate(`/tools/generate?retake=${attempt.quiz_id}`)}
+            onBack={() => navigate("/results")}
+            isRetaking={isRetaking}
+          />
         )}
 
-        {/* Questions */}
-        <div className="space-y-6">
-          {attempt.questions.map((q: any, idx: number) => (
-            <div key={q.id} className="surface bdr radius p-6">
-              <div className="font-semibold mb-3">
-                {idx + 1}. {q.prompt}
-              </div>
-
-              {q.type === "mcq" && (
-                <div className="space-y-2">
-                  {q.options.map((opt: string) => (
-                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name={q.id}
-                        value={opt}
-                        checked={answers[q.id] === opt}
-                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                        disabled={isSubmitted}
-                        className="cursor-pointer"
-                      />
-                      <span>{opt}</span>
-                    </label>
-                  ))}
+        {/* Legacy in-progress view (keep for editing) */}
+        {isInProgress && (
+          <div className="space-y-6">
+            {attempt.questions.map((q: any, idx: number) => (
+              <div key={q.id} className="surface bdr radius p-6">
+                <div className="font-semibold mb-3">
+                  {idx + 1}. {q.prompt}
                 </div>
-              )}
 
-              {(q.type === "short" || q.type === "long") && (
-                <textarea
-                  className="w-full p-3 border rounded resize-none"
-                  rows={q.type === "long" ? 6 : 3}
-                  value={answers[q.id] || ""}
-                  onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                  disabled={isSubmitted}
-                  placeholder="Your answer..."
-                />
-              )}
-
-              {isSubmitted && attempt.grading?.[q.id] && (
-                <div className="mt-3 p-3 bg-accent/5 rounded text-sm">
-                  <div className="font-semibold mb-1">
-                    {attempt.grading[q.id].score > 0 ? "✓" : "✗"} Score: {attempt.grading[q.id].score}
+                {q.type === "mcq" && (
+                  <div className="space-y-2">
+                    {q.options.map((opt: string) => (
+                      <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={q.id}
+                          value={opt}
+                          checked={answers[q.id] === opt}
+                          onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                          className="cursor-pointer"
+                        />
+                        <span>{opt}</span>
+                      </label>
+                    ))}
                   </div>
-                  {attempt.grading[q.id].feedback && (
-                    <div className="text-muted">{attempt.grading[q.id].feedback}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                )}
+
+                {(q.type === "short" || q.type === "long") && (
+                  <textarea
+                    className="w-full p-3 border rounded resize-none"
+                    rows={q.type === "long" ? 6 : 3}
+                    value={answers[q.id] || ""}
+                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                    placeholder="Your answer..."
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ChatGPA v1.12: Follow-up Feedback Section */}
         {isSubmitted && attempt.grading && Array.isArray(attempt.grading) && (
