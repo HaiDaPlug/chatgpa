@@ -1,8 +1,8 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 30, 2025 (Session 35 Complete)
+**Last Updated**: December 30, 2025 (Session 36 Complete)
 **Branch**: `alpha`
-**Build Status**: ✅ Passing (0 TypeScript errors)
+**Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB build)
 
 ---
 
@@ -27,7 +27,19 @@
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-35)
+### Latest Updates (Sessions 28-36)
+- ✅ **Session 36: Fix Quiz Attempt Load Loop Bug** - Infinite loop prevention with UUID validation
+  - Created centralized UUID validation utility (`web/src/lib/uuid.ts`)
+  - Fixed 100+ errors/sec browser freeze from invalid `?attempt=undefined` URL params
+  - Sanitized URL params at intake: `sanitizeUuidParam()` handles whitespace, "Undefined", "NULL"
+  - Belt-and-suspenders validation before all Supabase queries with `.eq('id', ...)`
+  - One-shot redirect guard prevents double navigation in React StrictMode
+  - Selective error handling: only redirect on UUID errors (22P02), not transient network failures
+  - Defense in depth: 4 files updated (QuizPage, AttemptDetail, ResultsNew, new uuid.ts)
+  - Premium UX: clear error messages + safe navigation, no mystery loading states
+  - ~105 lines of code (1 new file + 3 modified files)
+  - Future-proof: prevents entire class of invalid UUID bugs from URL params, API responses, etc.
+
 - ✅ **Session 35: Fix Gateway Response Wrapper Bug** - Quiz creation error spam fix
   - Fixed attempt_id extraction from gateway wrapper (`json.data` vs `json`)
   - Added UUID validation guard to prevent `?attempt=undefined` URLs
@@ -293,7 +305,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: December 30, 2025 (Session 34 - OpenAI API fix complete)
+**Last Verified**: December 30, 2025 (Session 36 - UUID validation complete)
 **Next Review**: After browser testing and user feedback
-**Build Status**: ✅ Passing (0 TypeScript errors)
-**Recent Sessions**: [Session 31](./session_31.md), [Session 32](./session_32.md), [Session 33](./session_33.md), [Session 34](./session_34.md)
+**Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB gzip: 173.39 kB)
+**Recent Sessions**: [Session 33](./session_33.md), [Session 34](./session_34.md), [Session 35](./session_35.md), [Session 36](./SESSION_36.md)

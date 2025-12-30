@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { track } from "@/lib/telemetry";
 import { PageShell } from "@/components/PageShell";
+import { isValidUuid } from "@/lib/uuid";
+import { useToast } from "@/lib/toast";
 
 interface Attempt {
   id: string;
@@ -23,6 +25,7 @@ interface Attempt {
 
 export default function ResultsPage() {
   const navigate = useNavigate();
+  const { push } = useToast();
   const [ongoing, setOngoing] = useState<Attempt[]>([]);
   const [results, setResults] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +115,18 @@ export default function ResultsPage() {
                     <button
                       className="btn btn-sm w-full"
                       onClick={() => {
+                        // GUARD: Validate IDs before navigation
+                        if (!isValidUuid(a.quiz_id) || !isValidUuid(a.id)) {
+                          console.error('Invalid IDs in attempt:', {
+                            quiz_id: a.quiz_id,
+                            attempt_id: a.id
+                          });
+                          push({
+                            kind: 'error',
+                            text: 'This attempt has invalid data. Please contact support.'
+                          });
+                          return;
+                        }
                         track("attempt_resume_clicked", { attempt_id: a.id });
                         navigate(`/quiz/${a.quiz_id}?attempt=${a.id}`);
                       }}
