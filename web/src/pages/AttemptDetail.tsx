@@ -13,6 +13,7 @@ import { PageShell } from "@/components/PageShell";
 import { FollowUpFeedback } from "@/components/FollowUpFeedback";
 import { AttemptReview } from "@/components/attempt/AttemptReview";
 import type { BreakdownItem } from "@/lib/grader";
+import { isValidUuid } from "@/lib/uuid";
 
 interface Attempt {
   id: string;
@@ -371,6 +372,16 @@ export default function AttemptDetailPage() {
       const payload = await res.json();
       const attemptData = payload.data || payload; // Handle gateway wrapper
 
+      // GUARD: Validate attempt_id before navigate (prevents ?attempt=undefined bug)
+      if (!attemptData.attempt_id || !isValidUuid(attemptData.attempt_id)) {
+        console.error('Invalid attempt_id from retake API:', attemptData.attempt_id);
+        push({
+          kind: 'error',
+          text: 'Something went wrong starting quiz. Please try again.'
+        });
+        return;
+      }
+
       track("retake_same_quiz_success", {
         quiz_id: attempt.quiz_id,
         attempt_id: attemptData.attempt_id,
@@ -454,6 +465,16 @@ export default function AttemptDetailPage() {
 
       const payload = await res.json();
       const attemptData = payload.data || payload;
+
+      // GUARD: Validate attempt_id before localStorage and navigate
+      if (!attemptData.attempt_id || !isValidUuid(attemptData.attempt_id)) {
+        console.error('Invalid attempt_id from practice API:', attemptData.attempt_id);
+        push({
+          kind: 'error',
+          text: 'Something went wrong starting practice mode.'
+        });
+        return;
+      }
 
       // Store in localStorage scoped to THIS specific attempt_id (prevents stale filters)
       localStorage.setItem(`practice_filter:${attemptData.attempt_id}`, JSON.stringify({

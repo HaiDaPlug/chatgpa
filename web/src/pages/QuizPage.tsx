@@ -7,6 +7,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/toast";
 import { PageShell } from "@/components/PageShell";
+import { sanitizeUuidParam, isValidUuid } from "@/lib/uuid";
 
 // ---- Types (align with our zod schema: mcq | short) ----
 type MCQ = {
@@ -509,12 +510,13 @@ export default function QuizPage() {
 
   // localStorage persistence (Session 29)
   const [searchParams] = useSearchParams();
-  const attemptId = searchParams.get('attempt') || undefined;
+  const attemptId = sanitizeUuidParam(searchParams.get('attempt'));
 
   // Hydration guards
   const didHydrateRef = useRef(false);   // Track if we've already restored from localStorage
   const isHydratingRef = useRef(false);  // Track if we're currently hydrating
   const hasEverSavedRef = useRef(false); // Track if we've saved at least once
+  const redirectedRef = useRef(false);   // Prevents double redirect on invalid UUID
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -683,7 +685,25 @@ export default function QuizPage() {
 
   // B1: Load attempt data from server when attemptId exists (Session 31)
   useEffect(() => {
-    if (!attemptId || !quiz) return; // Wait for quiz to load first
+    if (!quiz) return;
+    if (!attemptId) return;
+
+    // NOTE: attemptId is already validated by sanitizeUuidParam() at line 513
+    // This guard is redundant but kept as belt-and-suspenders against future refactors
+    if (!isValidUuid(attemptId)) {
+      console.error('Invalid attempt ID in URL (should not reach here):', attemptId);
+
+      // One-shot redirect guard (prevents double navigation in StrictMode)
+      if (redirectedRef.current) return;
+      redirectedRef.current = true;
+
+      push({
+        kind: 'error',
+        text: 'Something went wrong loading this quiz. Returning to dashboard.'
+      });
+      navigate('/dashboard', { replace: true });
+      return;
+    }
 
     async function loadAttempt() {
       if (!quiz) return; // TypeScript null guard
@@ -692,7 +712,7 @@ export default function QuizPage() {
         const { data, error } = await supabase
           .from('quiz_attempts')
           .select('responses, autosave_version, quiz_id')
-          .eq('id', attemptId)
+          .eq('id', attemptId)  // Guaranteed valid UUID from sanitizeUuidParam
           .eq('status', 'in_progress')
           .single();
 
@@ -730,12 +750,26 @@ export default function QuizPage() {
 
       } catch (err) {
         console.error('Failed to load attempt:', err);
-        push({ kind: 'error', text: 'Failed to load quiz progress' });
+
+        // Only redirect on UUID-related errors (22P02), not transient network errors
+        if ((err as any)?.code === '22P02') {
+          if (!redirectedRef.current) {
+            redirectedRef.current = true;
+            push({
+              kind: 'error',
+              text: 'Invalid attempt data. Returning to dashboard.'
+            });
+            navigate('/dashboard', { replace: true });
+          }
+        } else {
+          // Normal error - show toast, stay on page (user can retry)
+          push({ kind: 'error', text: 'Failed to load quiz progress. Please try again.' });
+        }
       }
     }
 
     loadAttempt();
-  }, [attemptId, quiz, push]);
+  }, [attemptId, quiz, push, navigate]);
 
   // B2: Ensure in-progress attempt exists (Session 31)
   useEffect(() => {
@@ -850,6 +884,14 @@ export default function QuizPage() {
           if (res.status === 409 && !autosaveRetryRef.current) {
             // Set retry flag BEFORE refetch (prevent loop)
             autosaveRetryRef.current = true;
+
+            // GUARD: Ensure attemptId exists and is valid before conflict resolution query
+            // (autosave might run before URL parsing settles in edge cases)
+            if (!attemptId || !isValidUuid(attemptId)) {
+              console.error('Cannot resolve autosave conflict: invalid attemptId:', attemptId);
+              autosaveRetryRef.current = false;
+              return;
+            }
 
             const { data } = await supabase
               .from('quiz_attempts')
