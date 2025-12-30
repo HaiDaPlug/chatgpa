@@ -762,7 +762,19 @@ export default function QuizPage() {
           throw new Error(message);
         }
 
-        const { attempt_id } = await res.json();
+        const json = await res.json();
+        const { attempt_id } = json.data || json; // ✅ Safe: Handle gateway wrapper format
+
+        // ✅ Safe: UUID validation guard - prevents invalid attempt_id from reaching URL
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+
+        if (!attempt_id || !isUuid(attempt_id)) {
+          console.error('Invalid attempt_id from API:', attempt_id);
+          push({ kind: 'error', text: 'Something went wrong opening this quiz. Returning to dashboard.' });
+          navigate('/dashboard', { replace: true });
+          return;
+        }
 
         // Update URL with resolved quiz ID + attempt ID
         const newUrl = `/quiz/${quiz.id}?attempt=${attempt_id}`;
@@ -868,7 +880,8 @@ export default function QuizPage() {
           throw new Error('Autosave failed');
         }
 
-        const { autosave_version } = await res.json();
+        const json = await res.json();
+        const { autosave_version } = json.data || json; // ✅ Safe: Handle gateway wrapper format
         setAutosaveVersion(autosave_version);
         lastAutosavedAnswersRef.current = answers; // Track last successful save
         autosaveRetryRef.current = false; // Reset retry flag after success

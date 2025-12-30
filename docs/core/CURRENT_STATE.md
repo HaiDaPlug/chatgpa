@@ -1,6 +1,6 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 30, 2025 (Session 34 Complete)
+**Last Updated**: December 30, 2025 (Session 35 Complete)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors)
 
@@ -27,7 +27,17 @@
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-34)
+### Latest Updates (Sessions 28-35)
+- ✅ **Session 35: Fix Gateway Response Wrapper Bug** - Quiz creation error spam fix
+  - Fixed attempt_id extraction from gateway wrapper (`json.data` vs `json`)
+  - Added UUID validation guard to prevent `?attempt=undefined` URLs
+  - Eliminated 100+ errors/sec console spam when generating quizzes
+  - User-safe error handling (clear message + redirect, no mystery spinner)
+  - Defense in depth: root cause fix + validation guard
+  - 2 locations fixed (attempt creation + autosave)
+  - 14 lines changed, 0 new TypeScript errors
+  - Future-proof against routing bugs and API response format changes
+
 - ✅ **Session 34: Fix OpenAI API Parameter Error** - Reasoning model compatibility
   - Fixed `max_tokens` → `max_completion_tokens` for reasoning models (gpt-5*, o1, o3)
   - Created shared `buildOpenAIParams()` helper in ai-router.ts (regression-proof)
@@ -135,43 +145,81 @@
 
 ---
 
-## 🎯 Immediate Priorities
+## 🎯 Priorities Roadmap
 
-### High-Value UX (Top Priority)
-1. ~~**localStorage Persistence**~~ ✅ **DONE (Session 29)**
-2. ~~**Server-Side Autosave + Resume**~~ ✅ **DONE (Session 31)**
-   - ✅ QuizPage autosaves to server (800ms debounce)
-   - ✅ Resume works across devices/browsers
-   - ✅ World-class conflict resolution (version-based OCC)
-   - ✅ Server baseline + localStorage overlay merge
-   - ✅ Resume button uses modern QuizPage UI
-   - ✅ AttemptDetail redirects in_progress attempts
+**See detailed analysis**: [MASTER_PRIORITIES.md](../../priorities/MASTER_PRIORITIES.md) | [STRATEGIC_ASSESSMENT.md](../../priorities/STRATEGIC_ASSESSMENT.md)
 
-2. **Retake Analytics Dashboard** - Monitor mastery loop adoption
-   - Track retake → completion rate
-   - Average score improvement on retakes
-   - Perfect score rate on 2nd+ attempts
-   - Session 27 added comprehensive telemetry events
+### Phase 0: Production Beta (🔴 Critical - 6 Blockers)
+**Goal**: Public link, free users, stable core loop (4-6 weeks)
 
-### Value-Add Features
-3. **Score Comparison Chart** - Visual progress tracking
-   - Show attempt 1 vs attempt 2 vs attempt 3 scores
-   - Retake count badge on quiz cards
-   - "Study Suggestions" based on weak questions
-   - **Foundation**: Session 27 true retake enables this
+1. **Rate Limiting** - Protect AI endpoints from abuse, cost control
+2. **Observability** - Sentry error tracking, structured logging
+3. **Usage Limits UX** - Verify free tier enforcement + upgrade path
+4. **Attempts Integrity** - Idempotency on submit, retry logic
+5. **Security Audit** - RLS verification, payload caps, input sanitization
+6. **API Bulletproofing** - Consistent error messages, timeout testing
 
-4. **Missing Material Analysis** - Pre-quiz gap detection
-   - Identify gaps in user's notes before testing
-   - Suggest improvements
-   - Example: "Your notes don't cover X concept in depth"
+**Success criteria**: Ship without fear of abuse/crashes
 
-### Infrastructure
-5. **Data Router Migration** - Enable navigation blocking
-   - Migrate from `<BrowserRouter>` to `createBrowserRouter`
-   - Implement `useBlocker` for quiz page
-   - Warn users before leaving with unsaved answers
+---
 
-6. **Feature Flags Audit** - Document all flags, remove stale ones
+### Phase 1: Production Launch (🚀 Must Have - 5 Blockers)
+**Goal**: Paying users, full monetization (after Phase 0)
+
+7. **Stripe End-to-End** - Subscribe/upgrade/cancel flows, webhooks
+8. **Legal Basics** - Privacy policy, terms of service, GDPR compliance
+9. **Onboarding Clarity** - First quiz success <2min, empty state guidance
+10. **Recovery Flows** - Reset, resend email, contact support
+11. **Performance Polish** - Loading states audit, optimistic UI
+
+**Success criteria**: Production-ready, monetizable
+
+---
+
+### Phase 2: Competitive Edge (💎 Should Have - 8 Priorities)
+**Goal**: World-class differentiation (after market validation)
+
+12. **Retake Analytics Dashboard** - Monitor mastery loop adoption, score improvements
+13. **Question Quality Consistency** - Auto QA pass, flag ambiguous questions
+14. **Feedback Quality** - Actionable, specific, teaches not just marks
+15. **Question Diversity** - Bloom's taxonomy, difficulty distribution
+16. **Practice Modes (P2/P3)** - Weak topics, "same concept new question", spaced repetition
+17. **Progress History** - Streak tracking, "continue studying" CTA
+18. **Score Comparison Charts** - Visual motivation for retakes
+19. **Input Quality Checks (P2/P3)** - "Too many topics", missing material analysis
+
+**Success criteria**: Premium product users love and retain
+
+---
+
+### Phase 3: Scale & Polish (🌟 Nice to Have - 7 Priorities)
+**Goal**: Long-term growth infrastructure
+
+20. Navigation Blocking, 21. Design System Overhaul, 22. Rich Text Editor, 23. Real-Time Updates, 24. E2E Testing, 25. Bundle Optimization, 26. Pagination, 27. Advanced Feedback
+
+---
+
+### Recently Completed (Context)
+- ✅ **localStorage Persistence** (Session 29) - Order-aware validation, hydration guards
+- ✅ **Server-Side Autosave + Resume** (Session 31) - Conflict resolution, cross-device
+- ✅ **Practice Incorrect** (Session 33 P1) - Retention mechanism
+- ✅ **Shuffle Toggle** (Session 33 P1) - Stable per-attempt randomization
+- ✅ **Input Quality Checks (P1)** (Session 33 P3) - Word count validation
+
+---
+
+### Critical Success Factors (Market Validation)
+**The #1 question**: Do 10 users who try this for 2 weeks **love it** and **come back daily**?
+
+**What must click** (see STRATEGIC_ASSESSMENT.md):
+1. ✅ **Retention >35%** (Week 1→2: >50%, Month 1→2: >35%)
+2. ✅ **Question quality as moat** (<5% unfair reports, NPS >50)
+3. ✅ **One vertical dominance** (medical, law, AP exams - pick one)
+4. ✅ **Viral loop works** (K-factor >0.3, quiz sharing)
+5. ✅ **Monetization clicks** (5-10% conversion @ $15-20/mo)
+6. ✅ **B2B channel opens** (tutoring centers, test prep companies)
+
+**Next milestone**: Ship Phase 0 → Get 100 users → Measure retention → Decide strategy
 
 ---
 
