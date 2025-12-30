@@ -4,6 +4,7 @@
 // Notes: Uses heuristics for MCQ + fuzzy for short answers; optional OpenAI for feedback
 
 import OpenAI from "openai";
+import { detectModelFamily, buildOpenAIParams } from "./ai-router.js";
 
 // ---- Types (align with quiz schema) ----
 export type MCQ = {
@@ -99,11 +100,11 @@ async function aiShortFeedbackBatch(
 
   const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-4o-mini");
   const maxTokens = Math.min(512, 64 + shorts.length * 64); // Scale with question count, cap at 512
+  const modelFamily = detectModelFamily(model);
 
   const res = await client.chat.completions.create({
     model,
-    temperature: 0.1,
-    max_tokens: maxTokens,
+    ...buildOpenAIParams(modelFamily, maxTokens, 0.1),
     messages: [
       {
         role: "user",
