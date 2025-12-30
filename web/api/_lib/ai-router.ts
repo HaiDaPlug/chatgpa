@@ -168,6 +168,37 @@ export function detectModelFamily(model: string): ModelFamily {
   return "standard";
 }
 
+/**
+ * Build model-family-aware OpenAI parameters.
+ * Handles max_tokens vs max_completion_tokens and temperature constraints.
+ *
+ * @param family - Model family (reasoning or standard)
+ * @param tokenLimit - Maximum tokens to generate
+ * @param temperature - Temperature setting (optional, ignored for reasoning models)
+ * @returns Parameter object ready to spread into chat.completions.create()
+ */
+export function buildOpenAIParams(
+  family: ModelFamily,
+  tokenLimit: number,
+  temperature?: number
+): Partial<{ max_tokens: number; max_completion_tokens: number; temperature: number }> {
+  const params: Partial<{ max_tokens: number; max_completion_tokens: number; temperature: number }> = {};
+
+  // Token limit parameter (reasoning vs standard)
+  if (family === "reasoning") {
+    params.max_completion_tokens = tokenLimit;
+    // Reasoning models only support temperature=1.0 (default), omit parameter
+  } else {
+    params.max_tokens = tokenLimit;
+    // Include temperature for standard models if provided
+    if (temperature !== undefined) {
+      params.temperature = temperature;
+    }
+  }
+
+  return params;
+}
+
 // ============================================================================
 // Parameter Building
 // ============================================================================
@@ -178,6 +209,7 @@ interface OpenAICallParams {
   temperature?: number;
   response_format?: { type: string };
   max_tokens?: number;
+  max_completion_tokens?: number;
   // Future: reasoning_effort, top_p, etc.
 }
 
@@ -194,36 +226,33 @@ function buildParameters(
     messages: [{ role: "user", content: request.prompt }],
   };
 
-  // Estimate max tokens based on context
+  // Calculate token limit based on task
+  let tokenLimit: number;
   if (request.task === "quiz_generation") {
     const estimatedTokensPerQuestion = 150;
-    const maxTokens = (request.context.question_count || 8) * estimatedTokensPerQuestion + 500;
-    params.max_tokens = Math.min(maxTokens, 4000); // Cap at 4k tokens
+    tokenLimit = (request.context.question_count || 8) * estimatedTokensPerQuestion + 500;
+    tokenLimit = Math.min(tokenLimit, 4000); // Cap at 4k tokens
   } else {
     // Grading tasks: more generous for detailed feedback
-    params.max_tokens = 2000;
+    tokenLimit = 2000;
   }
 
-  if (family === "reasoning") {
-    // Reasoning models:
-    // - Do NOT include temperature (only supports 1.0, which is default)
-    // - Always use strict JSON
-    params.response_format = { type: "json_object" };
+  // Calculate temperature (only used for standard models)
+  const temperature = request.task === "quiz_generation" ? 0.7 : 0.1;
 
-    // Future: Add reasoning_effort if available
-    // params.reasoning_effort = "medium";
-  } else {
-    // Standard models:
-    // - Include temperature based on task
-    // - Use JSON object mode
-    if (request.task === "quiz_generation") {
-      params.temperature = 0.7; // Balanced creativity for quiz generation
-    } else {
-      // Grading tasks: low variance for deterministic evaluation
-      params.temperature = 0.1;
-    }
-    params.response_format = { type: "json_object" };
-  }
+  // Apply model-family-aware parameters (max_tokens vs max_completion_tokens, temperature)
+  Object.assign(params, buildOpenAIParams(family, tokenLimit, temperature));
+
+  // All models use JSON object mode
+  params.response_format = { type: "json_object" };
+
+  // Note: response_format is correct for chat.completions API
+  // All our code paths use client.chat.completions.create(), not other endpoints
+
+  // Future: Add reasoning_effort if available for reasoning models
+  // if (family === "reasoning") {
+  //   params.reasoning_effort = "medium";
+  // }
 
   return params;
 }

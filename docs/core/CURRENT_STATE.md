@@ -1,6 +1,6 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 29, 2025 (Session 33 Complete)
+**Last Updated**: December 30, 2025 (Session 34 Complete)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors)
 
@@ -27,7 +27,16 @@
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-33)
+### Latest Updates (Sessions 28-34)
+- ✅ **Session 34: Fix OpenAI API Parameter Error** - Reasoning model compatibility
+  - Fixed `max_tokens` → `max_completion_tokens` for reasoning models (gpt-5*, o1, o3)
+  - Created shared `buildOpenAIParams()` helper in ai-router.ts (regression-proof)
+  - Updated both generation and grading paths to use helper
+  - Added deprecation warnings to 3 legacy files
+  - 0 new TypeScript errors, all grep checks passed
+  - Eliminates "400 Unsupported parameter" error with reasoning models
+  - Single source of truth prevents future "fixed in one place, forgot another" bugs
+
 - ✅ **Session 33: Bulletproofing - Ship-Ready Polish** - Production hardening
   - P0: Direct navigation to `/attempts/:id` after submit (immediate feedback)
   - P0: Killed 2 rgba() token violations (100% token-first design)
@@ -236,7 +245,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: December 29, 2025 (Session 33 - Bulletproofing complete)
+**Last Verified**: December 30, 2025 (Session 34 - OpenAI API fix complete)
 **Next Review**: After browser testing and user feedback
 **Build Status**: ✅ Passing (0 TypeScript errors)
-**Recent Sessions**: [Session 30](./session_30.md), [Session 31](./session_31.md), [Session 32](./session_32.md), [Session 33](./session_33.md)
+**Recent Sessions**: [Session 31](./session_31.md), [Session 32](./session_32.md), [Session 33](./session_33.md), [Session 34](./session_34.md)

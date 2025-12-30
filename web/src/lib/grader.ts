@@ -2,6 +2,11 @@
 // Contract: gradeSubmission(questions, responses) -> { percent, breakdown, summary }
 // Notes: Uses heuristics for MCQ + fuzzy for short answers; if OPENAI_API_KEY is set,
 //        also asks the model for targeted improvements/feedback per short answer.
+//
+// ⚠️ DEPRECATED: This is a legacy client-side file. Production code should use:
+//    - web/api/_lib/grader.ts (server-side grading with proper model parameter handling)
+//    - If you need to add OpenAI parameters like max_tokens/max_completion_tokens,
+//      import helpers from web/api/_lib/ai-router.ts (detectModelFamily, buildOpenAIParams)
 
 import OpenAI from "openai";
 import { modelEnv } from "./env.js";
