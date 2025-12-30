@@ -164,7 +164,7 @@ export async function gradeSubmission(
         : q.explanation
         ? `Incorrect. ${q.explanation}`
         : "Incorrect. Review the concept and why the correct option fits better.",
-      improvement: isCorrect ? undefined : "Re-read the prompt and eliminate distractors before choosing.",
+      improvement: isCorrect ? undefined : "You didn't pick an option, re-read the question and try again...",
     });
   }
 
