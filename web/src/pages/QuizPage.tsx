@@ -537,6 +537,15 @@ export default function QuizPage() {
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const [shuffledOrder, setShuffledOrder] = useState<string[] | null>(null);
 
+  // DEV-only: Verify single mount per quiz entry (P0-A fix verification)
+  useEffect(() => {
+    if (!import.meta.env.DEV) return; // ✅ Safe: DEV only
+    const mountId = Math.random().toString(36).slice(2, 8);
+    console.log("[QuizPage] MOUNT", { mountId, quizId, attemptId });
+    return () => console.log("[QuizPage] UNMOUNT", { mountId });
+    // ✅ Safe: empty deps; only mount/unmount
+  }, []);
+
   // P1: Practice mode filter (reads scoped localStorage)
   const practiceFilter = useMemo(() => {
     const isPracticeMode = searchParams.get('practice') === 'true';
