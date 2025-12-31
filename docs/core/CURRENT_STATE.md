@@ -1,8 +1,50 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 30, 2025 (Session 36 Complete)
+**Last Updated**: December 31, 2025 (Session 37 - Immediate Priorities)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB build)
+
+---
+
+## 🎯 Immediate Priorities (After testing)
+
+### North Star
+Ship a world-class quiz generator where the core loop feels premium + reliable:
+**Generate → Take quiz (one-question UI) → Submit → World-class Results/Review → Practice mistakes → Repeat**
+Zero progress loss. Zero trust leaks.
+
+### P0 — Quiz Experience Stability
+**Problem:** The Question UI intermittently resets back to a loading state during quiz load/entry.
+**Why it matters:** This kills premium perception and makes users doubt autosave/resume stability.
+**How we'll fix (frontend-only):**
+- Investigate root cause of state reset (route remount, duplicate fetch, StrictMode double-run, query key changes, re-init effects)
+- Ensure quiz screen initializes once per attempt and transitions are stable
+- Add minimal instrumentation/logs for state transitions (DEV-only) to confirm the fix
+- Keep UUID sanitize/guards canonical — never let invalid IDs reach Supabase
+
+### P0b — World-Class Loading States + Generation Perceived Speed
+**Problem:** Generation feels "forever" and waiting lacks trust-building feedback.
+**Why it matters:** Even if backend is correct, users interpret silence as broken.
+**How we'll fix (frontend-only first):**
+- Add honest staged loading UI (no fake progress), plus Cancel (AbortController) + manual Retry
+- Add client-side latency breakdown timers (click → request → response → parse/validate → UI ready)
+- Prevent duplicate generate requests (disable/guard re-entry)
+
+### P1 — Grading Quality (Core Moat) 🚨 CRITICAL BEFORE USERS
+**Problem:** Grading is overly strict; freeform answers are marked incorrect even when notes are copied/pasted.
+**Why it matters:** Grading accuracy is **THE moat**. If grading feels dumb, product becomes "Quizlet-like" and loses trust. This must be fixed before any user testing.
+**How we'll fix (mostly prompt + rubric, minimal code):**
+- Update grading rubric to accept paraphrases/semantic equivalence and award partial credit when appropriate
+- Require grader to cite which concept is missing (short), and give one improvement step
+- Keep tone as "calm coach" (helpful, precise, not intense)
+- Confirm schema/UX surfaces partial vs incorrect consistently
+
+### P2 — Clarity Polish
+Modernize Dashboard + Generate page + "pre-results" navigation for clarity:
+clear next actions, saved-state reassurance, fewer ambiguous states (no major visual redesign).
+
+### P3 — Landing Page Sharpening
+Polish positioning + structure after the product loop feels premium and stable (later).
 
 ---
 
@@ -157,12 +199,14 @@
 
 ---
 
-## 🎯 Priorities Roadmap
+## 📋 Long-Term Roadmap (Post-Testing)
 
 **See detailed analysis**: [MASTER_PRIORITIES.md](../../priorities/MASTER_PRIORITIES.md) | [STRATEGIC_ASSESSMENT.md](../../priorities/STRATEGIC_ASSESSMENT.md)
 
+**Note**: Immediate priorities (P0, P0b, P1, P2, P3) listed above take precedence over all items below.
+
 ### Phase 0: Production Beta (🔴 Critical - 6 Blockers)
-**Goal**: Public link, free users, stable core loop (4-6 weeks)
+**Goal**: Public link, free users, stable core loop
 
 1. **Rate Limiting** - Protect AI endpoints from abuse, cost control
 2. **Observability** - Sentry error tracking, structured logging
@@ -175,30 +219,27 @@
 
 ---
 
-### Phase 1: Production Launch (🚀 Must Have - 5 Blockers)
+### Phase 1: Production Launch (🚀 Must Have - 4 Blockers)
 **Goal**: Paying users, full monetization (after Phase 0)
 
 7. **Stripe End-to-End** - Subscribe/upgrade/cancel flows, webhooks
 8. **Legal Basics** - Privacy policy, terms of service, GDPR compliance
 9. **Onboarding Clarity** - First quiz success <2min, empty state guidance
 10. **Recovery Flows** - Reset, resend email, contact support
-11. **Performance Polish** - Loading states audit, optimistic UI
 
 **Success criteria**: Production-ready, monetizable
 
 ---
 
-### Phase 2: Competitive Edge (💎 Should Have - 8 Priorities)
+### Phase 2: Competitive Edge (💎 Should Have - 6 Priorities)
 **Goal**: World-class differentiation (after market validation)
 
-12. **Retake Analytics Dashboard** - Monitor mastery loop adoption, score improvements
-13. **Question Quality Consistency** - Auto QA pass, flag ambiguous questions
-14. **Feedback Quality** - Actionable, specific, teaches not just marks
-15. **Question Diversity** - Bloom's taxonomy, difficulty distribution
-16. **Practice Modes (P2/P3)** - Weak topics, "same concept new question", spaced repetition
-17. **Progress History** - Streak tracking, "continue studying" CTA
-18. **Score Comparison Charts** - Visual motivation for retakes
-19. **Input Quality Checks (P2/P3)** - "Too many topics", missing material analysis
+11. **Retake Analytics Dashboard** - Monitor mastery loop adoption, score improvements
+12. **Question Quality Consistency** - Auto QA pass, flag ambiguous questions
+13. **Question Diversity** - Bloom's taxonomy, difficulty distribution
+14. **Practice Modes** - Weak topics, "same concept new question", spaced repetition
+15. **Progress History** - Streak tracking, "continue studying" CTA
+16. **Score Comparison Charts** - Visual motivation for retakes
 
 **Success criteria**: Premium product users love and retain
 
@@ -207,7 +248,7 @@
 ### Phase 3: Scale & Polish (🌟 Nice to Have - 7 Priorities)
 **Goal**: Long-term growth infrastructure
 
-20. Navigation Blocking, 21. Design System Overhaul, 22. Rich Text Editor, 23. Real-Time Updates, 24. E2E Testing, 25. Bundle Optimization, 26. Pagination, 27. Advanced Feedback
+17. Navigation Blocking, 18. Design System Overhaul, 19. Rich Text Editor, 20. Real-Time Updates, 21. E2E Testing, 22. Bundle Optimization, 23. Pagination
 
 ---
 

@@ -156,7 +156,9 @@ export function PageShell({ children }: { children: ReactNode }) {
         >
           <AnimatePresence mode="wait">
             <motion.div
-              key={location.pathname + location.search}
+              // ✅ Safe: Prevent remount on query-string changes like ?attempt=...
+              // ⚠️ Verify: Ensure page transitions still animate on pathname changes as intended.
+              key={location.pathname}
               initial={reducedMotion ? false : { opacity: 0, y: 8 }}
               animate={reducedMotion ? false : { opacity: 1, y: 0 }}
               exit={reducedMotion ? false : { opacity: 0, y: 6 }}
