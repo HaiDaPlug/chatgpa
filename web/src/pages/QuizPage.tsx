@@ -537,17 +537,22 @@ export default function QuizPage() {
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const [shuffledOrder, setShuffledOrder] = useState<string[] | null>(null);
 
-  // DEV-only: Verify single mount per quiz entry (P0-A fix verification)
+  // ✅ Safe: Debug logging enabled in DEV or via ?debugQuiz=1 or localStorage.debugQuiz=1
+  const DEBUG_QUIZ =
+    import.meta.env.DEV ||
+    new URLSearchParams(window.location.search).has("debugQuiz") ||
+    (typeof localStorage !== "undefined" && localStorage.getItem("debugQuiz") === "1");
+
+  // Track mount/unmount to verify single mount per quiz entry
   useEffect(() => {
-    if (!import.meta.env.DEV) return; // ✅ Safe: DEV only
+    if (!DEBUG_QUIZ) return;
     const mountId = Math.random().toString(36).slice(2, 8);
     console.log("[QuizPage] MOUNT", { mountId, quizId, attemptId, loading });
     return () => console.log("[QuizPage] UNMOUNT", { mountId });
-    // ✅ Safe: empty deps; only mount/unmount
-  }, []);
+  }, [DEBUG_QUIZ]);
 
-  // DEV-only: Track all renders to debug "Loading quiz..." appearing 3 times
-  if (import.meta.env.DEV) {
+  // Track all renders to debug "Loading quiz..." appearing multiple times
+  if (DEBUG_QUIZ) {
     console.log("[QuizPage] RENDER", { loading, hasQuiz: !!quiz, quizId, attemptId });
   }
 
@@ -629,7 +634,7 @@ export default function QuizPage() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (import.meta.env.DEV) {
+      if (DEBUG_QUIZ) {
         console.log("[QuizPage] QUIZ_FETCH_EFFECT_START", { quizId, attemptId });
       }
       if (!quizId) {
@@ -637,7 +642,7 @@ export default function QuizPage() {
         navigate("/results");
         return;
       }
-      if (import.meta.env.DEV) {
+      if (DEBUG_QUIZ) {
         console.log("[QuizPage] setLoading(true) called");
       }
       setLoading(true);
@@ -696,7 +701,7 @@ export default function QuizPage() {
         didHydrateRef.current = true;
       }
 
-      if (import.meta.env.DEV) {
+      if (DEBUG_QUIZ) {
         console.log("[QuizPage] setLoading(false) called");
       }
       setLoading(false);
