@@ -541,10 +541,15 @@ export default function QuizPage() {
   useEffect(() => {
     if (!import.meta.env.DEV) return; // ✅ Safe: DEV only
     const mountId = Math.random().toString(36).slice(2, 8);
-    console.log("[QuizPage] MOUNT", { mountId, quizId, attemptId });
+    console.log("[QuizPage] MOUNT", { mountId, quizId, attemptId, loading });
     return () => console.log("[QuizPage] UNMOUNT", { mountId });
     // ✅ Safe: empty deps; only mount/unmount
   }, []);
+
+  // DEV-only: Track all renders to debug "Loading quiz..." appearing 3 times
+  if (import.meta.env.DEV) {
+    console.log("[QuizPage] RENDER", { loading, hasQuiz: !!quiz, quizId, attemptId });
+  }
 
   // P1: Practice mode filter (reads scoped localStorage)
   const practiceFilter = useMemo(() => {
@@ -624,10 +629,16 @@ export default function QuizPage() {
   useEffect(() => {
     let alive = true;
     (async () => {
+      if (import.meta.env.DEV) {
+        console.log("[QuizPage] QUIZ_FETCH_EFFECT_START", { quizId, attemptId });
+      }
       if (!quizId) {
         push({ kind: "error", text: "Missing quiz id." });
         navigate("/results");
         return;
+      }
+      if (import.meta.env.DEV) {
+        console.log("[QuizPage] setLoading(true) called");
       }
       setLoading(true);
       const { data, error } = await supabase
@@ -685,6 +696,9 @@ export default function QuizPage() {
         didHydrateRef.current = true;
       }
 
+      if (import.meta.env.DEV) {
+        console.log("[QuizPage] setLoading(false) called");
+      }
       setLoading(false);
     })();
     return () => {
