@@ -1,28 +1,26 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 31, 2025 (Session 37 - Immediate Priorities)
+**Last Updated**: December 31, 2025 (Session 37 - P0-A Complete)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB build)
 
 ---
 
-## 🎯 Immediate Priorities (After testing)
+## 🎯 Immediate Priorities
 
 ### North Star
 Ship a world-class quiz generator where the core loop feels premium + reliable:
 **Generate → Take quiz (one-question UI) → Submit → World-class Results/Review → Practice mistakes → Repeat**
 Zero progress loss. Zero trust leaks.
 
-### P0 — Quiz Experience Stability
-**Problem:** The Question UI intermittently resets back to a loading state during quiz load/entry.
-**Why it matters:** This kills premium perception and makes users doubt autosave/resume stability.
-**How we'll fix (frontend-only):**
-- Investigate root cause of state reset (route remount, duplicate fetch, StrictMode double-run, query key changes, re-init effects)
-- Ensure quiz screen initializes once per attempt and transitions are stable
-- Add minimal instrumentation/logs for state transitions (DEV-only) to confirm the fix
-- Keep UUID sanitize/guards canonical — never let invalid IDs reach Supabase
+### ✅ P0-A — Quiz Experience Stability (COMPLETE)
+**Problem:** "Loading quiz..." appeared 3 times during quiz generation, killing premium perception.
+**Root Cause:** AnimatePresence mode="wait" + location.search in animation key forced unmount/remount.
+**Fix:** Removed both - single stable mount per quiz entry.
+**Status:** ✅ Shipped (Session 37) - awaiting production verification
+**Evidence:** Production logs showed MOUNT → UNMOUNT → MOUNT with same quizId/attemptId.
 
-### P0b — World-Class Loading States + Generation Perceived Speed
+### P0-B — World-Class Loading States + Generation Perceived Speed
 **Problem:** Generation feels "forever" and waiting lacks trust-building feedback.
 **Why it matters:** Even if backend is correct, users interpret silence as broken.
 **How we'll fix (frontend-only first):**
@@ -81,7 +79,17 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-36)
+### Latest Updates (Sessions 28-37)
+- ✅ **Session 37: Fix Quiz UI Loading State Reset (P0-A)** - Eliminated triple loading bug
+  - Root cause: AnimatePresence mode="wait" + location.search in animation key
+  - Fixed PageShell to prevent remounts on query param changes
+  - Removed mode="wait" to stop forced unmount/remount cycles
+  - Production logs proved real unmounts (not re-renders or StrictMode)
+  - Single loading phase now, no flicker/state reset
+  - Added production-safe debug logging (?debugQuiz=1 or localStorage)
+  - 2 lines changed in PageShell.tsx, ~30 lines diagnostic logs in QuizPage.tsx
+  - Premium perception restored - stable quiz entry experience
+
 - ✅ **Session 36: Fix Quiz Attempt Load Loop Bug** - Infinite loop prevention with UUID validation
   - Created centralized UUID validation utility (`web/src/lib/uuid.ts`)
   - Fixed 100+ errors/sec browser freeze from invalid `?attempt=undefined` URL params
@@ -358,7 +366,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: December 30, 2025 (Session 36 - UUID validation complete)
-**Next Review**: After browser testing and user feedback
+**Last Verified**: December 31, 2025 (Session 37 - P0-A loading reset fix complete)
+**Next Review**: After production verification of P0-A fix
 **Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB gzip: 173.39 kB)
-**Recent Sessions**: [Session 33](./session_33.md), [Session 34](./session_34.md), [Session 35](./session_35.md), [Session 36](./SESSION_36.md)
+**Recent Sessions**: [Session 34](./session_34.md), [Session 35](./session_35.md), [Session 36](./SESSION_36.md), [Session 37](./SESSION_37.md)
