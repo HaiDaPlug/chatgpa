@@ -154,10 +154,10 @@ export function PageShell({ children }: { children: ReactNode }) {
           className="p-8 min-h-0 overflow-y-auto"
           tabIndex={-1}
         >
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             <motion.div
               // ✅ Safe: Prevent remount on query-string changes like ?attempt=...
-              // ⚠️ Verify: Ensure page transitions still animate on pathname changes as intended.
+              // ✅ Safe: Removed mode="wait" to prevent unmount on same-pathname navigation
               key={location.pathname}
               initial={reducedMotion ? false : { opacity: 0, y: 8 }}
               animate={reducedMotion ? false : { opacity: 1, y: 0 }}
