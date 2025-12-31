@@ -524,6 +524,9 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<AnswersMap>({}); // Single source of truth for all answers
   const [currentIndex, setCurrentIndex] = useState(0); // Track which question is displayed (0-based)
 
+  // P0-A: UI-ready latch - once quiz content loads, never show full-page loader again
+  const [uiReady, setUiReady] = useState(false);
+
   // Server-side autosave state (Session 31)
   const [autosaveVersion, setAutosaveVersion] = useState(0);
   const autosaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -678,7 +681,13 @@ export default function QuizPage() {
 
       // Defensive parse: ensure array of objects
       const qs = Array.isArray(data.questions) ? (data.questions as (MCQ | ShortQ)[]) : [];
-      setQuiz({ id: data.id, class_id: data.class_id, questions: qs });
+      const quizData = { id: data.id, class_id: data.class_id, questions: qs };
+      setQuiz(quizData);
+
+      // P0-A: Latch UI ready once quiz has questions - prevents loading screen reset
+      if (quizData.questions && quizData.questions.length > 0) {
+        setUiReady(true);
+      }
 
       // Try to restore progress from localStorage (only once per page load)
       if (!didHydrateRef.current) {
@@ -1086,8 +1095,9 @@ export default function QuizPage() {
     }
   }
 
-  // Loading state
-  if (loading) {
+  // P0-A: Loading state - only show full-page loader until quiz is ready
+  // Once uiReady latches true, never show full-page loader again (prevents reset bug)
+  if (!uiReady) {
     return (
       <PageShell>
         <div className="max-w-3xl mx-auto p-4">
