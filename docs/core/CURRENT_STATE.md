@@ -39,11 +39,23 @@ Zero progress loss. Zero trust leaks.
 - Keep tone as "calm coach" (helpful, precise, not intense)
 - Confirm schema/UX surfaces partial vs incorrect consistently
 
-### P2 — Clarity Polish
+### P2 — Generator Quality (Nuance + Variety + Cases)
+**Problem:** Questions feel repetitive (same templates, same examples, surface-level recall).
+**Why it matters:** Nuanced/varied questions are *real value*, not a cheap gimmick. Different examples reduce memorization and force understanding (good learning science). Case/scenario diagnosis is a killer differentiator *if* graded well.
+**Why after P1:** Adding case questions before grading accepts reasoning/paraphrase will leak trust faster.
+**How we'll build (small + safe, after P1 is fixed):**
+- **Controlled variation**: Keep concept same, vary surface (new examples not in notes, different contexts)
+- **Perspective rotation templates**: Mix recall (small %), explanation/why, compare & contrast, common misconception, application, and case/diagnosis (1-2 per quiz)
+- **Deterministic variety**: Seed based on `(notesHash + userId + day)` for freshness without lottery feel
+- **Diversity constraints**: "Don't reuse same example twice in a quiz" and "avoid same template twice in a row"
+- **Case/scenario questions**: Short scenario grounded in notes → student diagnoses/chooses next step → graded on reasoning, not exact phrasing
+- **Prompt additions**: "Use new examples not in notes but keep realistic", "Generate N different contexts", "Include 1 scenario-based diagnostic if notes describe processes/systems"
+
+### P3 — Clarity Polish
 Modernize Dashboard + Generate page + "pre-results" navigation for clarity:
 clear next actions, saved-state reassurance, fewer ambiguous states (no major visual redesign).
 
-### P3 — Landing Page Sharpening
+### P4 — Landing Page Sharpening
 Polish positioning + structure after the product loop feels premium and stable (later).
 
 ---

@@ -547,8 +547,24 @@ export default function QuizPage() {
   useEffect(() => {
     if (!DEBUG_QUIZ) return;
     const mountId = Math.random().toString(36).slice(2, 8);
-    console.log("[QuizPage] MOUNT", { mountId, quizId, attemptId, loading });
-    return () => console.log("[QuizPage] UNMOUNT", { mountId });
+    const loc = location as any; // Access key if it exists
+    console.log("[QuizPage] MOUNT", {
+      mountId,
+      quizId,
+      attemptId,
+      loading,
+      pathname: location.pathname,
+      search: location.search,
+      locationKey: loc.key,
+      fullUrl: location.pathname + location.search
+    });
+    return () => console.log("[QuizPage] UNMOUNT", {
+      mountId,
+      pathname: location.pathname,
+      search: location.search,
+      locationKey: loc.key,
+      fullUrl: location.pathname + location.search
+    });
   }, [DEBUG_QUIZ]);
 
   // Track all renders to debug "Loading quiz..." appearing multiple times
