@@ -1,8 +1,8 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 31, 2025 (Session 38 - UI-Ready Latch Complete)
+**Last Updated**: January 3, 2026 (Session 39 - API Error Resilience Complete)
 **Branch**: `alpha`
-**Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB build)
+**Build Status**: ✅ Passing (0 TypeScript errors, 619.02 kB build)
 
 ---
 
@@ -21,8 +21,20 @@ Zero progress loss. Zero trust leaks.
 **Fixes:**
 - Session 37: Removed mode="wait" and location.search from key → stable mounts
 - Session 38: UI-ready latch prevents loader from reappearing → one-way state transition
-**Status:** ✅ Shipped (Sessions 37 + 38) - awaiting production verification
+**Status:** ✅ Shipped (Sessions 37 + 38)
 **Impact:** Loading screen appears once and stays stable, premium perception restored.
+
+### ✅ P0-A2 — API Error Resilience (COMPLETE)
+**Problem:** Quiz generation occasionally failed with "Non-JSON response from model" error, zero diagnostic context.
+**Root Cause:** Router returned `?? "{}"` on empty response, no logging of finish_reason/tokens, no recovery for common patterns.
+**Fixes (Session 39):**
+- Removed `"{}"` fallback → preserves truth, logs raw content preview
+- Added JSON repair (markdown fences, leading prose, objects + arrays)
+- Single retry on transient errors (new request_id, feature-flagged)
+- Comprehensive logging: finish_reason, usage, pattern, truncation detection
+- Status 502 (upstream failure) instead of 400 (user fault)
+**Status:** ✅ Shipped (Session 39)
+**Impact:** Automatic recovery from transient failures, full diagnostic visibility, user-friendly error messages.
 
 ### P0-B — World-Class Loading States + Generation Perceived Speed
 **Problem:** Generation feels "forever" and waiting lacks trust-building feedback.
@@ -83,7 +95,17 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-38)
+### Latest Updates (Sessions 28-39)
+- ✅ **Session 39: API Error Resilience (P0-A2)** - Bulletproof error handling
+  - Removed dangerous `?? "{}"` fallback (preserves truth)
+  - Added JSON repair: markdown fences, leading prose ("Sure! Here's..."), objects + arrays
+  - Single retry on MODEL_EMPTY_RESPONSE / MODEL_NON_JSON (feature-flagged)
+  - Comprehensive logging: finish_reason, usage, max_tokens, pattern, truncation_likely
+  - Status 502 (upstream failure) instead of 400 (user input fault)
+  - New request_id for retry (preserves parent_request_id for tracing)
+  - ~244 lines added to ai-router.ts + generate.ts
+  - 0 TypeScript errors, bundle: 619.02 kB (gzip: 173.66 kB)
+
 - ✅ **Session 38: Fix Loading Screen Reset with UI-Ready Latch (P0-A)** - Final piece
   - After Session 37, still had 4 identical renders with visible loading screen resets
   - Root cause: Multiple async setState calls in quiz fetch effect not batched
@@ -378,7 +400,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: December 31, 2025 (Session 38 - UI-ready latch complete)
-**Next Review**: After production verification + API error fix
-**Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB gzip: 173.39 kB)
-**Recent Sessions**: [Session 35](./session_35.md), [Session 36](./SESSION_36.md), [Session 37](./SESSION_37.md), [Session 38](./SESSION_38.md)
+**Last Verified**: January 3, 2026 (Session 39 - API error resilience complete)
+**Next Review**: After production monitoring + P0-B planning
+**Build Status**: ✅ Passing (0 TypeScript errors, 619.02 kB gzip: 173.66 kB)
+**Recent Sessions**: [Session 36](./SESSION_36.md), [Session 37](./SESSION_37.md), [Session 38](./SESSION_38.md), [Session 39](./SESSION_39.md)
