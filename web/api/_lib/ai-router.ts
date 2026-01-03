@@ -323,6 +323,75 @@ function classifyError(error: any): ErrorClassification {
 // ============================================================================
 
 /**
+ * Classify content pattern for diagnostics
+ */
+function classifyContent(raw: string): string {
+  if (!raw || raw.trim() === "") return "empty";
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{")) return "json_like";
+  if (trimmed.startsWith("```")) return "markdown_fence";
+  if (trimmed.match(/^(I can't|I cannot|Sorry|As an AI)/i)) return "refusal";
+  return "prose";
+}
+
+/**
+ * Extract JSON from common wrapper patterns
+ * Handles both objects {...} and arrays [...]
+ * Handles leading prose like "Sure! Here's the JSON: {...}"
+ * Returns null if no valid JSON found
+ */
+function extractJSON(raw: string): string | null {
+  // Pattern 1: Markdown fences (```json\n{...}\n``` or ```\n{...}\n```)
+  const fenceMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (fenceMatch) {
+    const candidate = fenceMatch[1].trim();
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {}
+  }
+
+  // Pattern 2: First {...} or [...] block (handles leading prose)
+  // Scan original raw string to preserve exact characters
+  const openBraceIdx = raw.indexOf('{');
+  const openBracketIdx = raw.indexOf('[');
+
+  // Pick whichever comes first (or only one if other is -1)
+  let startIdx = -1;
+  let openChar = '';
+  let closeChar = '';
+
+  if (openBraceIdx !== -1 && (openBracketIdx === -1 || openBraceIdx < openBracketIdx)) {
+    startIdx = openBraceIdx;
+    openChar = '{';
+    closeChar = '}';
+  } else if (openBracketIdx !== -1) {
+    startIdx = openBracketIdx;
+    openChar = '[';
+    closeChar = ']';
+  }
+
+  if (startIdx === -1) return null;
+
+  // Extract from first open to matching close
+  let depth = 0;
+  for (let i = startIdx; i < raw.length; i++) {
+    if (raw[i] === openChar) depth++;
+    if (raw[i] === closeChar) depth--;
+    if (depth === 0) {
+      const candidate = raw.slice(startIdx, i + 1);
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {}
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Execute OpenAI call with the specified model and parameters.
  */
 async function executeCall(
@@ -336,14 +405,105 @@ async function executeCall(
     const completion = await client.chat.completions.create(params as any);
     const latency = Date.now() - startTime;
 
-    const content = completion.choices?.[0]?.message?.content ?? "{}";
+    const rawContent = completion.choices?.[0]?.message?.content;
+    const finishReason = completion.choices?.[0]?.finish_reason;
+    const choice = completion.choices?.[0];
+    const usage = completion.usage;
     const tokens = {
       prompt: completion.usage?.prompt_tokens,
       completion: completion.usage?.completion_tokens,
       total: completion.usage?.total_tokens,
     };
 
-    return { content, tokens, latency };
+    // Extract token limit params (different for reasoning vs standard models)
+    const maxTokensParam = (params as any).max_completion_tokens || (params as any).max_tokens;
+
+    // 1. Handle empty/missing response
+    if (!rawContent || rawContent.trim() === "") {
+      console.error(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        request_id: requestId,
+        error: 'MODEL_EMPTY_RESPONSE',
+        model: params.model,
+        finish_reason: finishReason,
+        usage,
+        max_tokens_param: maxTokensParam,
+        choice_message_keys: choice ? Object.keys(choice.message || {}) : [],
+        response_format: (params as any).response_format,
+        message: 'OpenAI returned empty content'
+      }));
+
+      throw {
+        code: 'MODEL_EMPTY_RESPONSE',
+        message: 'AI returned empty response',
+        status: 502,
+        metadata: { request_id: requestId, model: params.model, finish_reason: finishReason }
+      };
+    }
+
+    // 2. Try parsing as-is first (fast path)
+    try {
+      JSON.parse(rawContent);
+      // Success - return as-is
+      return { content: rawContent, tokens, latency };
+    } catch (firstParseError) {
+      // 3. Attempt repair: strip fences/extract JSON
+      const extracted = extractJSON(rawContent);
+
+      if (extracted) {
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          request_id: requestId,
+          event: 'JSON_REPAIR_SUCCEEDED',
+          model: params.model,
+          original_pattern: classifyContent(rawContent),
+          original_length: rawContent.length,
+          extracted_length: extracted.length,
+          message: 'Extracted valid JSON from wrapped content'
+        }));
+        return { content: extracted, tokens, latency };
+      }
+
+      // 4. Repair failed - log and throw
+      const pattern = classifyContent(rawContent);
+
+      // Truncation detection (prioritize finish_reason as strongest signal)
+      const truncationLikely =
+        finishReason === 'length' ||
+        (pattern === 'json_like' && !rawContent.trim().match(/[}\]]$/));
+
+      console.error(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        request_id: requestId,
+        error: 'MODEL_NON_JSON',
+        model: params.model,
+        finish_reason: finishReason,
+        usage,
+        max_tokens_param: maxTokensParam,
+        raw_length: rawContent.length,
+        raw_preview: rawContent.slice(0, 300),
+        content_pattern: pattern,
+        truncation_likely: truncationLikely,
+        response_format: (params as any).response_format,
+        message: 'OpenAI returned non-JSON content after repair attempt'
+      }));
+
+      throw {
+        code: 'MODEL_NON_JSON',
+        message: 'AI returned invalid response format',
+        status: 502,
+        metadata: {
+          request_id: requestId,
+          model: params.model,
+          pattern,
+          truncation_likely: truncationLikely,
+          finish_reason: finishReason
+        }
+      };
+    }
   } catch (error: any) {
     const latency = Date.now() - startTime;
 

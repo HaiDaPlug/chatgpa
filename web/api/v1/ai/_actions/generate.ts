@@ -2,6 +2,7 @@
 // Migrated from: /api/generate-quiz.ts
 // Connects to: quizzes table, usage_limits, analytics
 
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import type { GatewayContext } from '../../_types.js';
 import { GenerateQuizInput, GenerateQuizOutput, quizResponseSchema } from '../_schemas.js';
@@ -190,17 +191,66 @@ export async function generateQuiz(
     notesText: notes_text
   });
 
-  // 8. Call AI Router with automatic fallback
-  const routerResult = await generateWithRouter({
-    task: 'quiz_generation',
-    prompt,
-    context: {
-      notes_length: notes_text.length,
-      question_count: quizConfig.question_count,
-      request_id,
-      config: quizConfig
+  // 8. Call AI Router with automatic fallback + retry on transient errors
+  let routerResult;
+  let retryAttempted = false;
+  const parentRequestId = request_id; // Preserve for tracing
+
+  // Feature flag: enable/disable retry (set in .env, defaults to enabled)
+  const ENABLE_MODEL_RETRY = process.env.ENABLE_MODEL_RETRY !== 'false';
+
+  // Try generation with single retry on transient errors
+  while (true) {
+    try {
+      // Use new request_id for retry to avoid log confusion
+      const currentRequestId = retryAttempted ? randomUUID() : parentRequestId;
+
+      routerResult = await generateWithRouter({
+        task: 'quiz_generation',
+        prompt,
+        context: {
+          notes_length: notes_text.length,
+          question_count: quizConfig.question_count,
+          request_id: currentRequestId,
+          config: quizConfig
+        }
+      });
+      break; // Success
+    } catch (routerError: any) {
+      // Check if it's a transient model error
+      const isTransientModelError =
+        routerError.code === 'MODEL_EMPTY_RESPONSE' ||
+        routerError.code === 'MODEL_NON_JSON';
+
+      // Single retry for transient errors (if feature enabled)
+      if (isTransientModelError && !retryAttempted && ENABLE_MODEL_RETRY) {
+        retryAttempted = true;
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'warn',
+          parent_request_id: parentRequestId,
+          user_id,
+          event: 'RETRYING_GENERATION',
+          reason: routerError.code,
+          message: 'Retrying after transient model error (new request_id will be generated)'
+        }));
+        continue; // Retry once
+      }
+
+      // Final failure or non-retryable error
+      if (isTransientModelError) {
+        // Map to user-friendly error after retry exhausted
+        throw {
+          code: 'MODEL_INVALID_OUTPUT',
+          message: 'AI returned an invalid response after retry. Please try generating again.',
+          status: 502
+        };
+      }
+
+      // Re-throw non-transient errors unchanged
+      throw routerError;
     }
-  });
+  }
 
   // 9. Handle router failure
   if (!routerResult.success) {
@@ -276,11 +326,24 @@ export async function generateQuiz(
   let quizJson;
   try {
     quizJson = JSON.parse(raw);
-  } catch {
+  } catch (parseError) {
+    // Belt-and-suspenders: Should never reach here after router validation + repair
+    console.error(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'error',
+      request_id: routerResult.metrics.request_id,
+      user_id,
+      action: 'generate_quiz',
+      error: 'JSON_PARSE_FAILED_AFTER_ROUTER',
+      content_length: raw.length,
+      content_preview: raw.slice(0, 200),
+      message: 'Unexpected: JSON.parse failed after router validated content'
+    }));
+
     throw {
-      code: 'SCHEMA_INVALID',
-      message: 'Non-JSON response from model',
-      status: 400
+      code: 'MODEL_INVALID_OUTPUT',
+      message: 'AI returned an invalid response. Please try again.',
+      status: 502
     };
   }
 

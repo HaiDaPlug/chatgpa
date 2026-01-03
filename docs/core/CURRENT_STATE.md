@@ -1,8 +1,8 @@
 # ChatGPA  Current State
 
-**Last Updated**: December 31, 2025 (Session 37 - P0-A Complete)
+**Last Updated**: January 3, 2026 (Session 39 - API Error Resilience Complete)
 **Branch**: `alpha`
-**Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB build)
+**Build Status**: ✅ Passing (0 TypeScript errors, 619.02 kB build)
 
 ---
 
@@ -14,11 +14,27 @@ Ship a world-class quiz generator where the core loop feels premium + reliable:
 Zero progress loss. Zero trust leaks.
 
 ### ✅ P0-A — Quiz Experience Stability (COMPLETE)
-**Problem:** "Loading quiz..." appeared 3 times during quiz generation, killing premium perception.
-**Root Cause:** AnimatePresence mode="wait" + location.search in animation key forced unmount/remount.
-**Fix:** Removed both - single stable mount per quiz entry.
-**Status:** ✅ Shipped (Session 37) - awaiting production verification
-**Evidence:** Production logs showed MOUNT → UNMOUNT → MOUNT with same quizId/attemptId.
+**Problem:** Loading screen visibly flashed/reset multiple times after quiz content appeared.
+**Root Causes:**
+- Session 37: AnimatePresence mode="wait" + location.search forced unmount/remount
+- Session 38: Render condition allowed showing loader after content visible
+**Fixes:**
+- Session 37: Removed mode="wait" and location.search from key → stable mounts
+- Session 38: UI-ready latch prevents loader from reappearing → one-way state transition
+**Status:** ✅ Shipped (Sessions 37 + 38)
+**Impact:** Loading screen appears once and stays stable, premium perception restored.
+
+### ✅ P0-A2 — API Error Resilience (COMPLETE)
+**Problem:** Quiz generation occasionally failed with "Non-JSON response from model" error, zero diagnostic context.
+**Root Cause:** Router returned `?? "{}"` on empty response, no logging of finish_reason/tokens, no recovery for common patterns.
+**Fixes (Session 39):**
+- Removed `"{}"` fallback → preserves truth, logs raw content preview
+- Added JSON repair (markdown fences, leading prose, objects + arrays)
+- Single retry on transient errors (new request_id, feature-flagged)
+- Comprehensive logging: finish_reason, usage, pattern, truncation detection
+- Status 502 (upstream failure) instead of 400 (user fault)
+**Status:** ✅ Shipped (Session 39)
+**Impact:** Automatic recovery from transient failures, full diagnostic visibility, user-friendly error messages.
 
 ### P0-B — World-Class Loading States + Generation Perceived Speed
 **Problem:** Generation feels "forever" and waiting lacks trust-building feedback.
@@ -79,16 +95,34 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-37)
-- ✅ **Session 37: Fix Quiz UI Loading State Reset (P0-A)** - Eliminated triple loading bug
+### Latest Updates (Sessions 28-39)
+- ✅ **Session 39: API Error Resilience (P0-A2)** - Bulletproof error handling
+  - Removed dangerous `?? "{}"` fallback (preserves truth)
+  - Added JSON repair: markdown fences, leading prose ("Sure! Here's..."), objects + arrays
+  - Single retry on MODEL_EMPTY_RESPONSE / MODEL_NON_JSON (feature-flagged)
+  - Comprehensive logging: finish_reason, usage, max_tokens, pattern, truncation_likely
+  - Status 502 (upstream failure) instead of 400 (user input fault)
+  - New request_id for retry (preserves parent_request_id for tracing)
+  - ~244 lines added to ai-router.ts + generate.ts
+  - 0 TypeScript errors, bundle: 619.02 kB (gzip: 173.66 kB)
+
+- ✅ **Session 38: Fix Loading Screen Reset with UI-Ready Latch (P0-A)** - Final piece
+  - After Session 37, still had 4 identical renders with visible loading screen resets
+  - Root cause: Multiple async setState calls in quiz fetch effect not batched
+  - Render condition allowed showing full-page loader after content visible
+  - Solution: UI-ready latch (uiReady state) - one-way transition prevents snapback
+  - 3 lines added to QuizPage.tsx, 1 condition changed
+  - Loading screen appears once and stays stable
+  - Surgical fix, zero impact on autosave/resume/hydration
+  - API error discovered: "Non-JSON response from model" (investigation plan created)
+
+- ✅ **Session 37: Fix Quiz UI Loading State Reset (P0-A)** - Eliminated unmount bug
   - Root cause: AnimatePresence mode="wait" + location.search in animation key
   - Fixed PageShell to prevent remounts on query param changes
   - Removed mode="wait" to stop forced unmount/remount cycles
   - Production logs proved real unmounts (not re-renders or StrictMode)
-  - Single loading phase now, no flicker/state reset
   - Added production-safe debug logging (?debugQuiz=1 or localStorage)
   - 2 lines changed in PageShell.tsx, ~30 lines diagnostic logs in QuizPage.tsx
-  - Premium perception restored - stable quiz entry experience
 
 - ✅ **Session 36: Fix Quiz Attempt Load Loop Bug** - Infinite loop prevention with UUID validation
   - Created centralized UUID validation utility (`web/src/lib/uuid.ts`)
@@ -366,7 +400,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: December 31, 2025 (Session 37 - P0-A loading reset fix complete)
-**Next Review**: After production verification of P0-A fix
-**Build Status**: ✅ Passing (0 TypeScript errors, 618.12 kB gzip: 173.39 kB)
-**Recent Sessions**: [Session 34](./session_34.md), [Session 35](./session_35.md), [Session 36](./SESSION_36.md), [Session 37](./SESSION_37.md)
+**Last Verified**: January 3, 2026 (Session 39 - API error resilience complete)
+**Next Review**: After production monitoring + P0-B planning
+**Build Status**: ✅ Passing (0 TypeScript errors, 619.02 kB gzip: 173.66 kB)
+**Recent Sessions**: [Session 36](./SESSION_36.md), [Session 37](./SESSION_37.md), [Session 38](./SESSION_38.md), [Session 39](./SESSION_39.md)
