@@ -19,7 +19,23 @@ export const GenerateQuizInput = z.object({
 export type GenerateQuizInputType = z.infer<typeof GenerateQuizInput>;
 
 export const GenerateQuizOutput = z.object({
-  quiz_id: z.string().uuid()
+  quiz_id: z.string().uuid(),
+  config: quizConfigSchema.optional(),
+  actual_question_count: z.number().optional(),
+  // P0-B Phase 7: Optional debug timing payload (only when X-Debug-Timing header sent)
+  debug: z.object({
+    timings: z.object({
+      validation_ms: z.number(),
+      prompt_build_ms: z.number(),
+      openai_ms: z.number(),
+      db_insert_ms: z.number(),
+      overhead_ms: z.number(),
+      total_ms: z.number()
+    }),
+    model_used: z.string(),
+    fallback_triggered: z.boolean(),
+    tokens_total: z.number()
+  }).optional()
 });
 
 export type GenerateQuizOutputType = z.infer<typeof GenerateQuizOutput>;

@@ -10,6 +10,9 @@ import { useToast } from "@/lib/toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { track } from "@/lib/telemetry";
 import type { QuizConfig, QuestionType, CoverageStrategy, DifficultyLevel } from "../../../shared/types";
+import type { GenerationStage } from "@/components/GenerationLoader";
+import { GenerationLoaderOverlay } from "@/components/GenerationLoader";
+import { AnimatePresence } from "framer-motion";
 
 type ClassRow = { id: string; name: string };
 
@@ -48,6 +51,10 @@ export default function Generate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // P0-B: Debug mode detection
+  const debugMode = searchParams.get('debugGen') === '1' ||
+                    localStorage.getItem('debug:generation') === 'true';
+
   // ChatGPA v1.12: Unified input state (no more mode switcher)
   // ✅ Safe - directText is now the single source of truth
   const [directText, setDirectText] = useState("");
@@ -60,6 +67,42 @@ export default function Generate() {
 
   const [loading, setLoading] = useState(false);
   const saveTimer = useRef<number | null>(null);
+
+  // P0-B: Generation metrics + timing infrastructure
+  interface GenerationMetrics {
+    t_click: number;
+    t_req_start: number;
+    t_res_received: number;
+    t_json_parsed: number;
+    t_validated: number;
+    t_nav_start: number;
+    d_network: number;
+    d_parse: number;
+    d_validate: number;
+    d_navigate: number;
+    d_total: number;
+    request_id: string;
+    quiz_id: string;
+    model_used?: string;
+  }
+  const metricsRef = useRef<Partial<GenerationMetrics>>({});
+
+  // P0-B: Stage state machine
+  const [generationStage, setGenerationStage] = useState<GenerationStage | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+
+  // P0-B: AbortController + request sequence guard
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
+
+  // P0-B: Duplicate prevention guards
+  const submissionLockRef = useRef(false);
+  const didNavigateRef = useRef(false);
+
+  // P0-B: Phase 8 - 15s reassurance hint (timestamp-based, no interval)
+  const [showReassuranceHint, setShowReassuranceHint] = useState(false);
+  const tGeneratingStartRef = useRef<number | null>(null);
+  const reassuranceTimeoutRef = useRef<number | null>(null);
 
   // Section 4: Quiz config state
   const [questionType, setQuestionType] = useState<QuestionType>(DEFAULT_CONFIG.question_type);
@@ -457,12 +500,34 @@ export default function Generate() {
   }
 
   async function submitGenerate() {
+    // P0-B: Dedupe guard (prevents same-mount double triggers)
+    if (submissionLockRef.current) {
+      console.warn('[Generation] Duplicate submission blocked');
+      return;
+    }
+
+    submissionLockRef.current = true;
+    didNavigateRef.current = false;  // Reset navigation guard
+
+    // P0-B: Capture t_click timestamp + start stage progression
+    metricsRef.current = { t_click: performance.now() };
+    setGenerationStage('sending');
+
+    // P0-B: Increment sequence to invalidate previous attempts
+    requestSeqRef.current++;
+    const localSeq = requestSeqRef.current;
+
+    // P0-B: Create new AbortController
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     // Section 4: Validate hybrid counts before submitting
     if (questionType === "hybrid" && mcqCount + typingCount !== questionCount) {
       push({
         kind: "error",
         text: `Hybrid question counts must sum to ${questionCount}. Currently: ${mcqCount} MCQ + ${typingCount} Typing = ${mcqCount + typingCount}`
       });
+      setGenerationStage(null);
       return;
     }
 
@@ -514,6 +579,10 @@ export default function Generate() {
       // Section 4: Build config to send
       const configToSend = getCurrentConfig();
 
+      // P0-B: Capture t_req_start timestamp + transition to generating
+      metricsRef.current.t_req_start = performance.now();
+      setGenerationStage('generating');
+
       // Call quiz generator API
       // ✅ Safe - existing API contract preserved
       const res = await fetch("/api/v1/ai?action=generate_quiz", {
@@ -521,15 +590,30 @@ export default function Generate() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
+          ...(debugMode && { "X-Debug-Timing": "true" })  // P0-B: Request server timings in debug mode
         },
         body: JSON.stringify({
           notes_text: notesSource,
           class_id: classId,
           config: configToSend,
         }),
+        signal: controller.signal  // P0-B: Attach abort signal
       });
 
+      // P0-B: GUARD - Ignore late resolve after cancel/retry
+      if (localSeq !== requestSeqRef.current) {
+        console.warn('[Generation] Ignoring stale response (cancelled/retried)');
+        return;
+      }
+
+      // P0-B: Capture t_res_received timestamp
+      metricsRef.current.t_res_received = performance.now();
+
       const payload = await res.json();
+
+      // P0-B: Capture t_json_parsed timestamp + transition to validating
+      metricsRef.current.t_json_parsed = performance.now();
+      setGenerationStage('validating');
 
       // ChatGPA v1.12: Improved error handling with specific messages
       if (!res.ok) {
@@ -569,6 +653,16 @@ export default function Generate() {
         return;
       }
 
+      // P0-B: GUARD - Check sequence again before navigation
+      if (localSeq !== requestSeqRef.current) {
+        console.warn('[Generation] Ignoring stale navigation (cancelled/retried)');
+        return;
+      }
+
+      // P0-B: Capture t_validated timestamp + transition to finalizing
+      metricsRef.current.t_validated = performance.now();
+      setGenerationStage('finalizing');
+
       // ChatGPA v1.12: Save last used class to localStorage
       // ✅ Safe - enables auto-selection on next visit
       try {
@@ -598,19 +692,177 @@ export default function Generate() {
         // no-op
       }
 
+      // P0-B: Capture t_nav_start timestamp + finalize metrics
+      metricsRef.current.t_nav_start = performance.now();
+      metricsRef.current.quiz_id = quizId;
+      metricsRef.current.request_id = res.headers.get('x-request-id') || 'unknown';
+      metricsRef.current.model_used = payload?.debug?.model_used;
+
+      // P0-B: Compute derived durations
+      const metrics = metricsRef.current;
+      if (metrics.t_click && metrics.t_req_start && metrics.t_res_received &&
+          metrics.t_json_parsed && metrics.t_validated && metrics.t_nav_start) {
+        metrics.d_network = metrics.t_res_received - metrics.t_req_start;
+        metrics.d_parse = metrics.t_json_parsed - metrics.t_res_received;
+        metrics.d_validate = metrics.t_validated - metrics.t_json_parsed;
+        metrics.d_navigate = metrics.t_nav_start - metrics.t_validated;
+        metrics.d_total = metrics.t_nav_start - metrics.t_click;
+
+        // Always log summary
+        console.log('[Generation Metrics]', {
+          total: `${metrics.d_total.toFixed(0)}ms`,
+          network: `${metrics.d_network.toFixed(0)}ms`,
+          parse: `${metrics.d_parse.toFixed(0)}ms`,
+          request_id: metrics.request_id
+        });
+
+        // Debug mode: detailed logging + localStorage + server timings
+        if (debugMode) {
+          // Log server timings if available
+          if (payload?.debug?.timings) {
+            console.log('[Server Timings]', payload.debug.timings);
+          }
+
+          console.table(metrics);
+          try {
+            localStorage.setItem('debug:lastGenerate', JSON.stringify(metrics));
+          } catch (err) {
+            console.warn('[Generation] Failed to save debug metrics', err);
+          }
+        }
+      }
+
+      // P0-B: Set navigation guard + clear stage before navigation
+      didNavigateRef.current = true;
+      setGenerationStage(null);
       navigate(`/quiz/${quizId}`);
     } catch (e: any) {
       console.error("GENERATE_SUBMIT_ERROR", e);
 
-      // Track exception
-      track("quiz_generated_failure", {
-        reason: "exception",
-        message: e?.message
-      });
+      // P0-B: GUARD - Don't show error overlay if already navigated
+      if (didNavigateRef.current) {
+        console.warn('[Generation] Suppressing error after navigation');
+        submissionLockRef.current = false;
+        setLoading(false);
+        return;
+      }
 
-      push({ kind: "error", text: "Unexpected error. Please try again." });
+      // P0-B: CRITICAL - Check if aborted (don't early return before finally)
+      const isAborted = e.name === 'AbortError';
+      if (isAborted) {
+        console.log('[Generation] Request aborted by user');
+        // Don't set error state - handleCancel already reset UI
+        // Don't return early - let any cleanup happen
+      } else {
+        // P0-B: GUARD - Check sequence before setting error state
+        if (localSeq !== requestSeqRef.current) {
+          console.warn('[Generation] Ignoring stale error (cancelled/retried)');
+          // Don't set error state for stale requests
+        } else {
+          // Track exception
+          track("quiz_generated_failure", {
+            reason: "exception",
+            message: e?.message
+          });
+
+          // P0-B: Set error stage
+          setGenerationStage('error');
+          setGenerationError(e?.message || "Unexpected error. Please try again.");
+          push({ kind: "error", text: "Unexpected error. Please try again." });
+        }
+      }
+
+      submissionLockRef.current = false;
       setLoading(false);
     }
+  }
+
+  // P0-B: Cancel handler
+  function handleCancel() {
+    // Increment sequence to invalidate current attempt
+    requestSeqRef.current++;
+
+    // Abort in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Reset UI state
+    setGenerationStage(null);
+    setGenerationError(null);
+    submissionLockRef.current = false;
+    setLoading(false);
+
+    push({ kind: 'info', text: 'Generation cancelled' });
+  }
+
+  // P0-B: Retry handler
+  function handleRetry() {
+    // Reset error state
+    setGenerationError(null);
+    setGenerationStage(null);
+
+    // Trigger new generation attempt
+    submitGenerate();
+  }
+
+  // P0-B: Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      // Clean up reassurance timeout
+      if (reassuranceTimeoutRef.current) {
+        clearTimeout(reassuranceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // P0-B: Phase 8 - Reassurance hint timer (15s after entering 'generating' stage)
+  useEffect(() => {
+    // Clear any existing timeout
+    if (reassuranceTimeoutRef.current) {
+      clearTimeout(reassuranceTimeoutRef.current);
+      reassuranceTimeoutRef.current = null;
+    }
+
+    // Reset hint when stage changes
+    setShowReassuranceHint(false);
+
+    // Start timer when entering 'generating' stage
+    if (generationStage === 'generating') {
+      tGeneratingStartRef.current = performance.now();
+
+      reassuranceTimeoutRef.current = window.setTimeout(() => {
+        setShowReassuranceHint(true);
+      }, 15000); // 15 seconds
+    } else {
+      tGeneratingStartRef.current = null;
+    }
+
+    // Cleanup on stage change or unmount
+    return () => {
+      if (reassuranceTimeoutRef.current) {
+        clearTimeout(reassuranceTimeoutRef.current);
+        reassuranceTimeoutRef.current = null;
+      }
+    };
+  }, [generationStage]);
+
+  // P0-B: Convert metrics to TimingItem[] for debug display
+  function convertMetricsToTimingItems(): any[] {
+    const m = metricsRef.current;
+    if (!m.d_total) return [];
+
+    return [
+      { label: 'Network (request → response)', durationMs: m.d_network, status: 'done' },
+      { label: 'Parse JSON', durationMs: m.d_parse, status: 'done' },
+      { label: 'Validate schema', durationMs: m.d_validate, status: 'done' },
+      { label: 'Navigation prep', durationMs: m.d_navigate, status: 'done' },
+      { label: 'Total', durationMs: m.d_total, status: 'done' }
+    ];
   }
 
   // ChatGPA v1.12: Character count for UX feedback
@@ -1012,6 +1264,25 @@ Examples:
           </div>
         </div>
       </div>
+
+      {/* P0-B: Premium generation loading overlay */}
+      {generationStage && (
+        <AnimatePresence>
+          <GenerationLoaderOverlay
+            stage={generationStage}
+            title="Building your Quiz"
+            subtitle="This usually takes 10-20 seconds."
+            onCancel={handleCancel}
+            onRetry={generationStage === 'error' ? handleRetry : undefined}
+            timingDetails={debugMode ? convertMetricsToTimingItems() : []}
+            tips={[
+              'Premium questions take time. We analyze your notes deeply.',
+              'Grading uses reasoning models for semantic understanding.'
+            ]}
+            showReassuranceHint={showReassuranceHint}
+          />
+        </AnimatePresence>
+      )}
     </PageShell>
   );
 }
