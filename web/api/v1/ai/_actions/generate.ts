@@ -29,10 +29,32 @@ import { buildQuizGenerationPrompt } from '../../../_lib/prompt-builder.js';
 export async function generateQuiz(
   data: unknown,
   context: GatewayContext
-): Promise<{ quiz_id: string; config: QuizConfig; actual_question_count: number }> {
-  const { request_id, token, user_id } = context;
+): Promise<{
+  quiz_id: string;
+  config: QuizConfig;
+  actual_question_count: number;
+  debug?: {
+    timings: {
+      validation_ms: number;
+      prompt_build_ms: number;
+      openai_ms: number;
+      db_insert_ms: number;
+      overhead_ms: number;
+      total_ms: number;
+    };
+    model_used: string;
+    fallback_triggered: boolean;
+    tokens_total: number;
+  };
+}> {
+  const { request_id, token, user_id, req } = context;
+
+  // P0-B: Check debug timing header (verify lowercase access pattern)
+  const debugTiming = req?.headers?.['x-debug-timing'] === 'true';
+  const t_start = Date.now();
 
   // 1. Validate input
+  const t_validation_start = Date.now();
   const parse = GenerateQuizInput.safeParse(data);
   if (!parse.success) {
     const firstError = parse.error.issues[0];
@@ -44,6 +66,7 @@ export async function generateQuiz(
   }
 
   const { class_id, notes_text, config: inputConfig } = parse.data;
+  const t_validation_end = Date.now();
 
   // 2. Validate AI configuration
   const aiConfigCheck = validateAIConfig();
@@ -186,12 +209,15 @@ export async function generateQuiz(
   }
 
   // 7. Build dynamic prompt based on config
+  const t_prompt_start = Date.now();
   const prompt = buildQuizGenerationPrompt({
     config: quizConfig,
     notesText: notes_text
   });
+  const t_prompt_end = Date.now();
 
   // 8. Call AI Router with automatic fallback + retry on transient errors
+  const t_openai_start = Date.now();
   let routerResult;
   let retryAttempted = false;
   const parentRequestId = request_id; // Preserve for tracing
@@ -251,6 +277,7 @@ export async function generateQuiz(
       throw routerError;
     }
   }
+  const t_openai_end = Date.now();
 
   // 9. Handle router failure
   if (!routerResult.success) {
@@ -395,6 +422,7 @@ export async function generateQuiz(
   );
 
   // 12. Insert quiz into database
+  const t_db_start = Date.now();
   const { data: quizData, error: insertError } = await supabase
     .from('quizzes')
     .insert({
@@ -407,6 +435,7 @@ export async function generateQuiz(
     })
     .select('id')
     .single();
+  const t_db_end = Date.now();
 
   if (insertError || !quizData) {
     console.error(
@@ -465,7 +494,38 @@ export async function generateQuiz(
 
   // 14. Return result
   const actualQuestionCount = quizValidation.data.questions.length;
+  const t_end = Date.now();
 
+  // P0-B: Conditional debug timing payload
+  if (debugTiming) {
+    const validation_ms = t_validation_end - t_validation_start;
+    const prompt_build_ms = t_prompt_end - t_prompt_start;
+    const openai_ms = t_openai_end - t_openai_start;
+    const db_insert_ms = t_db_end - t_db_start;
+    const total_ms = t_end - t_start;
+    const overhead_ms = total_ms - (validation_ms + prompt_build_ms + openai_ms + db_insert_ms);
+
+    return {
+      quiz_id: quizData.id,
+      config: quizConfig,
+      actual_question_count: actualQuestionCount,
+      debug: {
+        timings: {
+          validation_ms,
+          prompt_build_ms,
+          openai_ms,
+          db_insert_ms,
+          overhead_ms,
+          total_ms
+        },
+        model_used: routerResult.metrics.model_used,
+        fallback_triggered: routerResult.metrics.fallback_triggered,
+        tokens_total: routerResult.metrics.tokens_total || 0
+      }
+    };
+  }
+
+  // Normal response (no debug payload)
   return {
     quiz_id: quizData.id,
     config: quizConfig,
