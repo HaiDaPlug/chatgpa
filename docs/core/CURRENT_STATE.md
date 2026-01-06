@@ -107,7 +107,7 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
 ### Latest Updates (Sessions 28-42)
-- ✅ **Session 42: ChatGPA Toast Integration (Premium UI)** - Gemini-designed toast component
+- ✅ **Session 42: ChatGPA Toast Integration + Canonicalization (Premium UI)** - Gemini-designed toast component
   - Integrated premium toast component with backdrop blur, bordered cards, icon containers
   - Replaced invalid Tailwind classes with CSS variable arbitrary values (theme-aware)
   - 5 toast variants: default, success, error, warning, info
@@ -117,8 +117,10 @@ Polish positioning + structure after the product loop feels premium and stable (
   - Proper ARIA roles: error = alert/assertive, others = status/polite
   - Fixed QuizPage.tsx toast API migration (type→kind, message→text)
   - Deleted legacy unused Toast.tsx component
-  - ~175 lines modified across 3 files (ToastGemini.tsx, toast.tsx, QuizPage.tsx)
-  - 0 TypeScript errors, bundle: 629.67 kB (no change)
+  - **Post-implementation**: Canonicalized naming (ToastGemini.tsx → Toast.tsx)
+  - **Canonical file**: `web/src/components/Toast.tsx` (git history preserved)
+  - ~175 lines modified across 4 files (Toast.tsx, toast.tsx, QuizPage.tsx, SESSION_42.md)
+  - 0 TypeScript errors, final bundle: 634.31 kB (gzip: 177.57 kB)
   - Token strategy: CSS custom properties only, no hardcoded colors
 
 - ✅ **Session 41: Generation Loader Stage Progression Fix (P0-B Bug Fix)** - All stages now visible
