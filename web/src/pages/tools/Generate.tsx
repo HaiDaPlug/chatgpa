@@ -99,6 +99,9 @@ export default function Generate() {
   const submissionLockRef = useRef(false);
   const didNavigateRef = useRef(false);
 
+  // P0-B Session 41: Stage timing for honest minimum display durations
+  const stageEnteredAtRef = useRef<number>(0);
+
   // P0-B: Phase 8 - 15s reassurance hint (timestamp-based, no interval)
   const [showReassuranceHint, setShowReassuranceHint] = useState(false);
   const tGeneratingStartRef = useRef<number | null>(null);
@@ -511,15 +514,65 @@ export default function Generate() {
 
     // P0-B: Capture t_click timestamp + start stage progression
     metricsRef.current = { t_click: performance.now() };
-    setGenerationStage('sending');
 
     // P0-B: Increment sequence to invalidate previous attempts
     requestSeqRef.current++;
     const localSeq = requestSeqRef.current;
 
+    // P0-B Session 41: Delay budget tracking (max 400ms added delay)
+    let delayBudgetUsedMs = 0;
+    const MAX_DELAY_BUDGET_MS = 400;
+
+    // P0-B Session 41: Helper - Track when stage was entered
+    function setStageTracked(stage: GenerationStage | null) {
+      stageEnteredAtRef.current = performance.now();
+      setGenerationStage(stage);
+
+      // Debug logging (gated behind debugGen=1)
+      if (debugMode) {
+        console.log(`[Stage] ${stage} @ ${(performance.now() - (metricsRef.current.t_click || 0)).toFixed(0)}ms`);
+      }
+    }
+
+    // P0-B Session 41: Helper - Ensure minimum stage display duration
+    // Adds honest delay AFTER milestone achieved to prevent "stuck then teleport" feel
+    async function ensureMinStageDisplay(minMs: number): Promise<boolean> {
+      const elapsed = performance.now() - stageEnteredAtRef.current;
+      const delayNeeded = Math.max(0, minMs - elapsed);
+
+      if (delayNeeded > 0) {
+        // Check delay budget
+        if (delayBudgetUsedMs + delayNeeded > MAX_DELAY_BUDGET_MS) {
+          if (debugMode) {
+            console.log(`[Stage] Budget exhausted, skipping ${delayNeeded.toFixed(0)}ms delay`);
+          }
+          return true; // Budget exhausted, skip delay
+        }
+
+        // Safety: only wait if request still current and not navigating
+        if (localSeq === requestSeqRef.current && !didNavigateRef.current) {
+          delayBudgetUsedMs += delayNeeded;
+          await new Promise(resolve => setTimeout(resolve, delayNeeded));
+
+          // Re-check after sleep (could have been cancelled/retried)
+          if (localSeq !== requestSeqRef.current) {
+            if (debugMode) {
+              console.log(`[Stage] Request became stale during delay, aborting`);
+            }
+            return false; // Stale, caller should abort
+          }
+        }
+      }
+
+      return true; // Safe to continue
+    }
+
     // P0-B: Create new AbortController
     const controller = new AbortController();
     abortControllerRef.current = controller;
+
+    // P0-B Session 41: Start stage progression with tracking
+    setStageTracked('sending');
 
     // Section 4: Validate hybrid counts before submitting
     if (questionType === "hybrid" && mcqCount + typingCount !== questionCount) {
@@ -581,7 +634,7 @@ export default function Generate() {
 
       // P0-B: Capture t_req_start timestamp + transition to generating
       metricsRef.current.t_req_start = performance.now();
-      setGenerationStage('generating');
+      setStageTracked('generating');
 
       // Call quiz generator API
       // ✅ Safe - existing API contract preserved
@@ -603,7 +656,8 @@ export default function Generate() {
       // P0-B: GUARD - Ignore late resolve after cancel/retry
       if (localSeq !== requestSeqRef.current) {
         console.warn('[Generation] Ignoring stale response (cancelled/retried)');
-        return;
+        setGenerationStage(null);  // P0-B Session 41: Clear stuck stage
+        return;  // finally block will handle submissionLockRef + setLoading
       }
 
       // P0-B: Capture t_res_received timestamp
@@ -613,7 +667,7 @@ export default function Generate() {
 
       // P0-B: Capture t_json_parsed timestamp + transition to validating
       metricsRef.current.t_json_parsed = performance.now();
-      setGenerationStage('validating');
+      setStageTracked('validating');
 
       // ChatGPA v1.12: Improved error handling with specific messages
       if (!res.ok) {
@@ -640,6 +694,7 @@ export default function Generate() {
           push({ kind: "error", text: payload?.message || "Failed to generate quiz. Please try again." });
         }
 
+        setGenerationStage(null);  // P0-B Session 41: Clear stuck stage
         setLoading(false);
         return;
       }
@@ -649,6 +704,7 @@ export default function Generate() {
         console.error("GENERATE_API_NO_ID", payload);
         track("quiz_generated_failure", { reason: "no_quiz_id" });
         push({ kind: "error", text: "Quiz created but no ID returned." });
+        setGenerationStage(null);  // P0-B Session 41: Clear stuck stage
         setLoading(false);
         return;
       }
@@ -656,12 +712,20 @@ export default function Generate() {
       // P0-B: GUARD - Check sequence again before navigation
       if (localSeq !== requestSeqRef.current) {
         console.warn('[Generation] Ignoring stale navigation (cancelled/retried)');
-        return;
+        setGenerationStage(null);  // P0-B Session 41: Clear stuck stage
+        return;  // finally block will handle submissionLockRef + setLoading
       }
 
-      // P0-B: Capture t_validated timestamp + transition to finalizing
+      // P0-B: Capture t_validated timestamp
       metricsRef.current.t_validated = performance.now();
-      setGenerationStage('finalizing');
+
+      // P0-B Session 41: Ensure validating stage visible for min 200ms
+      if (!await ensureMinStageDisplay(200)) {
+        return; // Request was cancelled/retried during wait
+      }
+
+      // P0-B Session 41: Transition to finalizing
+      setStageTracked('finalizing');
 
       // ChatGPA v1.12: Save last used class to localStorage
       // ✅ Safe - enables auto-selection on next visit
@@ -730,6 +794,11 @@ export default function Generate() {
             console.warn('[Generation] Failed to save debug metrics', err);
           }
         }
+      }
+
+      // P0-B Session 41: Ensure finalizing stage visible for min 150ms
+      if (!await ensureMinStageDisplay(150)) {
+        return; // Request was cancelled/retried during wait
       }
 
       // P0-B: Set navigation guard + clear stage before navigation
