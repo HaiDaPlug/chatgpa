@@ -1,6 +1,6 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 4, 2026 (Session 40 - Premium Generation Loading Experience Complete)
+**Last Updated**: January 6, 2026 (Session 42 - ChatGPA Toast Integration Complete)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors, 629.67 kB build)
 
@@ -37,9 +37,11 @@ Zero progress loss. Zero trust leaks.
 **Impact:** Automatic recovery from transient failures, full diagnostic visibility, user-friendly error messages.
 
 ### ✅ P0-B — Premium Generation Loading Experience (COMPLETE)
-**Problem:** Generation feels "forever" and waiting lacks trust-building feedback.
-**Root Cause:** Simple boolean loading state with no progress indication during 10-20s wait.
-**Fixes (Session 40):**
+**Problem:** Generation feels "forever" and waiting lacks trust-building feedback. Then "stuck then teleport" bug where validating/finalizing stages were invisible.
+**Root Causes:**
+- Session 40: Simple boolean loading state with no progress indication during 10-20s wait.
+- Session 41: Validating/finalizing stages completed in <10ms (faster than React render + animation cycles).
+**Fixes (Session 40 + 41):**
 - Honest staged progress (sending → generating → validating → finalizing)
 - Cancel capability (AbortController + request sequence guard)
 - Manual retry on error (one-click "Try Again" button)
@@ -47,8 +49,11 @@ Zero progress loss. Zero trust leaks.
 - Client-side metrics (6 timestamps via performance.now())
 - Server-side timing breakdown (debug-only, gated by ?debugGen=1)
 - Duplicate request prevention (submissionLockRef + didNavigateRef)
-**Status:** ✅ Shipped (Session 40)
-**Impact:** Transforms "silent spinner" into "trustworthy progress visualization" - users see exactly what's happening during the longest wait in the app.
+- **Session 41**: Honest minimum display delays (200ms validating, 150ms finalizing) applied AFTER milestones
+- **Session 41**: Early return cleanup prevents stuck stage overlay
+- **Session 41**: Hard delay budget cap (400ms) prevents "fast gens feel slow"
+**Status:** ✅ Shipped (Sessions 40 + 41)
+**Impact:** Transforms "silent spinner" into "trustworthy progress visualization" with all 4 stages visible. Max +350ms added delay (trivial vs 10-20s total). Zero progress loss, zero trust leaks.
 
 ### P1 — Grading Quality (Core Moat) 🚨 CRITICAL BEFORE USERS
 **Problem:** Grading is overly strict; freeform answers are marked incorrect even when notes are copied/pasted.
@@ -101,7 +106,37 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-40)
+### Latest Updates (Sessions 28-42)
+- ✅ **Session 42: ChatGPA Toast Integration + Canonicalization (Premium UI)** - Gemini-designed toast component
+  - Integrated premium toast component with backdrop blur, bordered cards, icon containers
+  - Replaced invalid Tailwind classes with CSS variable arbitrary values (theme-aware)
+  - 5 toast variants: default, success, error, warning, info
+  - Backward compatible API expansion: optional description, actionLabel, onAction fields
+  - All 15+ existing toast calls work unchanged (push({ kind, text }))
+  - Neutral icon containers with status differentiation via border + icon color
+  - Proper ARIA roles: error = alert/assertive, others = status/polite
+  - Fixed QuizPage.tsx toast API migration (type→kind, message→text)
+  - Deleted legacy unused Toast.tsx component
+  - **Post-implementation**: Canonicalized naming (ToastGemini.tsx → Toast.tsx)
+  - **Canonical file**: `web/src/components/Toast.tsx` (git history preserved)
+  - ~175 lines modified across 4 files (Toast.tsx, toast.tsx, QuizPage.tsx, SESSION_42.md)
+  - 0 TypeScript errors, final bundle: 634.31 kB (gzip: 177.57 kB)
+  - Token strategy: CSS custom properties only, no hardcoded colors
+
+- ✅ **Session 41: Generation Loader Stage Progression Fix (P0-B Bug Fix)** - All stages now visible
+  - Fixed "stuck then teleport" bug where validating/finalizing stages completed <10ms (faster than render)
+  - Added honest minimum display delays: 200ms validating, 150ms finalizing (applied AFTER milestones)
+  - Hard delay budget cap: 400ms total prevents "fast gens feel slow"
+  - Early return cleanup: 4 locations now properly clear stuck stage overlay
+  - Debug logging: All stage transitions logged behind debugGen=1 flag (permanent, low-noise)
+  - Helper functions: setStageTracked() tracks entry time, ensureMinStageDisplay() enforces min duration
+  - Safety checks: sequence guard, navigation guard, abort guard, budget guard
+  - Metrics integrity preserved: Real timings (d_validate, d_navigate) exclude display delays
+  - ~60 lines added/modified in Generate.tsx
+  - 0 TypeScript errors, bundle: 629.67 kB (no change)
+  - Max +350ms added delay (trivial vs 10-20s total generation time)
+  - Preserves all Session 36-40 fixes (UUID validation, UI latch, API resilience, cancel/retry)
+
 - ✅ **Session 40: Premium Generation Loading Experience (P0-B)** - World-class wait UX
   - Honest staged progress: sending → generating → validating → finalizing
   - Cancel capability: AbortController + request sequence guard prevents race conditions
@@ -418,7 +453,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: January 4, 2026 (Session 40 - Premium generation loading experience complete)
+**Last Verified**: January 6, 2026 (Session 42 - ChatGPA Toast Integration complete)
 **Next Review**: After P1 (Grading Quality) implementation
 **Build Status**: ✅ Passing (0 TypeScript errors in active code, 629.67 kB gzip: 176.38 kB)
-**Recent Sessions**: [Session 37](./SESSION_37.md), [Session 38](./SESSION_38.md), [Session 39](./SESSION_39.md), [Session 40](./SESSION_40.md)
+**Recent Sessions**: [Session 39](./SESSION_39.md), [Session 40](./SESSION_40.md), [Session 41](../archive/sessions/SESSION_41.md), [Session 42](../archive/sessions/SESSION_42.md)

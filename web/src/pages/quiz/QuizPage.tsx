@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useToast } from "@/components/Toast";
+import { useToast } from "@/lib/toast";
 
 type Quiz = { id: string; questions: any[] };
 type Answer = { questionId: string; answer: string };
@@ -27,7 +27,7 @@ export default function QuizPage() {
         .eq("id", id)
         .single();
       if (error || !data) {
-        push({ type: "error", message: "Quiz not found." });
+        push({ kind: "error", text: "Quiz not found." });
         nav("/dashboard", { replace: true });
         return;
       }
@@ -85,7 +85,7 @@ export default function QuizPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        push({ type: "error", message: "Please log in to submit" });
+        push({ kind: "error", text: "Please log in to submit" });
         setSubmitting(false);
         return;
       }
@@ -112,12 +112,12 @@ export default function QuizPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        push({ type: "error", message: json?.message || json?.code || "Failed to grade." });
+        push({ kind: "error", text: json?.message || json?.code || "Failed to grade." });
         return;
       }
       // Gateway wraps response as {ok, data, request_id}
       const result = json.data || json;
-      push({ type: "success", message: `Scored ${Math.round(result.score)}% (${result.letter})` });
+      push({ kind: "success", text: `Scored ${Math.round(result.score)}% (${result.letter})` });
     } finally {
       setSubmitting(false);
     }
