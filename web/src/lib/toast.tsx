@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Toast as ToastComponent } from "@/components/ToastGemini";
-import type { ToastVariant } from "@/components/ToastGemini";
+import { Toast as ToastComponent } from "@/components/Toast";
+import type { ToastVariant } from "@/components/Toast";
 
 // ✅ Expanded to support new component (backward compatible)
 type ToastKind = "success" | "error" | "info" | "warning" | "default";
