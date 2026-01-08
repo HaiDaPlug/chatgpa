@@ -33,6 +33,7 @@ export async function generateQuiz(
   quiz_id: string;
   config: QuizConfig;
   actual_question_count: number;
+  model_used: string;  // Task B: ALWAYS return (additive)
   debug?: {
     timings: {
       validation_ms: number;
@@ -42,7 +43,7 @@ export async function generateQuiz(
       overhead_ms: number;
       total_ms: number;
     };
-    model_used: string;
+    model_used: string;  // Task B: DUPLICATE (backward compat)
     fallback_triggered: boolean;
     tokens_total: number;
   };
@@ -509,6 +510,7 @@ export async function generateQuiz(
       quiz_id: quizData.id,
       config: quizConfig,
       actual_question_count: actualQuestionCount,
+      model_used: routerResult.metrics.model_used,  // Task B: ALWAYS return (additive)
       debug: {
         timings: {
           validation_ms,
@@ -518,17 +520,18 @@ export async function generateQuiz(
           overhead_ms,
           total_ms
         },
-        model_used: routerResult.metrics.model_used,
+        model_used: routerResult.metrics.model_used,  // Task B: DUPLICATE (backward compat)
         fallback_triggered: routerResult.metrics.fallback_triggered,
         tokens_total: routerResult.metrics.tokens_total || 0
       }
     };
   }
 
-  // Normal response (no debug payload)
+  // Normal response (no debug payload, but always include model_used)
   return {
     quiz_id: quizData.id,
     config: quizConfig,
-    actual_question_count: actualQuestionCount
+    actual_question_count: actualQuestionCount,
+    model_used: routerResult.metrics.model_used  // Task B: ALWAYS return
   };
 }
