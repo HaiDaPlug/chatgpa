@@ -523,15 +523,65 @@ export default function Generate() {
     let delayBudgetUsedMs = 0;
     const MAX_DELAY_BUDGET_MS = 400;
 
+    // Task C: Helper - Ship debug logs to Vercel (only when debugGen=1)
+    // ⚠️ Security: Only logs timings/stage names/IDs - NEVER note text or prompts
+    async function shipClientLog(payload: {
+      level?: 'info' | 'warn' | 'error';
+      message: string;
+      gen_request_id?: string;
+      data?: Record<string, unknown>;
+    }) {
+      if (!debugMode) return;  // Gate: only when debugGen=1
+
+      try {
+        // Get current session token for auth
+        const session = (await supabase.auth.getSession()).data.session;
+        const token = session?.access_token;
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        // Add Authorization if token available (prefer cookie-based auth)
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        await fetch('/api/v1/util?action=client_log', {
+          method: 'POST',
+          headers,
+          credentials: 'same-origin',  // Send cookies for session-based auth
+          body: JSON.stringify({
+            ...payload,
+            source: 'generate_page',  // Searchable in Vercel logs
+          }),
+        });
+      } catch {
+        // Swallow - logs must never block generation
+      }
+    }
+
     // P0-B Session 41: Helper - Track when stage was entered
     function setStageTracked(stage: GenerationStage | null) {
-      stageEnteredAtRef.current = performance.now();
+      const now = performance.now();
+      const elapsed = now - (metricsRef.current.t_click || now);
+
+      stageEnteredAtRef.current = now;
       setGenerationStage(stage);
 
       // Debug logging (gated behind debugGen=1)
       if (debugMode) {
-        console.log(`[Stage] ${stage} @ ${(performance.now() - (metricsRef.current.t_click || 0)).toFixed(0)}ms`);
+        console.log(`[Stage] ${stage} @ ${elapsed.toFixed(0)}ms`);
       }
+
+      // Task C: Ship to Vercel (debug only)
+      // ⚠️ NEVER log note text, prompts, or user content - only timings/IDs
+      shipClientLog({
+        level: 'info',
+        message: `Stage: ${stage}`,
+        gen_request_id: metricsRef.current.request_id,
+        data: { stage, elapsed_ms: Math.round(elapsed) },
+      }).catch(() => {});  // Fire-and-forget
     }
 
     // P0-B Session 41: Helper - Ensure minimum stage display duration
@@ -760,7 +810,12 @@ export default function Generate() {
       metricsRef.current.t_nav_start = performance.now();
       metricsRef.current.quiz_id = quizId;
       metricsRef.current.request_id = res.headers.get('x-request-id') || 'unknown';
-      metricsRef.current.model_used = payload?.debug?.model_used;
+
+      // Task A: Safe fallback chain for model_used (data.model_used → data.debug.model_used)
+      const modelUsed = payload?.data?.model_used || payload?.data?.debug?.model_used;
+      if (modelUsed) {
+        metricsRef.current.model_used = modelUsed;
+      }
 
       // P0-B: Compute derived durations
       const metrics = metricsRef.current;
@@ -800,6 +855,20 @@ export default function Generate() {
       if (!await ensureMinStageDisplay(150)) {
         return; // Request was cancelled/retried during wait
       }
+
+      // Task C: Ship final metrics to Vercel (debug only)
+      // ⚠️ NEVER log note text, prompts, or user content - only timings/IDs/model_used
+      shipClientLog({
+        level: 'info',
+        message: 'Generation complete',
+        gen_request_id: metrics.request_id,
+        data: {
+          total_ms: Math.round(metrics.d_total || 0),
+          network_ms: Math.round(metrics.d_network || 0),
+          model_used: metrics.model_used,  // Safe: just model name
+          quiz_id: metrics.quiz_id,  // Safe: just ID
+        },
+      }).catch(() => {});  // Fire-and-forget
 
       // P0-B: Set navigation guard + clear stage before navigation
       didNavigateRef.current = true;

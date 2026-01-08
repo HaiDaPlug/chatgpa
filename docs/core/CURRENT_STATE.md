@@ -1,8 +1,8 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 6, 2026 (Session 42 - ChatGPA Toast Integration Complete)
+**Last Updated**: January 8, 2026 (Session 43 - Debug Telemetry Fixed)
 **Branch**: `alpha`
-**Build Status**: ✅ Passing (0 TypeScript errors, 629.67 kB build)
+**Build Status**: ✅ Passing (0 TypeScript errors, 635.12 kB build)
 
 ---
 
@@ -106,7 +106,20 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-42)
+### Latest Updates (Sessions 28-43)
+- ✅ **Session 43: Fix Generation Debug Telemetry** - model_used + Client Logs to Vercel
+  - **Task A (Critical)**: Fixed `model_used: undefined` bug - client was reading wrong path (`payload.debug` → `payload.data.debug`)
+  - **Task B (Stability)**: Server always returns `model_used` at top level (not just in debug mode)
+  - Backward compatible: `debug.model_used` still duplicated when debug enabled
+  - **Task C (Optional)**: Added client_log endpoint for shipping browser stage logs to Vercel
+  - Debug-only log shipping (gated by `?debugGen=1`), zero overhead in production
+  - Correlate client stage timeline with server logs via `gen_request_id`
+  - Security guardrails: 4KB payload cap, only logs timings/IDs/model names (NEVER note text/prompts)
+  - Fire-and-forget pattern: logs never block generation
+  - 6 files modified (~110 lines total): Generate.tsx, generate.ts, util schemas/actions
+  - 0 TypeScript errors, build: 635.12 kB (gzip: 177.83 kB)
+  - Enables production analytics bucketing by `model_used` field
+
 - ✅ **Session 42: ChatGPA Toast Integration + Canonicalization (Premium UI)** - Gemini-designed toast component
   - Integrated premium toast component with backdrop blur, bordered cards, icon containers
   - Replaced invalid Tailwind classes with CSS variable arbitrary values (theme-aware)
@@ -453,7 +466,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: January 6, 2026 (Session 42 - ChatGPA Toast Integration complete)
+**Last Verified**: January 8, 2026 (Session 43 - Debug Telemetry Fixed)
 **Next Review**: After P1 (Grading Quality) implementation
-**Build Status**: ✅ Passing (0 TypeScript errors in active code, 629.67 kB gzip: 176.38 kB)
-**Recent Sessions**: [Session 39](./SESSION_39.md), [Session 40](./SESSION_40.md), [Session 41](../archive/sessions/SESSION_41.md), [Session 42](../archive/sessions/SESSION_42.md)
+**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.12 kB gzip: 177.83 kB)
+**Recent Sessions**: [Session 40](./SESSION_40.md), [Session 41](./SESSION_41.md), [Session 42](./SESSION_42.md), [Session 43](./SESSION_43.md)

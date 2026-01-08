@@ -22,3 +22,13 @@ export const UseTokensInput = z.object({
 export const HealthQuery = z.object({
   details: z.enum(['true', 'false']).optional(),
 });
+
+// ===== Client Log Schemas (Task C) =====
+
+export const ClientLogInput = z.object({
+  level: z.enum(['info', 'warn', 'error']).default('info'),
+  message: z.string().min(1).max(200),
+  source: z.string().max(50).optional(),  // e.g. "generate_page" for searchability
+  gen_request_id: z.string().optional(),  // Correlate with server generation
+  data: z.record(z.string(), z.any()).optional(),
+});
