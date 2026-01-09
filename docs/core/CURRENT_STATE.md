@@ -1,6 +1,6 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 8, 2026 (Session 43 - Debug Telemetry Fixed)
+**Last Updated**: January 9, 2026 (Session 44 - Model Selection Visibility)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors, 635.12 kB build)
 
@@ -54,6 +54,18 @@ Zero progress loss. Zero trust leaks.
 - **Session 41**: Hard delay budget cap (400ms) prevents "fast gens feel slow"
 **Status:** ✅ Shipped (Sessions 40 + 41)
 **Impact:** Transforms "silent spinner" into "trustworthy progress visualization" with all 4 stages visible. Max +350ms added delay (trivial vs 10-20s total). Zero progress loss, zero trust leaks.
+
+### ✅ Model Selection Visibility (COMPLETE)
+**Problem:** Couldn't tell WHY a specific model was chosen (typing default? MCQ fallback? rate limit?). Model switches looked random.
+**Root Cause:** No `model_decision_reason` field in router metrics, fallback context missing.
+**Fixes (Session 44):**
+- Added `model_decision_reason` to RouterMetrics interface
+- Track quiz type (MCQ vs typing) and set initial reason (`mcq_default`, `typing_default`)
+- Classify fallback errors: `rate_limit`, `timeout`, `parse_error`
+- Reason format: `{quizType}_fallback_{errorReason}` (e.g., `mcq_fallback_rate_limit`)
+- Return in debug block when `?debugGen=1`
+**Status:** ✅ Shipped (Session 44)
+**Impact:** Eliminates "mystery model drift" - every model decision is now traceable. Performance testing and debugging are deterministic.
 
 ### P1 — Grading Quality (Core Moat) 🚨 CRITICAL BEFORE USERS
 **Problem:** Grading is overly strict; freeform answers are marked incorrect even when notes are copied/pasted.

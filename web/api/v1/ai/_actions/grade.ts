@@ -272,6 +272,7 @@ export async function grade(
     model_used: 'deterministic', // Will become actual model when AI grading is implemented
     model_family: 'standard',
     fallback_triggered: false,
+    model_decision_reason: 'deterministic_grading', // No AI model decision yet
     attempt_count: 1,
     latency_ms: gradingLatencyMs,
     tokens_prompt: undefined, // No AI call yet
