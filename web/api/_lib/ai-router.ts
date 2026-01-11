@@ -36,6 +36,7 @@ export interface RouterMetrics {
   model_used: string;
   model_family: ModelFamily;
   fallback_triggered: boolean;
+  model_decision_reason: string; // Why this model was chosen (e.g., "mcq_default", "typing_fallback_rate_limit")
   attempt_count: number;
   latency_ms: number;
   tokens_prompt?: number;
@@ -318,6 +319,19 @@ function classifyError(error: any): ErrorClassification {
   return { retryable: false, reason: "unknown_error", code: "UNKNOWN_ERROR" };
 }
 
+/**
+ * Classify fallback reason for model_decision_reason field.
+ * Converts error classification into user-friendly reason strings.
+ */
+function classifyFallbackReason(error: any): string {
+  if (error.status === 429) return "rate_limit";
+  if ([500, 502, 503].includes(error.status)) return "timeout";
+  if (error.code === "MODEL_NON_JSON" || error.code === "MODEL_EMPTY_RESPONSE") return "parse_error";
+  if (error.code === "NETWORK_ERROR" || error.code === "SERVER_ERROR") return "timeout";
+  if (error.code === "MODEL_ERROR" || error.code === "RATE_LIMIT") return error.code.toLowerCase().replace("_", "_");
+  return "unknown";
+}
+
 // ============================================================================
 // Core Router Logic
 // ============================================================================
@@ -531,6 +545,22 @@ export async function generateWithRouter(request: RouterRequest): Promise<Router
   let fallbackTriggered = false;
   let lastError: any = null;
 
+  // Determine quiz type and initial model decision reason
+  let modelDecisionReason: string;
+  if (request.task === "quiz_generation") {
+    const quizConfig = request.context.config;
+    const isTypingHeavy =
+      quizConfig?.question_type === "typing" ||
+      (quizConfig?.question_type === "hybrid" &&
+       quizConfig?.question_counts &&
+       quizConfig.question_counts.typing >= quizConfig.question_counts.mcq);
+    const quizType = isTypingHeavy ? "typing" : "mcq";
+    modelDecisionReason = `${quizType}_default`;
+  } else {
+    // Grading tasks
+    modelDecisionReason = "grading_default";
+  }
+
   // Attempt 1: Default model
   const defaultModel = config.defaultModel;
   const defaultFamily = detectModelFamily(defaultModel);
@@ -549,6 +579,7 @@ export async function generateWithRouter(request: RouterRequest): Promise<Router
         model_used: defaultModel,
         model_family: defaultFamily,
         fallback_triggered: false,
+        model_decision_reason: modelDecisionReason,
         attempt_count: attemptCount,
         latency_ms: result.latency,
         tokens_prompt: result.tokens.prompt,
@@ -582,6 +613,7 @@ export async function generateWithRouter(request: RouterRequest): Promise<Router
           model_used: defaultModel,
           model_family: defaultFamily,
           fallback_triggered: false,
+          model_decision_reason: modelDecisionReason,
           attempt_count: attemptCount,
           latency_ms: error.latency_ms || 0,
         },
@@ -597,6 +629,21 @@ export async function generateWithRouter(request: RouterRequest): Promise<Router
 
     // Proceed to fallback attempt
     fallbackTriggered = true;
+
+    // Update model decision reason for fallback
+    const fallbackReasonType = classifyFallbackReason(error);
+    if (request.task === "quiz_generation") {
+      const quizConfig = request.context.config;
+      const isTypingHeavy =
+        quizConfig?.question_type === "typing" ||
+        (quizConfig?.question_type === "hybrid" &&
+         quizConfig?.question_counts &&
+         quizConfig.question_counts.typing >= quizConfig.question_counts.mcq);
+      const quizType = isTypingHeavy ? "typing" : "mcq";
+      modelDecisionReason = `${quizType}_fallback_${fallbackReasonType}`;
+    } else {
+      modelDecisionReason = `grading_fallback_${fallbackReasonType}`;
+    }
   }
 
   // Attempt 2: Fallback model (if enabled and error was retryable)
@@ -629,6 +676,7 @@ export async function generateWithRouter(request: RouterRequest): Promise<Router
           model_used: fallbackModel,
           model_family: fallbackFamily,
           fallback_triggered: true,
+          model_decision_reason: modelDecisionReason,
           attempt_count: attemptCount,
           latency_ms: result.latency,
           tokens_prompt: result.tokens.prompt,
@@ -659,6 +707,7 @@ export async function generateWithRouter(request: RouterRequest): Promise<Router
           model_used: fallbackModel,
           model_family: fallbackFamily,
           fallback_triggered: true,
+          model_decision_reason: modelDecisionReason,
           attempt_count: attemptCount,
           latency_ms: error.latency_ms || 0,
         },

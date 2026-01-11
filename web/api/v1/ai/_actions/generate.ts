@@ -44,6 +44,7 @@ export async function generateQuiz(
       total_ms: number;
     };
     model_used: string;  // Task B: DUPLICATE (backward compat)
+    model_decision_reason: string;  // Phase 1: Why this model was chosen
     fallback_triggered: boolean;
     tokens_total: number;
   };
@@ -521,6 +522,7 @@ export async function generateQuiz(
           total_ms
         },
         model_used: routerResult.metrics.model_used,  // Task B: DUPLICATE (backward compat)
+        model_decision_reason: routerResult.metrics.model_decision_reason,  // Phase 1: Why this model was chosen
         fallback_triggered: routerResult.metrics.fallback_triggered,
         tokens_total: routerResult.metrics.tokens_total || 0
       }
