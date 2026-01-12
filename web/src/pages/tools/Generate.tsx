@@ -503,6 +503,55 @@ export default function Generate() {
   }
 
   async function submitGenerate() {
+    // P0-B: Capture t_click timestamp + start stage progression
+    metricsRef.current = { t_click: performance.now() };
+
+    // P0-B: Increment sequence to invalidate previous attempts
+    requestSeqRef.current++;
+    const localSeq = requestSeqRef.current;
+
+    // === VALIDATION BEFORE LOCK (Reliability Fix) ===
+    // Validate all inputs BEFORE acquiring lock to prevent stuck lock on early returns
+
+    // Get session token early for validation
+    const session = (await supabase.auth.getSession()).data.session;
+    const accessToken = session?.access_token;
+
+    // Validate inputs
+    if (!notesSource || notesSource.length < 20) {
+      push({ kind: "error", text: "Notes too short (minimum 20 characters). Add more content." });
+      track("quiz_generated_failure", { reason: "notes_too_short" });
+      return; // ✅ Safe - lock not yet acquired
+    }
+
+    if (notesSource.length > 50000) {
+      push({ kind: "error", text: "Notes too long (maximum 50,000 characters). Please shorten." });
+      track("quiz_generated_failure", { reason: "notes_too_long" });
+      return; // ✅ Safe - lock not yet acquired
+    }
+
+    if (!classId) {
+      push({ kind: "error", text: "No class selected. Please try refreshing the page." });
+      track("quiz_generated_failure", { reason: "no_class_id" });
+      return; // ✅ Safe - lock not yet acquired
+    }
+
+    if (!accessToken) {
+      push({ kind: "error", text: "You are signed out. Please sign in again." });
+      track("quiz_generated_failure", { reason: "no_token" });
+      return; // ✅ Safe - lock not yet acquired
+    }
+
+    // Section 4: Validate hybrid counts BEFORE lock
+    if (questionType === "hybrid" && mcqCount + typingCount !== questionCount) {
+      push({
+        kind: "error",
+        text: `Hybrid question counts must sum to ${questionCount}. Currently: ${mcqCount} MCQ + ${typingCount} Typing = ${mcqCount + typingCount}`
+      });
+      return; // ✅ Safe - lock not yet acquired
+    }
+
+    // === NOW SAFE TO ACQUIRE LOCK ===
     // P0-B: Dedupe guard (prevents same-mount double triggers)
     if (submissionLockRef.current) {
       console.warn('[Generation] Duplicate submission blocked');
@@ -511,13 +560,6 @@ export default function Generate() {
 
     submissionLockRef.current = true;
     didNavigateRef.current = false;  // Reset navigation guard
-
-    // P0-B: Capture t_click timestamp + start stage progression
-    metricsRef.current = { t_click: performance.now() };
-
-    // P0-B: Increment sequence to invalidate previous attempts
-    requestSeqRef.current++;
-    const localSeq = requestSeqRef.current;
 
     // P0-B Session 41: Delay budget tracking (max 400ms added delay)
     let delayBudgetUsedMs = 0;
@@ -624,16 +666,6 @@ export default function Generate() {
     // P0-B Session 41: Start stage progression with tracking
     setStageTracked('sending');
 
-    // Section 4: Validate hybrid counts before submitting
-    if (questionType === "hybrid" && mcqCount + typingCount !== questionCount) {
-      push({
-        kind: "error",
-        text: `Hybrid question counts must sum to ${questionCount}. Currently: ${mcqCount} MCQ + ${typingCount} Typing = ${mcqCount + typingCount}`
-      });
-      setGenerationStage(null);
-      return;
-    }
-
     setLoading(true);
 
     // Track telemetry: start
@@ -645,40 +677,6 @@ export default function Generate() {
     });
 
     try {
-      // ChatGPA v1.12: Simplified validation (no mode checks)
-      // ✅ Safe - matches backend schema requirements
-      if (!notesSource || notesSource.length < 20) {
-        push({ kind: "error", text: "Notes too short (minimum 20 characters). Add more content." });
-        setLoading(false);
-        track("quiz_generated_failure", { reason: "notes_too_short" });
-        return;
-      }
-
-      if (notesSource.length > 50000) {
-        push({ kind: "error", text: "Notes too long (maximum 50,000 characters). Please shorten." });
-        setLoading(false);
-        track("quiz_generated_failure", { reason: "notes_too_long" });
-        return;
-      }
-
-      // ⚠️ Verify - assumes classId will always be set by auto-selection logic
-      if (!classId) {
-        push({ kind: "error", text: "No class selected. Please try refreshing the page." });
-        setLoading(false);
-        track("quiz_generated_failure", { reason: "no_class_id" });
-        return;
-      }
-
-      // auth token for RLS
-      const session = (await supabase.auth.getSession()).data.session;
-      const accessToken = session?.access_token;
-      if (!accessToken) {
-        push({ kind: "error", text: "You are signed out. Please sign in again." });
-        setLoading(false);
-        track("quiz_generated_failure", { reason: "no_token" });
-        return;
-      }
-
       // Section 4: Build config to send
       const configToSend = getCurrentConfig();
 
@@ -707,7 +705,7 @@ export default function Generate() {
       if (localSeq !== requestSeqRef.current) {
         console.warn('[Generation] Ignoring stale response (cancelled/retried)');
         setGenerationStage(null);  // P0-B Session 41: Clear stuck stage
-        return;  // finally block will handle submissionLockRef + setLoading
+        return;  // ✅ Safe - new request owns lock, don't release
       }
 
       // P0-B: Capture t_res_received timestamp
@@ -745,6 +743,7 @@ export default function Generate() {
         }
 
         setGenerationStage(null);  // P0-B Session 41: Clear stuck stage
+        submissionLockRef.current = false;  // ✅ Release lock on error
         setLoading(false);
         return;
       }
@@ -755,6 +754,7 @@ export default function Generate() {
         track("quiz_generated_failure", { reason: "no_quiz_id" });
         push({ kind: "error", text: "Quiz created but no ID returned." });
         setGenerationStage(null);  // P0-B Session 41: Clear stuck stage
+        submissionLockRef.current = false;  // ✅ Release lock on error
         setLoading(false);
         return;
       }
@@ -763,7 +763,7 @@ export default function Generate() {
       if (localSeq !== requestSeqRef.current) {
         console.warn('[Generation] Ignoring stale navigation (cancelled/retried)');
         setGenerationStage(null);  // P0-B Session 41: Clear stuck stage
-        return;  // finally block will handle submissionLockRef + setLoading
+        return;  // ✅ Safe - new request owns lock, don't release
       }
 
       // P0-B: Capture t_validated timestamp
@@ -771,7 +771,7 @@ export default function Generate() {
 
       // P0-B Session 41: Ensure validating stage visible for min 200ms
       if (!await ensureMinStageDisplay(200)) {
-        return; // Request was cancelled/retried during wait
+        return; // ✅ Safe - request stale, new request owns lock
       }
 
       // P0-B Session 41: Transition to finalizing
@@ -853,7 +853,7 @@ export default function Generate() {
 
       // P0-B Session 41: Ensure finalizing stage visible for min 150ms
       if (!await ensureMinStageDisplay(150)) {
-        return; // Request was cancelled/retried during wait
+        return; // ✅ Safe - request stale, new request owns lock
       }
 
       // Task C: Ship final metrics to Vercel (debug only)
