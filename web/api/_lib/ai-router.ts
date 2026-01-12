@@ -604,8 +604,9 @@ export async function generateWithRouter(request: RouterRequest): Promise<Router
       latency_ms: error.latency_ms,
     });
 
-    // Check if we should attempt fallback
-    if (!config.fallbackEnabled || !classification.retryable || attemptCount >= config.maxRetries) {
+    // Check if we should attempt fallback (Reliability Fix)
+    // Use fallbackTriggered instead of attemptCount to allow exactly one fallback per request
+    if (!config.fallbackEnabled || !classification.retryable || fallbackTriggered) {
       return {
         success: false,
         metrics: {

@@ -376,6 +376,39 @@ export async function generateQuiz(
     };
   }
 
+  // === TYPE NORMALIZATION (Reliability Fix) ===
+  // Normalize question type synonyms before Zod validation
+  // OpenAI sometimes returns "typing" instead of "short"
+  if (quizJson?.questions && Array.isArray(quizJson.questions)) {
+    quizJson.questions = quizJson.questions.map((q: any, idx: number) => {
+      const originalType = q.type;
+      let normalizedType = q.type;
+
+      // Map known synonyms to canonical types
+      if (originalType === 'typing') {
+        normalizedType = 'short';
+      }
+
+      // Debug logging when normalization occurs (appears in Vercel logs)
+      // ⚠️ Null-safe: don't throw if routerResult missing
+      if (originalType !== normalizedType) {
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'debug',
+          request_id: routerResult?.metrics?.request_id || 'unknown',
+          user_id: user_id || 'unknown',
+          action: 'generate_quiz',
+          message: 'Normalized question type',
+          question_index: idx,
+          original_type: originalType,
+          normalized_type: normalizedType
+        }));
+      }
+
+      return { ...q, type: normalizedType };
+    });
+  }
+
   // Validate quiz structure with Zod
   const quizValidation = quizResponseSchema.safeParse(quizJson);
   if (!quizValidation.success) {

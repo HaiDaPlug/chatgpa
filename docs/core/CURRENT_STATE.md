@@ -1,8 +1,8 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 9, 2026 (Session 44 - Model Selection Visibility)
+**Last Updated**: January 12, 2026 (Session 45 - Generation Retry Reliability Fix)
 **Branch**: `alpha`
-**Build Status**: ✅ Passing (0 TypeScript errors, 635.12 kB build)
+**Build Status**: ✅ Passing (0 TypeScript errors, 635.10 kB build)
 
 ---
 
@@ -118,7 +118,17 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-43)
+### Latest Updates (Sessions 28-45)
+- ✅ **Session 45: Fix Generation Retry Reliability (P0 Critical)** - Manual retry after failure
+  - **Task 1 (P0)**: Fixed client lock not released on validation errors - moved all validation BEFORE lock acquisition
+  - **Task 2 (P1)**: Added type normalization ("typing" → "short") before Zod validation to reduce schema mismatches
+  - **Task 3 (P1)**: Fixed fallback not triggering on retryable errors - changed condition to use `fallbackTriggered` flag
+  - **Impact**: Users can now immediately retry after validation errors or API failures (no more stuck "Duplicate submission blocked")
+  - ~109 lines modified across 3 files (Generate.tsx, generate.ts, ai-router.ts)
+  - 0 TypeScript errors, build: 635.10 kB (gzip: 177.82 kB)
+  - Fixed critical regression: manual retry works after ANY failure (transient errors, schema mismatch, empty response)
+
+### Latest Updates (Sessions 28-44)
 - ✅ **Session 43: Fix Generation Debug Telemetry** - model_used + Client Logs to Vercel
   - **Task A (Critical)**: Fixed `model_used: undefined` bug - client was reading wrong path (`payload.debug` → `payload.data.debug`)
   - **Task B (Stability)**: Server always returns `model_used` at top level (not just in debug mode)
@@ -478,7 +488,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: January 8, 2026 (Session 43 - Debug Telemetry Fixed)
+**Last Verified**: January 12, 2026 (Session 45 - Generation Retry Reliability Fixed)
 **Next Review**: After P1 (Grading Quality) implementation
-**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.12 kB gzip: 177.83 kB)
-**Recent Sessions**: [Session 40](./SESSION_40.md), [Session 41](./SESSION_41.md), [Session 42](./SESSION_42.md), [Session 43](./SESSION_43.md)
+**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.10 kB gzip: 177.82 kB)
+**Recent Sessions**: [Session 41](./SESSION_41.md), [Session 42](./SESSION_42.md), [Session 43](./SESSION_43.md), [Session 44](./SESSION_44.md), [Session 45](./SESSION_45.md)
