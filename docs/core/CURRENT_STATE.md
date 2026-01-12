@@ -1,6 +1,6 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 12, 2026 (Session 45 - Generation Retry Reliability Fix)
+**Last Updated**: January 12, 2026 (Session 46 - Analytics Insertion Failures Fixed)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors, 635.10 kB build)
 
@@ -118,7 +118,18 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-45)
+### Latest Updates (Sessions 28-46)
+- ✅ **Session 46: Fix Analytics Insertion Failures** - Service role client for analytics
+  - **Problem**: Analytics inserts failing with RLS Error 42501 + intermittent network errors
+  - **Root Cause**: Analytics functions used anon client without user token → `auth.uid()` returns NULL → RLS policy blocks
+  - **Solution 1**: Created `analytics-admin.ts` with service role client (bypasses RLS for server-side analytics)
+  - **Solution 2**: Module-level client caching reduces connection pool churn
+  - **Solution 3**: Changed `console.error` → `console.warn` for failures, gated success logs behind `ANALYTICS_DEBUG=1`
+  - **Files Changed**: Created analytics-admin.ts (50 lines), modified analytics-service.ts + grading-analytics.ts
+  - **Security**: Service role safe (server-side only, insert-only operations, no user text in payloads)
+  - **Impact**: Analytics now successfully inserted, better env diagnostics, cleaner logs
+  - 3 files changed (~80 lines net), 0 TypeScript errors
+
 - ✅ **Session 45: Fix Generation Retry Reliability (P0 Critical)** - Manual retry after failure
   - **Task 1 (P0)**: Fixed client lock not released on validation errors - moved all validation BEFORE lock acquisition
   - **Task 2 (P1)**: Added type normalization ("typing" → "short") before Zod validation to reduce schema mismatches
@@ -488,7 +499,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: January 12, 2026 (Session 45 - Generation Retry Reliability Fixed)
+**Last Verified**: January 12, 2026 (Session 46 - Analytics Insertion Failures Fixed)
 **Next Review**: After P1 (Grading Quality) implementation
 **Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.10 kB gzip: 177.82 kB)
-**Recent Sessions**: [Session 41](./SESSION_41.md), [Session 42](./SESSION_42.md), [Session 43](./SESSION_43.md), [Session 44](./SESSION_44.md), [Session 45](./SESSION_45.md)
+**Recent Sessions**: [Session 42](./SESSION_42.md), [Session 43](./SESSION_43.md), [Session 44](./SESSION_44.md), [Session 45](./SESSION_45.md), [Session 46](./SESSION_46.md)

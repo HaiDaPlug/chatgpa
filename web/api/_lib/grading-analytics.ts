@@ -4,6 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { RouterMetrics } from "./ai-router.js";
 import type { CriteriaScores, ConceptHit, RUBRIC_VERSION } from "./rubric-engine.js";
+import { getAnalyticsAdminClient } from "./analytics-admin.js";
 
 // ============================================================================
 // Types
@@ -52,20 +53,10 @@ export async function insertGradingAnalytics(
   rubricVersion: string
 ): Promise<void> {
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("GRADING_ANALYTICS_SKIPPED", {
-        reason: "missing_supabase_config",
-        attempt_id: attemptId,
-      });
-      return;
+    const supabase = getAnalyticsAdminClient();
+    if (!supabase) {
+      return; // Silently skip (warning logged once at cold start)
     }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false },
-    });
 
     // Calculate criteria summaries
     const criteriaSummaries = calculateCriteriaSummaries(gradingResults);
@@ -101,27 +92,26 @@ export async function insertGradingAnalytics(
     };
 
     // Insert (non-blocking fire-and-forget)
-    const { error } = await supabase.from("analytics").insert([analyticsPayload]);
+    const { error } = await supabase.from("analytics").insert([analyticsPayload] as any);
 
     if (error) {
-      console.error("GRADING_ANALYTICS_INSERT_FAILED", {
+      console.warn("GRADING_ANALYTICS_INSERT_FAILED", {
         attempt_id: attemptId,
         request_id: routerMetrics.request_id,
         error_code: error.code,
         error_message: error.message,
       });
-    } else {
+    } else if (process.env.ANALYTICS_DEBUG === "1") {
+      // Success logs gated by debug flag (avoid prod spam)
       console.log("GRADING_ANALYTICS_INSERT_SUCCESS", {
         attempt_id: attemptId,
         request_id: routerMetrics.request_id,
         model_used: routerMetrics.model_used,
-        fallback_triggered: routerMetrics.fallback_triggered,
-        concept_coverage_ratio: conceptStats.concept_coverage_ratio,
       });
     }
   } catch (err: any) {
-    // Swallow all errors (analytics must never break grading flow)
-    console.error("GRADING_ANALYTICS_INSERT_EXCEPTION", {
+    // Thin safety catch (runtime exceptions, network stack failures)
+    console.warn("GRADING_ANALYTICS_INSERT_EXCEPTION", {
       attempt_id: attemptId,
       error_message: err?.message || "Unknown error",
     });
@@ -139,16 +129,10 @@ export async function insertGradingFailure(
   errorMessage: string
 ): Promise<void> {
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return; // Silent skip
+    const supabase = getAnalyticsAdminClient();
+    if (!supabase) {
+      return; // Silently skip (env warning logged at cold start)
     }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false },
-    });
 
     const analyticsPayload = {
       event: "grade_fail",
@@ -174,9 +158,22 @@ export async function insertGradingFailure(
       },
     };
 
-    await supabase.from("analytics").insert([analyticsPayload]);
-  } catch (err) {
-    // Swallow (non-critical)
+    const { error } = await supabase.from("analytics").insert([analyticsPayload] as any);
+
+    if (error) {
+      console.warn("GRADING_FAILURE_ANALYTICS_INSERT_FAILED", {
+        request_id: routerMetrics.request_id,
+        error_code: error.code,
+        error_message: error.message,
+      });
+    }
+    // No success logging (failure analytics are low-priority)
+  } catch (err: any) {
+    // Thin safety catch (don't lose all signal)
+    console.warn("GRADING_FAILURE_ANALYTICS_INSERT_EXCEPTION", {
+      request_id: routerMetrics.request_id,
+      error_message: err?.message || "Unknown error",
+    });
   }
 }
 
