@@ -3,6 +3,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import type { RouterMetrics } from "./ai-router.js";
+import { getAnalyticsAdminClient } from "./analytics-admin.js";
 
 // ============================================================================
 // Types
@@ -239,21 +240,10 @@ export async function insertGenerationAnalytics(
   config?: any // Section 4: Optional quiz config
 ): Promise<void> {
   try {
-    // Create Supabase client (anon key is fine, RLS enforces user_id)
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("ANALYTICS_INSERT_SKIPPED", {
-        reason: "missing_supabase_config",
-        quiz_id: quizId,
-      });
-      return;
+    const supabase = getAnalyticsAdminClient();
+    if (!supabase) {
+      return; // Silently skip (warning logged once at cold start)
     }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false },
-    });
 
     // Calculate quality metrics
     const qualityMetrics = calculateQualityMetrics(questions);
@@ -300,27 +290,26 @@ export async function insertGenerationAnalytics(
     };
 
     // Insert into unified analytics table (non-blocking fire-and-forget)
-    const { error } = await supabase.from("analytics").insert([analyticsPayload]);
+    const { error } = await supabase.from("analytics").insert([analyticsPayload] as any);
 
     if (error) {
-      console.error("ANALYTICS_INSERT_FAILED", {
+      console.warn("ANALYTICS_INSERT_FAILED", {
         quiz_id: quizId,
         request_id: routerMetrics.request_id,
         error_code: error.code,
         error_message: error.message,
       });
-    } else {
+    } else if (process.env.ANALYTICS_DEBUG === "1") {
+      // Success logs gated by debug flag (avoid prod spam)
       console.log("ANALYTICS_INSERT_SUCCESS", {
         quiz_id: quizId,
         request_id: routerMetrics.request_id,
         model_used: routerMetrics.model_used,
-        fallback_triggered: routerMetrics.fallback_triggered,
-        quality_metrics: qualityMetrics,
       });
     }
   } catch (err: any) {
-    // Swallow all errors (analytics must never break quiz generation)
-    console.error("ANALYTICS_INSERT_EXCEPTION", {
+    // Thin safety catch (runtime exceptions, network stack failures)
+    console.warn("ANALYTICS_INSERT_EXCEPTION", {
       quiz_id: quizId,
       error_message: err?.message || "Unknown error",
     });
@@ -339,16 +328,10 @@ export async function insertGenerationFailure(
   sourceContext: SourceContext
 ): Promise<void> {
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return; // Silent skip
+    const supabase = getAnalyticsAdminClient();
+    if (!supabase) {
+      return; // Silently skip (env warning logged at cold start)
     }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false },
-    });
 
     const analyticsPayload = {
       event: "generation_fail",
@@ -378,8 +361,22 @@ export async function insertGenerationFailure(
       },
     };
 
-    await supabase.from("analytics").insert([analyticsPayload]);
-  } catch (err) {
-    // Swallow (non-critical)
+    const { error } = await supabase.from("analytics").insert([analyticsPayload] as any);
+
+    if (error) {
+      // Log failure insert errors (preserves signal when analytics broken)
+      console.warn("ANALYTICS_FAILURE_INSERT_FAILED", {
+        request_id: routerMetrics.request_id,
+        error_code: error.code,
+        error_message: error.message,
+      });
+    }
+    // No success logging (failure analytics are low-priority)
+  } catch (err: any) {
+    // Thin safety catch (don't lose all signal)
+    console.warn("ANALYTICS_FAILURE_INSERT_EXCEPTION", {
+      request_id: routerMetrics.request_id,
+      error_message: err?.message || "Unknown error",
+    });
   }
 }
