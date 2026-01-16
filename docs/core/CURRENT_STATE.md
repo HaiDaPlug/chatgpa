@@ -1,8 +1,8 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 12, 2026 (Session 46 - Analytics Insertion Failures Fixed)
+**Last Updated**: January 16, 2026 (Session 47 - P1 Grading Quality Complete)
 **Branch**: `alpha`
-**Build Status**: ✅ Passing (0 TypeScript errors, 635.10 kB build)
+**Build Status**: ✅ Passing (0 TypeScript errors, 635.65 kB build)
 
 ---
 
@@ -67,26 +67,54 @@ Zero progress loss. Zero trust leaks.
 **Status:** ✅ Shipped (Session 44)
 **Impact:** Eliminates "mystery model drift" - every model decision is now traceable. Performance testing and debugging are deterministic.
 
-### P1 — Grading Quality (Core Moat) 🚨 CRITICAL BEFORE USERS
-**Problem:** Grading is overly strict; freeform answers are marked incorrect even when notes are copied/pasted.
-**Why it matters:** Grading accuracy is **THE moat**. If grading feels dumb, product becomes "Quizlet-like" and loses trust. This must be fixed before any user testing.
-**How we'll fix (mostly prompt + rubric, minimal code):**
-- Update grading rubric to accept paraphrases/semantic equivalence and award partial credit when appropriate
-- Require grader to cite which concept is missing (short), and give one improvement step
-- Keep tone as "calm coach" (helpful, precise, not intense)
-- Confirm schema/UX surfaces partial vs incorrect consistently
+### ✅ P1 — Grading Quality (Core Moat) COMPLETE
+**Problem:** Grading was overly strict; freeform answers marked incorrect even when notes copied/pasted.
+**Root Cause:** Binary Jaccard threshold (≥0.6 = correct) couldn't handle paraphrases.
+**Fixes (Session 47):**
+- **Frontend**: Score band labels (Correct/Mostly Correct/Partial/Incorrect/Ungraded) instead of binary
+- **Backend**: Hybrid AI semantic grading with cost guards (exact match → Jaccard gate → AI)
+- **Strict `correct` mapping**: `correct: true` only when score ≥ 0.90 (backward compatible)
+- **Score clamping**: Prevents weird AI edge cases (1.2, -0.1)
+- **Test fixture**: Freud defense mechanisms regression test (mocked, deterministic)
+**Status:** ✅ Shipped (Session 47)
+**Impact:** Paraphrased answers now show "Mostly Correct" instead of "Incorrect". Trust restored.
 
-### P2 — Generator Quality (Nuance + Variety + Cases)
-**Problem:** Questions feel repetitive (same templates, same examples, surface-level recall).
-**Why it matters:** Nuanced/varied questions are *real value*, not a cheap gimmick. Different examples reduce memorization and force understanding (good learning science). Case/scenario diagnosis is a killer differentiator *if* graded well.
-**Why after P1:** Adding case questions before grading accepts reasoning/paraphrase will leak trust faster.
-**How we'll build (small + safe, after P1 is fixed):**
-- **Controlled variation**: Keep concept same, vary surface (new examples not in notes, different contexts)
-- **Perspective rotation templates**: Mix recall (small %), explanation/why, compare & contrast, common misconception, application, and case/diagnosis (1-2 per quiz)
-- **Deterministic variety**: Seed based on `(notesHash + userId + day)` for freshness without lottery feel
-- **Diversity constraints**: "Don't reuse same example twice in a quiz" and "avoid same template twice in a row"
-- **Case/scenario questions**: Short scenario grounded in notes → student diagnoses/chooses next step → graded on reasoning, not exact phrasing
-- **Prompt additions**: "Use new examples not in notes but keep realistic", "Generate N different contexts", "Include 1 scenario-based diagnostic if notes describe processes/systems"
+### P2 Tracks (Parked — After P1)
+**Guardrail:** Generation quality is only worth it once grading is trusted—otherwise good questions still feel broken.
+
+#### P2-A: Quiz Generation Quality
+**North Star:** Questions feel like a good teacher wrote them from your notes, not generic trivia.
+
+- **Difficulty calibration**
+  - Derive "difficulty profile" from notes: depth, jargon density, examples vs definitions
+  - Generate a mix: recall → understanding → application (40/40/20)
+- **Question count strategy**
+  - Not fixed. Function of: notes length / distinct concepts, redundancy, user goal (quick review vs exam prep)
+  - Profiles: quick / standard / exam
+- **Subject-specific prompting**
+  - One universal generator prompt + "subject lens" section (not 20 prompts)
+  - Math: worked steps + common mistakes
+  - Psychology: definitions + examples + contrasts
+  - History: chronology + causality
+  - Add special prompts only for true outliers later
+
+#### P2-B: World-Class UI
+**North Star:** UI signals trust and reduces anxiety.
+
+- **Core pillars**
+  - Clarity: always know where you are (Generate → Quiz → Results → Practice)
+  - Momentum: frictionless "Practice mistakes" CTA everywhere
+  - Truthfulness: never show "Incorrect" when it's "Mostly correct"
+  - Delight without noise: subtle motion, clean type, confident spacing
+- **Results page** (flagship screen)
+  - Score summary + skill breakdown (by topic if possible)
+  - Per-question cards: score band, why, fix, missing terms
+  - Big "Practice mistakes" button (primary action)
+- **Practice mode** (the "alive teacher" experience)
+  - One-question loop with instant feedback
+- **Generation**
+  - Premium loader ✅ shipped
+  - Next: post-generation "quiz ready" moment (small celebratory transition, not childish)
 
 ### P3 — Clarity Polish
 Modernize Dashboard + Generate page + "pre-results" navigation for clarity:
@@ -118,7 +146,17 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-46)
+### Latest Updates (Sessions 28-47)
+- ✅ **Session 47: P1 Grading Quality - Score Bands + Semantic AI Grading** - Core moat fix
+  - **Problem**: Grading overly strict - paraphrases marked incorrect even when notes copied/pasted
+  - **Root Cause**: Binary Jaccard threshold (≥0.6 = correct) couldn't handle semantic equivalence
+  - **Solution 1**: Frontend score band labels (Correct/Mostly Correct/Partial/Incorrect/Ungraded)
+  - **Solution 2**: Hybrid AI semantic grading with cost guards (exact match → Jaccard gate → AI)
+  - **Solution 3**: Strict `correct` mapping (score ≥ 0.90 only) for backward compatibility
+  - **Files Changed**: AttemptReview.tsx (score bands), grader.ts (AI grading), grading-semantic.fixture.ts (NEW)
+  - **Impact**: Paraphrased answers now show "Mostly Correct" instead of "Incorrect". Trust restored.
+  - 4 files changed (~200 lines), 0 new TypeScript errors, build: 635.65 kB
+
 - ✅ **Session 46: Fix Analytics Insertion Failures** - Service role client for analytics
   - **Problem**: Analytics inserts failing with RLS Error 42501 + intermittent network errors
   - **Root Cause**: Analytics functions used anon client without user token → `auth.uid()` returns NULL → RLS policy blocks
@@ -499,7 +537,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: January 12, 2026 (Session 46 - Analytics Insertion Failures Fixed)
-**Next Review**: After P1 (Grading Quality) implementation
-**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.10 kB gzip: 177.82 kB)
-**Recent Sessions**: [Session 42](./SESSION_42.md), [Session 43](./SESSION_43.md), [Session 44](./SESSION_44.md), [Session 45](./SESSION_45.md), [Session 46](./SESSION_46.md)
+**Last Verified**: January 16, 2026 (Session 47 - P1 Grading Quality Complete)
+**Next Review**: After P2 (Generation Quality + World-Class UI) implementation
+**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.65 kB gzip: 177.88 kB)
+**Recent Sessions**: [Session 43](./SESSION_43.md), [Session 44](./SESSION_44.md), [Session 45](./SESSION_45.md), [Session 46](./SESSION_46.md), [Session 47](./SESSION_47.md)

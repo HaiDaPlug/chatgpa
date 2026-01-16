@@ -76,6 +76,19 @@ function calculateLetterGrade(percent: number): string {
   return 'F';
 }
 
+// ✅ P1: Score band mapping for granular verdict labels
+type ScoreBand = 'correct' | 'mostly_correct' | 'partial' | 'incorrect' | 'ungraded';
+
+function getScoreBand(score: number | null | undefined): ScoreBand {
+  if (score == null) return 'ungraded';
+  // Clamp + round to handle any weird old data (1.2, -0.1, etc.)
+  const s = Math.round(Math.max(0, Math.min(1, score)) * 100) / 100;
+  if (s >= 0.90) return 'correct';
+  if (s >= 0.70) return 'mostly_correct';
+  if (s >= 0.30) return 'partial';
+  return 'incorrect';
+}
+
 function calculateTimeElapsed(startedAt: string, submittedAt?: string): string | null {
   if (!submittedAt) return null;
 
@@ -647,7 +660,8 @@ function QuestionCard({
               <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>
                 Question {index + 1}
               </span>
-              <StatusBadge status={breakdown.correct ? 'correct' : 'incorrect'} />
+              {/* ✅ P1: Use score bands with backward-compat fallback for old attempts */}
+              <StatusBadge status={getScoreBand(breakdown.score ?? (breakdown.correct ? 1 : 0))} />
             </div>
             <div className="text-lg" style={{ color: 'var(--text)' }}>
               {isLongPrompt && !showFullPrompt
@@ -732,23 +746,42 @@ function QuestionCard({
   );
 }
 
-function StatusBadge({ status }: { status: 'correct' | 'incorrect' }) {
-  const styles = {
+// ✅ P1: StatusBadge now supports all score bands (not just binary correct/incorrect)
+function StatusBadge({ status }: { status: ScoreBand }) {
+  const styles: Record<ScoreBand, { background: string; color: string; borderColor: string }> = {
     correct: {
       background: 'rgba(72, 226, 138, 0.15)',
       color: 'var(--text-success)',
       borderColor: 'var(--text-success)',
+    },
+    mostly_correct: {
+      background: 'rgba(72, 226, 138, 0.10)',
+      color: 'var(--text-success)',
+      borderColor: 'var(--text-success)',
+    },
+    partial: {
+      background: 'rgba(251, 191, 36, 0.12)',
+      color: 'var(--text-warning)',
+      borderColor: 'var(--text-warning)',
     },
     incorrect: {
       background: 'rgba(239, 68, 68, 0.08)',
       color: 'var(--text-danger)',
       borderColor: 'var(--text-danger)',
     },
+    ungraded: {
+      background: 'rgba(156, 163, 175, 0.10)',
+      color: 'var(--text-muted)',
+      borderColor: 'var(--text-muted)',
+    },
   };
 
-  const labels = {
+  const labels: Record<ScoreBand, string> = {
     correct: 'Correct',
+    mostly_correct: 'Mostly Correct',
+    partial: 'Partial',
     incorrect: 'Incorrect',
+    ungraded: 'Ungraded',
   };
 
   const style = styles[status];
@@ -936,7 +969,6 @@ export function AttemptReview({
         onRetake={onRetake}
         onPracticeIncorrect={onPracticeIncorrect}
         onGenerateNew={onGenerateNew}
-        incorrectCount={incorrectCount}
         isRetaking={isRetaking}
         submittedAt={attempt.submitted_at}
         completedAt={attempt.completed_at}

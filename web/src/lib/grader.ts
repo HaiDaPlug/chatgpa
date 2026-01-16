@@ -36,9 +36,11 @@ export type BreakdownItem = {
   prompt: string;
   user_answer: string;
   correct: boolean;
+  score?: number;               // ✅ P1: 0-1 granular score for semantic grading
   correct_answer?: string;      // for MCQ or if reference exists
   feedback: string;             // human-friendly explanation
   improvement?: string;         // concrete tip for next time
+  missing_terms?: string[];     // ✅ P1: terms missing from answer (for semantic feedback)
 };
 
 export type GradeOutput = {
