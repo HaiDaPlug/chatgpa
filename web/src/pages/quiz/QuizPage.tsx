@@ -16,6 +16,8 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [attemptId, setAttemptId] = useState<string | null>(null); // ✅ Safe - For retake flow
+  // ✅ P1.1: Track retryable grading errors for retry UI
+  const [gradingError, setGradingError] = useState<{ message: string; retryable: boolean } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -112,9 +114,22 @@ export default function QuizPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        push({ kind: "error", text: json?.message || json?.code || "Failed to grade." });
+        const errorMessage = json?.message || json?.code || "Failed to grade.";
+        const isRetryable = json?.retryable === true;
+
+        if (isRetryable) {
+          // ✅ P1.1: Set error state so UI can show retry button
+          setGradingError({ message: errorMessage, retryable: true });
+          setSubmitting(false);
+          return;
+        }
+
+        push({ kind: "error", text: errorMessage });
+        setSubmitting(false);
         return;
       }
+      // Clear any previous error on success
+      setGradingError(null);
       // Gateway wraps response as {ok, data, request_id}
       const result = json.data || json;
       push({ kind: "success", text: `Scored ${Math.round(result.score)}% (${result.letter})` });
@@ -168,6 +183,42 @@ export default function QuizPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ✅ P1.1: Retry banner for temporary grading failures */}
+      {gradingError && gradingError.retryable && (
+        <div
+          className="mt-6 p-4 rounded-lg border"
+          style={{
+            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+            borderColor: 'var(--text-warning, #fbbf24)',
+          }}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="font-medium" style={{ color: 'var(--text-warning, #fbbf24)' }}>
+                Grading failed temporarily
+              </div>
+              <div className="text-sm" style={{ color: 'var(--text-muted, #9ca3af)' }}>
+                {gradingError.message}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setGradingError(null);
+                onSubmit();
+              }}
+              disabled={submitting}
+              className="px-4 py-2 rounded-lg font-medium transition"
+              style={{
+                backgroundColor: 'var(--accent, #f97316)',
+                color: 'var(--bg, #000)',
+              }}
+            >
+              {submitting ? 'Retrying…' : 'Retry'}
+            </button>
+          </div>
         </div>
       )}
 

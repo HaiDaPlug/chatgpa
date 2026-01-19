@@ -1,8 +1,8 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 16, 2026 (Session 47 - P1 Grading Quality Complete)
+**Last Updated**: January 19, 2026 (Session 47.1 - P1.1 Grading Reliability Complete)
 **Branch**: `alpha`
-**Build Status**: ✅ Passing (0 TypeScript errors, 635.65 kB build)
+**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.65 kB build)
 
 ---
 
@@ -79,6 +79,17 @@ Zero progress loss. Zero trust leaks.
 **Status:** ✅ Shipped (Session 47)
 **Impact:** Paraphrased answers now show "Mostly Correct" instead of "Incorrect". Trust restored.
 
+### ✅ P1.1 — Grading Reliability (AI Output Hardening) COMPLETE
+**Problem:** AI semantic grading parse failures surfaced as 500 errors with no retry path.
+**Root Cause:** `json_object` mode doesn't enforce schema; model sometimes returns invalid JSON.
+**Fixes (Session 47.1):**
+- **Structured Outputs**: JSON schema enforcement with `strict: true`
+- **Single Retry**: Fallback to `json_object` mode with stricter prompt on failure
+- **Debug Logging**: Raw model output logged (gated by `GRADING_DEBUG=1`, truncated 500 chars)
+- **Graceful UX**: 502 status + `retryable: true` flag → client shows retry banner
+**Status:** ✅ Shipped (Session 47.1)
+**Impact:** AI grading failures show actionable retry button instead of generic 500 error.
+
 ### P2 Tracks (Parked — After P1)
 **Guardrail:** Generation quality is only worth it once grading is trusted—otherwise good questions still feel broken.
 
@@ -146,7 +157,18 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-47)
+### Latest Updates (Sessions 28-47.1)
+- ✅ **Session 47.1: P1.1 Grading Reliability - AI Output Hardening** - Parse failure recovery
+  - **Problem**: AI semantic grading parse failures surfaced as 500 errors with no retry path
+  - **Root Cause**: `json_object` mode doesn't enforce schema; model sometimes returns invalid JSON
+  - **Solution 1**: JSON schema enforcement via OpenAI Structured Outputs (`strict: true`)
+  - **Solution 2**: Single retry with fallback to simpler `json_object` mode + stricter prompt
+  - **Solution 3**: Debug logging gated by `GRADING_DEBUG=1` (protects user text)
+  - **Solution 4**: 502 + `retryable: true` → client shows retry banner instead of generic error
+  - **Files Changed**: grader.ts (+185), grade.ts (+38), _middleware.ts (+4), QuizPage.tsx (+53)
+  - **Impact**: AI grading failures show actionable retry button. Never show "Incorrect" for AI failures.
+  - 4 files changed (~280 lines), 0 new TypeScript errors, build: 635.65 kB
+
 - ✅ **Session 47: P1 Grading Quality - Score Bands + Semantic AI Grading** - Core moat fix
   - **Problem**: Grading overly strict - paraphrases marked incorrect even when notes copied/pasted
   - **Root Cause**: Binary Jaccard threshold (≥0.6 = correct) couldn't handle semantic equivalence
@@ -537,7 +559,7 @@ VITE_FEATURE_THEME_PICKER=false        # User theme selection UI
 
 ---
 
-**Last Verified**: January 16, 2026 (Session 47 - P1 Grading Quality Complete)
+**Last Verified**: January 19, 2026 (Session 47.1 - P1.1 Grading Reliability Complete)
 **Next Review**: After P2 (Generation Quality + World-Class UI) implementation
-**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.65 kB gzip: 177.88 kB)
-**Recent Sessions**: [Session 43](./SESSION_43.md), [Session 44](./SESSION_44.md), [Session 45](./SESSION_45.md), [Session 46](./SESSION_46.md), [Session 47](./SESSION_47.md)
+**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.65 kB gzip: 177.99 kB)
+**Recent Sessions**: [Session 44](./SESSION_44.md), [Session 45](./SESSION_45.md), [Session 46](./SESSION_46.md), [Session 47](./SESSION_47.md), [Session 47.1](./SESSION_47.1.md)
