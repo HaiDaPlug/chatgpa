@@ -175,6 +175,10 @@ export async function handleGatewayRequest(
       if (error.retryAfter) {
         response.retryAfter = error.retryAfter;
       }
+      // ✅ P1.1: Include retryable flag for client-side retry UX
+      if (error.retryable !== undefined) {
+        response.retryable = error.retryable;
+      }
 
       return res.status(status).json(response);
     }

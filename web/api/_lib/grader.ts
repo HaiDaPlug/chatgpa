@@ -84,94 +84,62 @@ interface AIGradingResult {
   misconception?: string | null;
 }
 
-// ✅ P1: Semantic AI grading for short answers
-async function aiSemanticGradingBatch(
-  shorts: ShortQ[],
-  responses: Record<string, string>,
-  apiKey?: string
-): Promise<Record<string, AIGradingResult>> {
-  if (!apiKey || shorts.length === 0) return {};
+// ✅ P1.1: Strict JSON schema for OpenAI Structured Outputs
+const GRADING_RESPONSE_SCHEMA = {
+  type: "object" as const,
+  additionalProperties: false,
+  properties: {
+    results: {
+      type: "array" as const,
+      items: {
+        type: "object" as const,
+        additionalProperties: false,
+        properties: {
+          id: { type: "string" as const },
+          score: { type: "number" as const },
+          band: {
+            type: "string" as const,
+            enum: ["correct", "mostly_correct", "partial", "incorrect"]
+          },
+          why: { type: "string" as const },
+          improvements: {
+            type: "array" as const,
+            items: { type: "string" as const }
+          },
+          missing_terms: {
+            type: "array" as const,
+            items: { type: "string" as const }
+          },
+          misconception: {
+            anyOf: [{ type: "string" as const }, { type: "null" as const }]
+          }
+        },
+        required: ["id", "score", "band", "why", "improvements", "missing_terms", "misconception"]
+      }
+    }
+  },
+  required: ["results"]
+};
 
-  const client = new OpenAI({ apiKey });
-
-  // Build items with reference answer for semantic grading
-  const items = shorts.map((q) => ({
-    id: q.id,
-    q: q.prompt,
-    ref: q.answer ?? "",
-    ans: responses[q.id] ?? "",
-  }));
-
-  // Light telemetry for grading token usage
-  const promptStr = JSON.stringify(items);
-  console.log(
-    JSON.stringify({
-      timestamp: new Date().toISOString(),
-      level: 'info',
-      action: 'grade_ai_semantic',
-      question_count: shorts.length,
-      prompt_chars: promptStr.length,
-      estimated_tokens: Math.round(promptStr.length / 4),
-      message: 'AI semantic grading short answers'
-    })
-  );
-
-  const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-4o-mini");
-  const maxTokens = Math.min(1024, 128 + shorts.length * 128); // More tokens for richer feedback
-  const modelFamily = detectModelFamily(model);
-
-  const systemPrompt = `Grade these short answers semantically.
-Use "ref" as the ground truth; accept paraphrases of ref.
-Return JSON: {"results":[{
-  "id": string,
-  "score": number (0-1),
-  "band": "correct"|"mostly_correct"|"partial"|"incorrect",
-  "why": string (1 sentence),
-  "improvements": string[],
-  "missing_terms": string[],
-  "misconception": string|null
-}]}
-
-Scoring guide:
-- 1.0: Perfect or near-perfect (exact match OR complete paraphrase)
-- 0.75-0.99: Correct concept, minor terminology gaps (list missing_terms)
-- 0.30-0.74: Partial understanding, key concepts missing
-- 0.0-0.29: Wrong or off-topic`;
-
-  const res = await client.chat.completions.create({
-    model,
-    ...buildOpenAIParams(modelFamily, maxTokens, 0.1),
-    messages: [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
-      {
-        role: "user",
-        content: JSON.stringify(items),
-      },
-    ],
-    response_format: { type: "json_object" as const },
-  });
-
-  const raw = res.choices[0]?.message?.content ?? "{}";
-
-  // ✅ P1: Validate AI response shape - don't silently fail
-  let parsed: { results?: unknown[] };
-  try {
-    parsed = JSON.parse(raw);
-  } catch (e) {
-    console.warn('AI grading JSON parse failed:', e);
-    throw new Error('AI_GRADING_PARSE_ERROR: Invalid JSON from model');
+// ✅ P1.1: Strip outer markdown fences only (safer than global replace)
+function stripMarkdownFences(raw: string): string {
+  let s = raw.trim();
+  // Only strip if starts with ``` and ends with ```
+  if (s.startsWith('```')) {
+    // Remove leading ```json or ```
+    s = s.replace(/^```(?:json)?\s*\n?/, '');
   }
-
-  if (!parsed?.results || !Array.isArray(parsed.results)) {
-    console.warn('AI grading missing results array:', parsed);
-    throw new Error('AI_GRADING_PARSE_ERROR: Missing results array');
+  if (s.endsWith('```')) {
+    s = s.replace(/\n?```$/, '');
   }
+  return s.trim();
+}
 
+// ✅ P1.1: Process AI results with validation
+function processAIResults(results: unknown[], requestId?: string): Record<string, AIGradingResult> {
   const out: Record<string, AIGradingResult> = {};
-  for (const r of parsed.results) {
+
+  for (const r of results) {
     if (!r || typeof r !== 'object' || !('id' in r)) continue;
     const item = r as Record<string, unknown>;
 
@@ -207,9 +175,159 @@ Scoring guide:
   return out;
 }
 
+// ✅ P1 + P1.1: Semantic AI grading for short answers with retry logic
+async function aiSemanticGradingBatch(
+  shorts: ShortQ[],
+  responses: Record<string, string>,
+  apiKey?: string,
+  requestId?: string
+): Promise<Record<string, AIGradingResult>> {
+  if (!apiKey || shorts.length === 0) return {};
+
+  const client = new OpenAI({ apiKey });
+
+  // Build items with reference answer for semantic grading
+  const items = shorts.map((q) => ({
+    id: q.id,
+    q: q.prompt,
+    ref: q.answer ?? "",
+    ans: responses[q.id] ?? "",
+  }));
+
+  // Light telemetry for grading token usage
+  const promptStr = JSON.stringify(items);
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      action: 'grade_ai_semantic',
+      request_id: requestId,
+      question_count: shorts.length,
+      prompt_chars: promptStr.length,
+      estimated_tokens: Math.round(promptStr.length / 4),
+      message: 'AI semantic grading short answers'
+    })
+  );
+
+  const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-4o-mini");
+  const maxTokens = Math.min(1024, 128 + shorts.length * 128);
+  const modelFamily = detectModelFamily(model);
+
+  const systemPrompt = `Grade these short answers semantically.
+Use "ref" as the ground truth; accept paraphrases of ref.
+Return JSON: {"results":[{
+  "id": string,
+  "score": number (0-1),
+  "band": "correct"|"mostly_correct"|"partial"|"incorrect",
+  "why": string (1 sentence),
+  "improvements": string[],
+  "missing_terms": string[],
+  "misconception": string|null
+}]}
+
+Scoring guide:
+- 1.0: Perfect or near-perfect (exact match OR complete paraphrase)
+- 0.75-0.99: Correct concept, minor terminology gaps (list missing_terms)
+- 0.30-0.74: Partial understanding, key concepts missing
+- 0.0-0.29: Wrong or off-topic`;
+
+  // ✅ P1.1: Retry once on parse failure with stricter constraints
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const isRetry = attempt > 0;
+
+      const res = await client.chat.completions.create({
+        model,
+        ...buildOpenAIParams(modelFamily, maxTokens, 0), // ✅ P1.1: temperature=0 for determinism
+        messages: [
+          {
+            role: "system",
+            content: isRetry
+              ? systemPrompt + "\n\nCRITICAL: Return ONLY valid JSON. No markdown, no explanation."
+              : systemPrompt
+          },
+          { role: "user", content: JSON.stringify(items) },
+        ],
+        response_format: isRetry
+          ? { type: "json_object" as const } // Fallback to simpler mode on retry
+          : {
+              type: "json_schema" as const,
+              json_schema: {
+                name: "grading_response",
+                strict: true,
+                schema: GRADING_RESPONSE_SCHEMA
+              }
+            } as any, // Type assertion needed for json_schema
+      });
+
+      let raw = res.choices[0]?.message?.content ?? "{}";
+
+      // ✅ P1.1: Strip markdown fences if present (last-resort repair)
+      if (raw.includes('```')) {
+        raw = stripMarkdownFences(raw);
+      }
+
+      // Parse and validate
+      const parsed = JSON.parse(raw);
+      if (!parsed?.results || !Array.isArray(parsed.results)) {
+        throw new Error('Missing results array');
+      }
+
+      // Success - process results
+      return processAIResults(parsed.results, requestId);
+
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+
+      // ✅ P1.1: Log failure with gated raw preview (contains user text)
+      const shouldLogRaw = process.env.GRADING_DEBUG === '1';
+      // Note: 'raw' may not be defined if error was in API call, so we guard
+      const rawForLog = typeof (e as any).raw === 'string' ? (e as any).raw : '';
+
+      if (attempt === 0) {
+        // Log and retry
+        console.warn(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'warn',
+          action: 'grade_ai_retry',
+          request_id: requestId,
+          model,
+          attempt: attempt + 1,
+          error: lastError.message,
+          message: 'AI grading failed, retrying with stricter constraints'
+        }));
+        continue;
+      }
+
+      // Both attempts failed - log detailed failure
+      const rawPreview = shouldLogRaw && rawForLog
+        ? (rawForLog.length > 500 ? rawForLog.slice(0, 500) + `...[truncated, total ${rawForLog.length} chars]` : rawForLog)
+        : `[redacted, set GRADING_DEBUG=1 to see raw output]`;
+
+      console.warn(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'warn',
+        action: 'grade_ai_parse_failed',
+        request_id: requestId,
+        model,
+        raw_preview: rawPreview,
+        error: lastError.message,
+        message: 'AI grading JSON parse failed after retry'
+      }));
+
+      throw new Error('AI_GRADING_PARSE_ERROR: ' + lastError.message);
+    }
+  }
+
+  throw lastError || new Error('AI_GRADING_PARSE_ERROR: Unknown error');
+}
+
 export async function gradeSubmission(
   questions: Question[],
-  responses: Record<string, string>
+  responses: Record<string, string>,
+  requestId?: string
 ): Promise<GradeOutput> {
   const breakdown: BreakdownItem[] = [];
   let correctCount = 0;
@@ -297,7 +415,7 @@ export async function gradeSubmission(
   // Batch AI call only for needsAiGrading
   let aiVerdicts: Record<string, AIGradingResult> = {};
   try {
-    aiVerdicts = await aiSemanticGradingBatch(needsAiGrading, responses, process.env.OPENAI_API_KEY);
+    aiVerdicts = await aiSemanticGradingBatch(needsAiGrading, responses, process.env.OPENAI_API_KEY, requestId);
   } catch (e) {
     // ✅ P1: If AI fails, throw retryable error (don't silently mark incorrect)
     const errorMessage = e instanceof Error ? e.message : String(e);

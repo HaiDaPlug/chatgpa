@@ -179,7 +179,43 @@ export async function grade(
 
   // 5. Grade submission (rubric-based)
   const gradingStartMs = Date.now();
-  const result = await gradeSubmission(questions as Question[], responses);
+  let result;
+  try {
+    result = await gradeSubmission(questions as Question[], responses, request_id);
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+
+    // ✅ P1.1: Return retryable error for AI parse failures
+    if (errorMessage.includes('AI_GRADING_PARSE_ERROR')) {
+      // Fire-and-forget failure analytics
+      const failureMetrics: RouterMetrics = {
+        request_id,
+        model_used: 'grading_ai',
+        model_family: 'standard',
+        fallback_triggered: false,
+        model_decision_reason: 'ai_grading_parse_failure',
+        attempt_count: 1,
+        latency_ms: Date.now() - gradingStartMs,
+      };
+      insertGradingFailure(
+        user_id || 'unknown',
+        actualQuizId,
+        failureMetrics,
+        'AI_GRADING_PARSE_ERROR',
+        errorMessage
+      ).catch(() => {}); // Silent fail
+
+      throw {
+        code: 'GRADING_RETRY',
+        message: 'Grading failed temporarily. Please try again.',
+        status: 502,
+        retryable: true
+      };
+    }
+
+    // Re-throw other errors
+    throw e;
+  }
   const gradingLatencyMs = Date.now() - gradingStartMs;
 
   // 6. Update attempt with grading results (atomic)
