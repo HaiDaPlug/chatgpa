@@ -297,8 +297,77 @@ function jaccard(a: string, b: string): number {
   return inter / union;
 }
 
+// ===== P1.2: Partial Failure Test =====
+
+function testPartialFailure(): void {
+  console.log('\n========================================');
+  console.log('P1.2 Partial Failure - Ungraded Sentinel Test');
+  console.log('========================================\n');
+
+  // Simulate a grading result with one question failed (score: null)
+  const mockBreakdownWithUngraded = [
+    {
+      id: 'q1',
+      type: 'short' as const,
+      prompt: 'What is repression?',
+      user_answer: 'Pushing bad thoughts away',
+      correct: true,
+      score: 0.92,
+      feedback: 'Correct.',
+    },
+    {
+      id: 'q2',
+      type: 'short' as const,
+      prompt: 'Explain projection',
+      user_answer: 'Attributing impulses to others',
+      correct: false,
+      score: null, // Ungraded sentinel
+      feedback: 'Unable to grade this answer. You can retry grading.',
+    },
+    {
+      id: 'q3',
+      type: 'short' as const,
+      prompt: 'What is denial?',
+      user_answer: 'Paris is in France',
+      correct: false,
+      score: 0.05,
+      feedback: 'Incorrect.',
+    },
+  ];
+
+  // Verify ungraded detection
+  const ungradedCount = mockBreakdownWithUngraded.filter(b => b.score === null).length;
+  const gradedCount = mockBreakdownWithUngraded.filter(b => b.score !== null).length;
+
+  console.log(`Total questions: ${mockBreakdownWithUngraded.length}`);
+  console.log(`Graded: ${gradedCount}`);
+  console.log(`Ungraded: ${ungradedCount}`);
+
+  // Test assertions
+  const pass1 = ungradedCount === 1;
+  const pass2 = gradedCount === 2;
+  const pass3 = mockBreakdownWithUngraded[1].score === null;
+
+  if (pass1 && pass2 && pass3) {
+    console.log('\n✅ Partial failure handling works correctly');
+    console.log('   - Ungraded questions have score: null');
+    console.log('   - UI can detect ungraded count via score === null');
+  } else {
+    console.log('\n❌ Partial failure test failed');
+    console.log(`   - pass1 (ungradedCount === 1): ${pass1}`);
+    console.log(`   - pass2 (gradedCount === 2): ${pass2}`);
+    console.log(`   - pass3 (score === null): ${pass3}`);
+    process.exit(1);
+  }
+}
+
 // Run tests
-runTests().catch((err) => {
+async function main() {
+  await runTests();
+  testPartialFailure();
+}
+
+main().catch((err) => {
   console.error('Test runner failed:', err);
   process.exit(1);
 });

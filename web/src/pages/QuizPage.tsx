@@ -517,6 +517,7 @@ export default function QuizPage() {
   const isHydratingRef = useRef(false);  // Track if we're currently hydrating
   const hasEverSavedRef = useRef(false); // Track if we've saved at least once
   const redirectedRef = useRef(false);   // Prevents double redirect on invalid UUID
+  const restoredIndexRef = useRef(false); // ✅ P1.2: Track if localStorage restored currentIndex
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -704,6 +705,7 @@ export default function QuizPage() {
           isHydratingRef.current = true; // Keep true through first save-effect pass
           setAnswers(stored.answers);
           setCurrentIndex(stored.currentIndex);
+          restoredIndexRef.current = true; // ✅ P1.2: Mark that localStorage restored position
           if (import.meta.env.DEV) {
             console.debug('QUIZ_PROGRESS_RESTORED', {
               quiz_id: data.id,
@@ -797,9 +799,12 @@ export default function QuizPage() {
         setAnswers(mergedAnswers);
         setAutosaveVersion(data.autosave_version || 0);
 
-        // Calculate currentIndex (first unanswered question in displayQuestions)
-        const firstUnanswered = displayQuestions.findIndex(q => isMissing(mergedAnswers[q.id]));
-        setCurrentIndex(firstUnanswered === -1 ? 0 : firstUnanswered);
+        // ✅ P1.2: Only auto-advance if localStorage didn't restore position
+        // This prevents B1 effect from overwriting localStorage-restored currentIndex on refresh
+        if (!restoredIndexRef.current) {
+          const firstUnanswered = displayQuestions.findIndex(q => isMissing(mergedAnswers[q.id]));
+          setCurrentIndex(firstUnanswered === -1 ? 0 : firstUnanswered);
+        }
 
       } catch (err) {
         console.error('Failed to load attempt:', err);
@@ -822,7 +827,7 @@ export default function QuizPage() {
     }
 
     loadAttempt();
-  }, [attemptId, quiz, push, navigate]);
+  }, [attemptId, quiz, push, navigate, displayQuestions]); // ✅ P1.2: Added displayQuestions to fix stale closure
 
   // B2: Ensure in-progress attempt exists (Session 31)
   useEffect(() => {
