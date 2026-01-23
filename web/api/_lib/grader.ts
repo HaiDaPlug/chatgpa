@@ -31,7 +31,7 @@ export type BreakdownItem = {
   prompt: string;
   user_answer: string;
   correct: boolean;
-  score?: number;               // ✅ P1: 0-1 granular score for semantic grading
+  score?: number | null;        // ✅ P1.2: 0-1 score, or null for Ungraded
   correct_answer?: string;      // for MCQ or if reference exists
   feedback: string;             // human-friendly explanation
   improvement?: string;         // concrete tip for next time
@@ -84,7 +84,33 @@ interface AIGradingResult {
   misconception?: string | null;
 }
 
-// ✅ P1.1: Strict JSON schema for OpenAI Structured Outputs
+// ✅ P1.2: Single-question JSON schema for per-question grading
+const SINGLE_GRADING_RESPONSE_SCHEMA = {
+  type: "object" as const,
+  additionalProperties: false,
+  properties: {
+    score: { type: "number" as const },
+    band: {
+      type: "string" as const,
+      enum: ["correct", "mostly_correct", "partial", "incorrect"]
+    },
+    why: { type: "string" as const },
+    improvements: {
+      type: "array" as const,
+      items: { type: "string" as const }
+    },
+    missing_terms: {
+      type: "array" as const,
+      items: { type: "string" as const }
+    },
+    misconception: {
+      anyOf: [{ type: "string" as const }, { type: "null" as const }]
+    }
+  },
+  required: ["score", "band", "why", "improvements", "missing_terms", "misconception"]
+};
+
+// ✅ P1.1: Strict JSON schema for OpenAI Structured Outputs (DEPRECATED - kept for rollback)
 const GRADING_RESPONSE_SCHEMA = {
   type: "object" as const,
   additionalProperties: false,
@@ -133,6 +159,165 @@ function stripMarkdownFences(raw: string): string {
     s = s.replace(/\n?```$/, '');
   }
   return s.trim();
+}
+
+// ✅ P1.2: Concurrency limiter for per-question grading
+async function withConcurrencyLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = [];
+  const executing: Promise<void>[] = [];
+
+  for (const item of items) {
+    const p = fn(item)
+      .then((value) => ({ status: 'fulfilled' as const, value }))
+      .catch((reason) => ({ status: 'rejected' as const, reason }));
+
+    const e = p.then((result) => {
+      results.push(result);
+      executing.splice(executing.indexOf(e), 1);
+    });
+    executing.push(e);
+
+    if (executing.length >= limit) {
+      await Promise.race(executing);
+    }
+  }
+
+  await Promise.all(executing);
+  return results;
+}
+
+// ✅ P1.2: Per-question AI grading with retry
+async function aiSemanticGradeSingle(
+  question: ShortQ,
+  userAnswer: string,
+  apiKey: string,
+  requestId?: string
+): Promise<AIGradingResult | null> {
+  const client = new OpenAI({ apiKey });
+  const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-4o-mini");
+  const modelFamily = detectModelFamily(model);
+
+  const systemPrompt = `Grade this answer semantically against the reference.
+Return JSON: {
+  "score": number (0-1),
+  "band": "correct"|"mostly_correct"|"partial"|"incorrect",
+  "why": string (1 sentence max),
+  "improvements": string[] (max 2 items),
+  "missing_terms": string[] (max 3 terms),
+  "misconception": string|null
+}
+
+Scoring:
+- 1.0: Perfect or near-perfect
+- 0.75-0.99: Correct concept, minor gaps
+- 0.30-0.74: Partial understanding
+- 0.0-0.29: Wrong or off-topic`;
+
+  const userContent = JSON.stringify({
+    q: question.prompt,
+    ref: question.answer ?? "",
+    ans: userAnswer,
+  });
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const isRetry = attempt > 0;
+
+      const res = await client.chat.completions.create({
+        model,
+        ...buildOpenAIParams(modelFamily, 256, 0),
+        messages: [
+          {
+            role: "system",
+            content: isRetry
+              ? systemPrompt + "\n\nCRITICAL: Return ONLY valid JSON. No markdown."
+              : systemPrompt
+          },
+          { role: "user", content: userContent },
+        ],
+        response_format: isRetry
+          ? { type: "json_object" as const }
+          : {
+              type: "json_schema" as const,
+              json_schema: {
+                name: "grading_response",
+                strict: true,
+                schema: SINGLE_GRADING_RESPONSE_SCHEMA
+              }
+            } as any,
+      });
+
+      let raw = res.choices[0]?.message?.content ?? "{}";
+
+      if (raw.includes('```')) {
+        raw = stripMarkdownFences(raw);
+      }
+
+      const parsed = JSON.parse(raw);
+
+      // Validate required fields
+      const rawScore = Number(parsed.score);
+      const band = String(parsed.band ?? 'incorrect');
+      const why = String(parsed.why ?? '');
+
+      if (isNaN(rawScore)) throw new Error('Invalid score');
+
+      const validBands = ['correct', 'mostly_correct', 'partial', 'incorrect'] as const;
+      const validatedBand = validBands.includes(band as typeof validBands[number])
+        ? (band as AIGradingResult['band'])
+        : 'incorrect';
+
+      return {
+        id: question.id,
+        score: clampScore(rawScore),
+        band: validatedBand,
+        why,
+        improvements: Array.isArray(parsed.improvements)
+          ? parsed.improvements.slice(0, 2).map(String)
+          : [],
+        missing_terms: Array.isArray(parsed.missing_terms)
+          ? parsed.missing_terms.slice(0, 3).map(String)
+          : [],
+        misconception: typeof parsed.misconception === 'string' ? parsed.misconception : null,
+      };
+
+    } catch (e) {
+      const lastError = e instanceof Error ? e : new Error(String(e));
+
+      if (attempt === 0) {
+        console.warn(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'warn',
+          action: 'grade_single_retry',
+          request_id: requestId,
+          question_id: question.id,
+          model,
+          error: lastError.message,
+          message: 'Per-question grading failed, retrying'
+        }));
+        continue;
+      }
+
+      // Both attempts failed - return null for partial success
+      console.warn(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'warn',
+        action: 'grade_single_failed',
+        request_id: requestId,
+        question_id: question.id,
+        model,
+        error: lastError.message,
+        message: 'Per-question grading failed after retry, marking as Ungraded'
+      }));
+      return null;
+    }
+  }
+
+  return null;
 }
 
 // ✅ P1.1: Process AI results with validation
@@ -412,18 +597,53 @@ export async function gradeSubmission(
   const withoutRef = shorts.filter((q) => !q.answer || !q.answer.trim());
   needsAiGrading.push(...withoutRef);
 
-  // Batch AI call only for needsAiGrading
-  let aiVerdicts: Record<string, AIGradingResult> = {};
-  try {
-    aiVerdicts = await aiSemanticGradingBatch(needsAiGrading, responses, process.env.OPENAI_API_KEY, requestId);
-  } catch (e) {
-    // ✅ P1: If AI fails, throw retryable error (don't silently mark incorrect)
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    if (errorMessage.includes('AI_GRADING_PARSE_ERROR')) {
-      throw e; // Re-throw parse errors for retry
+  // ✅ P1.2: Per-question AI grading with concurrency limit (replaces batch)
+  const aiVerdicts: Record<string, AIGradingResult> = {};
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (apiKey && needsAiGrading.length > 0) {
+    const CONCURRENCY_LIMIT = 2;
+
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      action: 'grade_ai_per_question_start',
+      request_id: requestId,
+      question_count: needsAiGrading.length,
+      concurrency: CONCURRENCY_LIMIT,
+      message: 'Starting per-question AI grading'
+    }));
+
+    const results = await withConcurrencyLimit(
+      needsAiGrading,
+      CONCURRENCY_LIMIT,
+      async (q) => {
+        const userAnswer = (responses[q.id] ?? "").toString();
+        const result = await aiSemanticGradeSingle(q, userAnswer, apiKey, requestId);
+        return { questionId: q.id, result };
+      }
+    );
+
+    // Process results - fulfilled results go into aiVerdicts, rejected/null become Ungraded
+    let successCount = 0;
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value.result) {
+        aiVerdicts[r.value.questionId] = r.value.result;
+        successCount++;
+      }
+      // Rejected or null result → question stays out of aiVerdicts → becomes Ungraded
     }
-    // For network errors etc., fall back to conservative grading
-    console.warn('AI semantic grading failed, using fallback:', errorMessage);
+
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      action: 'grade_ai_per_question_complete',
+      request_id: requestId,
+      total: needsAiGrading.length,
+      success: successCount,
+      ungraded: needsAiGrading.length - successCount,
+      message: 'Per-question AI grading complete'
+    }));
   }
 
   // Process AI-graded questions
@@ -453,32 +673,46 @@ export async function gradeSubmission(
         missing_terms: ai.missing_terms,
       });
     } else {
-      // Fallback: no AI result, mark as needing review
-      totalScore += 0.0;
+      // ✅ P1.2: No AI result → mark as Ungraded (score: null sentinel)
+      // Don't add to totalScore - excluded from percentage calculation
       breakdown.push({
         id: q.id,
         type: "short",
         prompt: q.prompt,
         user_answer: user,
         correct: false,
-        score: 0.0,
+        score: null as any, // Ungraded sentinel - UI displays "Ungraded"
         correct_answer: ref || undefined,
-        feedback: "Unable to grade semantically. Please review your answer.",
+        feedback: "Unable to grade this answer. You can retry grading.",
         improvement: "Structure your answer: definition → key points → brief example.",
       });
     }
   }
 
   const total = questions.length || 1;
-  const percent = Math.max(0, Math.min(100, Math.round((totalScore / total) * 100)));
+
+  // ✅ P1.2: Count graded questions (exclude null scores) for accurate percentage
+  const gradedCount = breakdown.filter(b => b.score !== null && b.score !== undefined).length;
+  const ungradedCount = breakdown.filter(b => b.score === null).length;
+
+  // Calculate percent based on graded questions only (if any)
+  const percent = gradedCount > 0
+    ? Math.max(0, Math.min(100, Math.round((totalScore / gradedCount) * 100)))
+    : 0;
 
   // Build short overall summary
-  const summary =
-    percent >= 85
-      ? "Great work — strong grasp overall. Skim the few missed concepts."
-      : percent >= 70
-      ? "Solid base — focus revisions on the questions you missed."
-      : "You're close — review fundamentals and key terms, then retake a focused quiz.";
+  let summary: string;
+  if (ungradedCount > 0 && gradedCount === 0) {
+    summary = "Grading encountered issues. Please try again.";
+  } else if (ungradedCount > 0) {
+    summary = `${ungradedCount} question(s) couldn't be graded. You can retry grading.`;
+  } else if (percent >= 85) {
+    summary = "Great work — strong grasp overall. Skim the few missed concepts.";
+  } else if (percent >= 70) {
+    summary = "Solid base — focus revisions on the questions you missed.";
+  } else {
+    summary = "You're close — review fundamentals and key terms, then retake a focused quiz.";
+  }
 
   return { percent, correctCount, total, breakdown, summary };
 }
