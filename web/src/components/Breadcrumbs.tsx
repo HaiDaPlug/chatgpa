@@ -40,7 +40,7 @@ export function Breadcrumbs() {
       let alive = true;
       (async () => {
         const { data, error } = await supabase
-          .from("attempts")
+          .from("quiz_attempts")
           .select("title, class_id")
           .eq("id", params.id)
           .single();
