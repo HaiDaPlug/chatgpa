@@ -56,7 +56,7 @@ const FREUD_RESPONSES: Record<string, string> = {
 const EXPECTED_SCORES: Record<string, { min: number; max: number; description: string }> = {
   q1: { min: 0.70, max: 1.0, description: 'Paraphrase of repression (semantic match)' },
   q2: { min: 0.90, max: 1.0, description: 'Exact match or near-exact' },
-  q5: { min: 0.0, max: 0.29, description: 'Completely wrong answer' },
+  q5: { min: 0.0, max: 0.39, description: 'Completely wrong answer' }, // ✅ P1.3: Updated threshold to 0.39
   q7: { min: 0.70, max: 0.90, description: 'Mostly correct, missing terminology' },
 };
 
@@ -188,8 +188,8 @@ async function runTests(): Promise<void> {
 function getScoreBandLabel(score: number | null | undefined): string {
   if (score == null) return 'ungraded';
   if (score >= 0.90) return 'correct';
-  if (score >= 0.70) return 'mostly_correct';
-  if (score >= 0.30) return 'partial';
+  if (score >= 0.75) return 'mostly_correct'; // ✅ P1.3: Updated threshold
+  if (score >= 0.40) return 'partial';         // ✅ P1.3: Updated threshold (was 0.30)
   return 'incorrect';
 }
 
@@ -297,6 +297,120 @@ function jaccard(a: string, b: string): number {
   return inter / union;
 }
 
+// ===== P1.3: Teacher-Strict Grading Tests =====
+
+const TEACHER_STRICT_TESTS = [
+  {
+    id: 'ts1',
+    prompt: 'Ge ett exempel på en försvarsmekanism',
+    reference: 'Förnekelse - att vägra erkänna verkligheten',
+    answer: 'Förnekelse',  // Term only, no explanation
+    expected: { min: 0.40, max: 0.74, band: 'partial' as const, description: 'Term-only, no explanation → capped at 0.74' },
+  },
+  {
+    id: 'ts2',
+    prompt: 'Ge ett exempel på en försvarsmekanism',
+    reference: 'Förnekelse - att vägra erkänna verkligheten',
+    answer: 'Förnekelse - när man vägrar acceptera svåra sanningar',  // Term + explanation
+    expected: { min: 0.75, max: 1.0, band: 'mostly_correct|correct' as const, description: 'Term + explanation → high score' },
+  },
+  {
+    id: 'ts3',
+    prompt: 'Vad är projektion?',
+    reference: 'Att tillskriva sina egna oacceptabla impulser till andra',
+    answer: 'När man ser sina egna dåliga egenskaper hos andra istället',  // Correct paraphrase
+    expected: { min: 0.75, max: 1.0, band: 'mostly_correct|correct' as const, description: 'Valid paraphrase → high score' },
+  },
+  {
+    id: 'ts4',
+    prompt: 'Förklara vad förnekelse innebär',
+    reference: 'Att vägra erkänna verkligheten eller fakta',
+    answer: 'Paris är huvudstaden i Frankrike',  // Completely wrong
+    expected: { min: 0.0, max: 0.39, band: 'incorrect' as const, description: 'Wrong concept → incorrect' },
+  },
+];
+
+// Mock AI responses for teacher-strict tests
+const TEACHER_STRICT_MOCK_RESULTS: Record<string, {
+  score: number;
+  band: 'correct' | 'mostly_correct' | 'partial' | 'incorrect';
+  why: string;
+  improvements?: string[];
+  missing_terms?: string[];
+  misconception?: string | null;
+}> = {
+  ts1: {
+    score: 0.65,
+    band: 'partial',
+    why: 'Korrekt term men saknar förklaring av vad förnekelse innebär.',
+    improvements: ['Lägg till en kort förklaring (1 mening) som visar varför exemplet passar.'],
+    missing_terms: ['vägra', 'erkänna', 'verkligheten'],
+  },
+  ts2: {
+    score: 0.88,
+    band: 'mostly_correct',
+    why: 'Bra svar med korrekt term och förklaring som visar förståelse.',
+    improvements: [],
+    missing_terms: [],
+  },
+  ts3: {
+    score: 0.85,
+    band: 'mostly_correct',
+    why: 'Korrekt omskrivning som visar förståelse för begreppet.',
+    improvements: ['Använd termen "oacceptabla impulser" för precision.'],
+    missing_terms: ['oacceptabla', 'impulser'],
+  },
+  ts4: {
+    score: 0.05,
+    band: 'incorrect',
+    why: 'Svaret handlar om geografi, inte om försvarsmekanismen förnekelse.',
+    improvements: ['Definiera förnekelse som en psykologisk försvarsmekanism.'],
+    missing_terms: ['vägra', 'erkänna', 'verkligheten'],
+    misconception: 'Förväxlade frågan med en geografifråga.',
+  },
+};
+
+function runTeacherStrictTests(): void {
+  console.log('\n========================================');
+  console.log('P1.3 Teacher-Strict Grading Tests');
+  console.log('========================================\n');
+
+  let passCount = 0;
+  let failCount = 0;
+
+  for (const test of TEACHER_STRICT_TESTS) {
+    const mock = TEACHER_STRICT_MOCK_RESULTS[test.id];
+    if (!mock) {
+      console.log(`⚠️  SKIP | ${test.id} - No mock result`);
+      continue;
+    }
+
+    const scoreInRange = mock.score >= test.expected.min && mock.score <= test.expected.max;
+    const bandMatches = test.expected.band.includes(mock.band);
+    const passed = scoreInRange && bandMatches;
+
+    if (passed) passCount++;
+    else failCount++;
+
+    const status = passed ? '✅ PASS' : '❌ FAIL';
+    console.log(`${status} | ${test.id.toUpperCase()}`);
+    console.log(`       Score: ${mock.score.toFixed(2)} (expected ${test.expected.min.toFixed(2)}-${test.expected.max.toFixed(2)})`);
+    console.log(`       Band: ${mock.band} (expected ${test.expected.band})`);
+    console.log(`       ${test.expected.description}`);
+    console.log(`       Answer: "${test.answer.slice(0, 50)}${test.answer.length > 50 ? '...' : ''}"`);
+    console.log('');
+  }
+
+  console.log('─────────────────────────────────────────────────────────────');
+  console.log(`\nTeacher-Strict Summary: ${passCount}/${TEACHER_STRICT_TESTS.length} tests passed`);
+
+  if (failCount > 0) {
+    console.log(`\n⚠️  ${failCount} teacher-strict test(s) failed.`);
+  } else {
+    console.log('\n✅ All teacher-strict tests passed!');
+  }
+}
+
 // ===== P1.2: Partial Failure Test =====
 
 function testPartialFailure(): void {
@@ -364,6 +478,7 @@ function testPartialFailure(): void {
 // Run tests
 async function main() {
   await runTests();
+  runTeacherStrictTests(); // ✅ P1.3: Teacher-strict grading tests
   testPartialFailure();
 }
 

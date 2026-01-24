@@ -193,11 +193,15 @@ async function withConcurrencyLimit<T, R>(
 // ✅ P1.2: Per-question AI grading with retry
 // ✅ P1.2.1: Increased token limits (512/768) to prevent truncation
 
-// Strict retry prompt - even more concise to avoid truncation
-const STRICT_RETRY_PROMPT = `Grade answer vs reference. Return ONLY JSON:
-{"score":N,"band":"X","why":"brief","improvements":[],"missing_terms":[],"misconception":null}
-Bands: correct(0.9-1), mostly_correct(0.75-0.89), partial(0.3-0.74), incorrect(0-0.29)
-No markdown.`;
+// ✅ P1.3: Teacher-strict retry prompt - Swedish, concise
+const STRICT_RETRY_PROMPT = `Du är en strikt men rättvis lärare. Betygsätt svaret mot referensen.
+Regler: 1) Betygsätt förståelse, inte nyckelord. 2) Endast term utan förklaring = max 0.74.
+3) Fel koncept = max 0.30. 4) Acceptera korrekta omskrivningar.
+
+Return ONLY JSON:
+{"score":N,"band":"X","why":"kort","improvements":["max 2"],"missing_terms":["max 3"],"misconception":null}
+Bands: correct(0.90-1), mostly_correct(0.75-0.89), partial(0.40-0.74), incorrect(0-0.39)
+Language: Swedish. No markdown.`;
 
 async function aiSemanticGradeSingle(
   question: ShortQ,
@@ -209,17 +213,59 @@ async function aiSemanticGradeSingle(
   const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-4o-mini");
   const modelFamily = detectModelFamily(model);
 
-  const systemPrompt = `Grade this answer. Return ONLY this JSON:
-{"score":N,"band":"X","why":"1 sentence","improvements":["max 2"],"missing_terms":["max 3"],"misconception":null}
+  // ✅ P1.3: Teacher-strict grading prompt - Swedish
+  const systemPrompt = `You are a strict but fair teacher grading a student's answer using a reference answer as guidance.
 
-Bands: correct (0.90-1.0), mostly_correct (0.75-0.89), partial (0.30-0.74), incorrect (0-0.29)
-No markdown. No extra keys. No commentary.`;
+Core principles:
+1) Grade understanding, not keyword matching.
+2) Penalize shallow answers that only list terms without showing understanding when the question implies explanation.
+3) Follow the question's instruction precisely (e.g., "give ONE example", "name and explain three", "compare", "define").
+4) Accept correct paraphrases and valid alternatives even if not in the reference, but NEVER claim an item is "in the reference" unless it is explicitly present in the reference answer text.
+5) Keep feedback concise, specific, and actionable.
 
-  const userContent = JSON.stringify({
-    q: question.prompt,
-    ref: question.answer ?? "",
-    ans: userAnswer,
-  });
+Output must be VALID JSON only (no markdown, no extra text). Keep fields short.
+Language: Swedish.`;
+
+  // ✅ P1.3: Per-question payload with scoring rubric
+  const userContent = `GRADE THIS:
+
+Question:
+"${question.prompt}"
+
+Reference answer:
+"${question.answer ?? ''}"
+
+Student answer:
+"${userAnswer}"
+
+Scoring rubric (0.00–1.00):
+- Understanding & correctness (0.00–0.70)
+- Completeness vs what the question asks (0.00–0.20)
+- Instruction compliance (0.00–0.10)
+
+Important strictness rules:
+- If the answer is correct but shallow (e.g., only names a term without any explanation when explanation is implied), cap score at 0.70.
+- If the question asks for an example, the student should provide ONE example AND a minimal explanation of how it works (5–20 words). If only a list is given, treat as partial.
+- If the question asks for ONE item and the student gives multiple, apply a small penalty (instruction compliance), but do not zero it out if the content is correct.
+- If the answer is materially wrong (wrong concept), score ≤ 0.30.
+- Even if the question only asks for an example, the student must include a short explanation (5–20 words) showing why/how it fits.
+- If the answer is only a term/list with no explanation, cap score at 0.74 (band = partial).
+- If capped for missing explanation, improvements[0] must be: "Lägg till en kort förklaring (1 mening) som visar varför exemplet passar."
+
+Band mapping:
+- correct: 0.90–1.00
+- mostly_correct: 0.75–0.89
+- partial: 0.40–0.74
+- incorrect: 0.00–0.39
+
+Return JSON exactly in this shape:
+{"score":N,"band":"X","why":"1–2 short sentences","improvements":["max 2"],"missing_terms":["max 3"],"misconception":null or "string"}
+
+Constraints:
+- Do NOT quote the reference verbatim.
+- Do NOT mention "the reference says…" unless the exact term appears in the reference answer text.
+- Keep 'why' under ~200 characters if possible.
+- Keep improvements practical (what to change next time).`;
 
   // Track raw output for debug logging
   let lastRaw: string | undefined;
@@ -269,13 +315,25 @@ No markdown. No extra keys. No commentary.`;
       if (isNaN(rawScore)) throw new Error('Invalid score');
 
       const validBands = ['correct', 'mostly_correct', 'partial', 'incorrect'] as const;
-      const validatedBand = validBands.includes(band as typeof validBands[number])
+      let validatedBand = validBands.includes(band as typeof validBands[number])
         ? (band as AIGradingResult['band'])
         : 'incorrect';
 
+      // ✅ P1.3: Enforce band/score consistency (teacher-strict thresholds)
+      const finalScore = clampScore(rawScore);
+      if (finalScore >= 0.90 && validatedBand !== 'correct') {
+        validatedBand = 'correct';
+      } else if (finalScore >= 0.75 && finalScore < 0.90 && validatedBand === 'correct') {
+        validatedBand = 'mostly_correct';
+      } else if (finalScore >= 0.40 && finalScore < 0.75 && (validatedBand === 'correct' || validatedBand === 'mostly_correct')) {
+        validatedBand = 'partial';
+      } else if (finalScore < 0.40 && validatedBand !== 'incorrect') {
+        validatedBand = 'incorrect';
+      }
+
       return {
         id: question.id,
-        score: clampScore(rawScore),
+        score: finalScore,
         band: validatedBand,
         why,
         improvements: Array.isArray(parsed.improvements)
@@ -407,8 +465,10 @@ async function aiSemanticGradingBatch(
   const maxTokens = Math.min(1024, 128 + shorts.length * 128);
   const modelFamily = detectModelFamily(model);
 
-  const systemPrompt = `Grade these short answers semantically.
+  // ✅ P1.3: Updated batch prompt with teacher-strict thresholds (deprecated path, kept for rollback)
+  const systemPrompt = `Grade these short answers semantically. Grade understanding, not just keywords.
 Use "ref" as the ground truth; accept paraphrases of ref.
+If answer is only a term with no explanation, cap at 0.74 (partial).
 Return JSON: {"results":[{
   "id": string,
   "score": number (0-1),
@@ -420,10 +480,11 @@ Return JSON: {"results":[{
 }]}
 
 Scoring guide:
-- 1.0: Perfect or near-perfect (exact match OR complete paraphrase)
-- 0.75-0.99: Correct concept, minor terminology gaps (list missing_terms)
-- 0.30-0.74: Partial understanding, key concepts missing
-- 0.0-0.29: Wrong or off-topic`;
+- 0.90-1.0: Perfect or near-perfect (exact match OR complete paraphrase with explanation)
+- 0.75-0.89: Correct concept, minor terminology gaps (list missing_terms)
+- 0.40-0.74: Partial understanding, or term-only without explanation
+- 0.0-0.39: Wrong or off-topic
+Language: Swedish.`;
 
   // ✅ P1.1: Retry once on parse failure with stricter constraints
   let lastError: Error | null = null;

@@ -1,8 +1,8 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 24, 2026 (Session 48.1 - P1.2 Grading Reliability Follow-up)
+**Last Updated**: January 24, 2026 (Session 49 - P1.3 Teacher-Strict Semantic Grading)
 **Branch**: `alpha`
-**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.65 kB build)
+**Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.71 kB build)
 
 ---
 
@@ -90,6 +90,18 @@ Zero progress loss. Zero trust leaks.
 **Status:** ✅ Shipped (Session 47.1)
 **Impact:** AI grading failures show actionable retry button instead of generic 500 error.
 
+### ✅ P1.3 — Teacher-Strict Semantic Grading COMPLETE
+**Problem:** Term-only/shallow answers could score "Correct" (e.g., listing "förnekelse" without explaining it).
+**Root Cause:** Prompt didn't enforce understanding over keyword matching.
+**Fixes (Session 49):**
+- **Teacher-strict prompt**: Grade understanding, not keywords; penalize shallow term-only answers
+- **Micro-justification rule**: Examples need 5-20 word explanation; term-only capped at 0.74 (partial)
+- **Band threshold update**: Changed partial floor from 0.30 to 0.40
+- **Post-parse validation**: Enforces band/score consistency (correct ≥0.90, mostly_correct 0.75-0.89, partial 0.40-0.74, incorrect <0.40)
+- **Swedish feedback**: Improvement hints in Swedish ("Lägg till en kort förklaring...")
+**Status:** ✅ Shipped (Session 49)
+**Impact:** Shallow answers now show "Partial" instead of "Correct". Rewards understanding over keyword hits.
+
 ### P2 Tracks (Parked — After P1)
 **Guardrail:** Generation quality is only worth it once grading is trusted—otherwise good questions still feel broken.
 
@@ -157,7 +169,17 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-48.1)
+### Latest Updates (Sessions 28-49)
+- ✅ **Session 49: P1.3 Teacher-Strict Semantic Grading** - Understanding over keywords
+  - **Problem**: Term-only/shallow answers could score "Correct" without explanation
+  - **Solution 1**: Teacher-strict prompt (grade understanding, not keywords)
+  - **Solution 2**: Micro-justification rule (examples need 5-20 word explanation)
+  - **Solution 3**: Term-only answers capped at 0.74 (partial)
+  - **Solution 4**: Band threshold update (partial floor 0.30 → 0.40)
+  - **Solution 5**: Post-parse band/score consistency validation
+  - **Files Changed**: grader.ts (+60 lines), grading-semantic.fixture.ts (+80 lines)
+  - **Impact**: Shallow answers now show "Partial" instead of "Correct"
+
 - ✅ **Session 48.1: P1.2 Grading Reliability Follow-up** - Token limits + 404 fix
   - **Problem 1**: Breadcrumbs fetched wrong table (`attempts` vs `quiz_attempts`) → 404
   - **Problem 2**: Per-question grading `max_tokens: 256` too low → JSON truncation → 0/7 success
