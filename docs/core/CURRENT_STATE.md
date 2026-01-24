@@ -1,6 +1,6 @@
 # ChatGPA  Current State
 
-**Last Updated**: January 19, 2026 (Session 47.1 - P1.1 Grading Reliability Complete)
+**Last Updated**: January 24, 2026 (Session 48.1 - P1.2 Grading Reliability Follow-up)
 **Branch**: `alpha`
 **Build Status**: ✅ Passing (0 TypeScript errors in active code, 635.65 kB build)
 
@@ -157,7 +157,15 @@ Polish positioning + structure after the product loop feels premium and stable (
 - ✅ **Section 6b**: API Gateway consolidation (`/api/v1/*` structure)
 - ✅ **Section 7**: Theme System V2 with 3 presets (academic-dark, midnight-focus, academic-light)
 
-### Latest Updates (Sessions 28-47.1)
+### Latest Updates (Sessions 28-48.1)
+- ✅ **Session 48.1: P1.2 Grading Reliability Follow-up** - Token limits + 404 fix
+  - **Problem 1**: Breadcrumbs fetched wrong table (`attempts` vs `quiz_attempts`) → 404
+  - **Problem 2**: Per-question grading `max_tokens: 256` too low → JSON truncation → 0/7 success
+  - **Solution 1**: Fixed table name in Breadcrumbs.tsx
+  - **Solution 2**: Increased tokens to 512/768, stricter prompts, debug logging
+  - **Files Changed**: Breadcrumbs.tsx, grader.ts
+  - **Impact**: Grading should succeed ≥5/7, latency drops from ~38s to ~25s
+
 - ✅ **Session 47.1: P1.1 Grading Reliability - AI Output Hardening** - Parse failure recovery
   - **Problem**: AI semantic grading parse failures surfaced as 500 errors with no retry path
   - **Root Cause**: `json_object` mode doesn't enforce schema; model sometimes returns invalid JSON

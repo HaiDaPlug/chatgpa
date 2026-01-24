@@ -191,6 +191,14 @@ async function withConcurrencyLimit<T, R>(
 }
 
 // ✅ P1.2: Per-question AI grading with retry
+// ✅ P1.2.1: Increased token limits (512/768) to prevent truncation
+
+// Strict retry prompt - even more concise to avoid truncation
+const STRICT_RETRY_PROMPT = `Grade answer vs reference. Return ONLY JSON:
+{"score":N,"band":"X","why":"brief","improvements":[],"missing_terms":[],"misconception":null}
+Bands: correct(0.9-1), mostly_correct(0.75-0.89), partial(0.3-0.74), incorrect(0-0.29)
+No markdown.`;
+
 async function aiSemanticGradeSingle(
   question: ShortQ,
   userAnswer: string,
@@ -201,21 +209,11 @@ async function aiSemanticGradeSingle(
   const model = modelEnv("OPENAI_GRADE_MODEL", "gpt-4o-mini");
   const modelFamily = detectModelFamily(model);
 
-  const systemPrompt = `Grade this answer semantically against the reference.
-Return JSON: {
-  "score": number (0-1),
-  "band": "correct"|"mostly_correct"|"partial"|"incorrect",
-  "why": string (1 sentence max),
-  "improvements": string[] (max 2 items),
-  "missing_terms": string[] (max 3 terms),
-  "misconception": string|null
-}
+  const systemPrompt = `Grade this answer. Return ONLY this JSON:
+{"score":N,"band":"X","why":"1 sentence","improvements":["max 2"],"missing_terms":["max 3"],"misconception":null}
 
-Scoring:
-- 1.0: Perfect or near-perfect
-- 0.75-0.99: Correct concept, minor gaps
-- 0.30-0.74: Partial understanding
-- 0.0-0.29: Wrong or off-topic`;
+Bands: correct (0.90-1.0), mostly_correct (0.75-0.89), partial (0.30-0.74), incorrect (0-0.29)
+No markdown. No extra keys. No commentary.`;
 
   const userContent = JSON.stringify({
     q: question.prompt,
@@ -223,19 +221,22 @@ Scoring:
     ans: userAnswer,
   });
 
+  // Track raw output for debug logging
+  let lastRaw: string | undefined;
+
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const isRetry = attempt > 0;
+      // ✅ P1.2.1: 512 tokens first, 768 on retry to handle edge cases
+      const tokenLimit = isRetry ? 768 : 512;
 
       const res = await client.chat.completions.create({
         model,
-        ...buildOpenAIParams(modelFamily, 256, 0),
+        ...buildOpenAIParams(modelFamily, tokenLimit, 0),
         messages: [
           {
             role: "system",
-            content: isRetry
-              ? systemPrompt + "\n\nCRITICAL: Return ONLY valid JSON. No markdown."
-              : systemPrompt
+            content: isRetry ? STRICT_RETRY_PROMPT : systemPrompt
           },
           { role: "user", content: userContent },
         ],
@@ -252,6 +253,7 @@ Scoring:
       });
 
       let raw = res.choices[0]?.message?.content ?? "{}";
+      lastRaw = raw; // Capture for debug logging on failure
 
       if (raw.includes('```')) {
         raw = stripMarkdownFences(raw);
@@ -303,6 +305,12 @@ Scoring:
       }
 
       // Both attempts failed - return null for partial success
+      // ✅ P1.2.1: Debug logging for raw output (gated, truncated)
+      const shouldLogRaw = process.env.GRADING_DEBUG === '1';
+      const rawPreview = shouldLogRaw && lastRaw
+        ? (lastRaw.length > 4096 ? lastRaw.slice(0, 4096) + `...[truncated ${lastRaw.length}]` : lastRaw)
+        : undefined;
+
       console.warn(JSON.stringify({
         timestamp: new Date().toISOString(),
         level: 'warn',
@@ -311,6 +319,7 @@ Scoring:
         question_id: question.id,
         model,
         error: lastError.message,
+        ...(rawPreview && { raw_preview: rawPreview, raw_length: lastRaw?.length }),
         message: 'Per-question grading failed after retry, marking as Ungraded'
       }));
       return null;
